@@ -19,19 +19,19 @@
   --bg-surface:#1C222B;    /* inputs, sub-paneles, hover */
   /* Bordes */
   --border-subtle:#2A323D;
-  --border-active:#D99B26;
+  --border-active:#2EA043;
   /* Texto */
   --text-primary:#E6E8EB;
   --text-secondary:#8B949E;
   --text-muted:#8B949E;
   /* Acentos */
-  --accent-primary:#D99B26; --accent-hover:#B8811D;
-  --accent-steel:#4A7C9B;  /* barras de progreso y datos técnicos */
+  --accent-primary:#2EA043; --accent-hover:#238636;
+  --bar-fill:#2EA043; --bar-track:#1C222B;  /* barras de progreso */
   /* Estados */
-  --status-success:#2E7D5B; --status-danger:#B83A3A; --status-warn:#D99B26;
+  --status-success:#2E7D5B; --status-danger:#B83A3A; --status-warn:#2EA043;
   /* Recursos: iconos monocromáticos */
   --res-metal:#8B949E; --res-crystal:#8B949E; --res-deuterium:#2E7D5B;
-  --res-energy:#D99B26; --res-token:#D99B26;
+  --res-energy:#2EA043; --res-token:#2EA043;
   /* Tipografía */
   --font-sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -159,8 +159,8 @@ button,select,input{font-family:inherit}
 .mission{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-bottom:1px solid var(--border-subtle)}
 .mission:last-child{border-bottom:0}
 .mission-head{display:flex;justify-content:space-between;gap:12px;font-size:13px}
-.bar{height:4px;background:var(--bg-surface);border-radius:1px;overflow:hidden}
-.bar span{display:block;height:100%;width:0;background:var(--accent-steel);transition:width .3s}
+.bar{height:4px;background:var(--bar-track);border-radius:1px;overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--bar-fill);transition:width .3s}
 .mission-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px}
 .msg{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px 12px;font-size:13px}
 
@@ -208,6 +208,9 @@ button,select,input{font-family:inherit}
 .auth-tabs .btn.secondary{border-bottom-color:transparent;color:var(--text-secondary);font-weight:500}
 .auth-tabs .btn:hover:not(:disabled){background:transparent;color:var(--text-primary)}
 #auth-submit{height:40px;font-size:14px}
+.btn-quick{height:34px;width:100%;background:transparent;border:1px dashed var(--border-subtle);border-radius:var(--r);color:var(--text-secondary);font:500 12px var(--font-sans);letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-quick:hover{border-color:var(--accent-primary);color:var(--accent-primary)}
+.btn-quick:focus-visible{outline:1px solid var(--accent-primary);outline-offset:2px}
 .start-foot{font-size:12px!important;color:var(--text-secondary);margin:0;padding-top:14px;border-top:1px solid var(--border-subtle)}
 .btn.secondary{background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-subtle);font-weight:500}
 .btn.secondary:hover:not(:disabled){background:var(--bg-panel);border-color:var(--text-secondary)}
@@ -235,7 +238,7 @@ button,select,input{font-family:inherit}
   background:
     radial-gradient(circle at 34% 30%, rgba(230,232,235,.22), transparent 42%),
     repeating-linear-gradient(-18deg, rgba(0,0,0,0) 0 7px, rgba(11,13,16,.18) 7px 9px),
-    radial-gradient(circle at 40% 38%, #A8875A 0%, #6E5C45 45%, #3A3631 75%, #1C1F23 100%);
+    radial-gradient(circle at 40% 38%, #7E8C82 0%, #4F5E54 45%, #2E3531 75%, #1C1F23 100%);
   box-shadow:inset -14px -10px 22px rgba(11,13,16,.85), 0 0 0 1px var(--border-subtle)}
 .cc-planet-img::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:1px dashed rgba(139,148,158,.35)}
 .cc-planet-img svg{display:none}
@@ -299,6 +302,10 @@ button,select,input{font-family:inherit}
       <p id="auth-err" class="danger" style="margin:0;font-size:12px;min-height:16px"></p>
       <button class="btn" id="auth-submit" type="submit">Entrar</button>
     </form>
+    <button class="btn-quick" id="auth-quick" type="button" title="Entra con una cuenta de prueba sin registrarte">
+      <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 1.8 3.6 10.2h4.8l-.8 6 6.6-8.4H9.4z"/></svg>
+      Acceso rápido de prueba
+    </button>
     <p class="start-foot">Cada cuenta tiene su propia partida guardada en este navegador.</p>
   </section>
 </div>
@@ -3461,11 +3468,24 @@ async function submitAuth(){
   localStorage.setItem('forja-astral-session', key);
   location.reload();
 }
+/* Acceso rápido: cuenta local de prueba "Piloto_Prueba" (contraseña: prueba123) */
+async function quickAccess(){
+  const key = 'piloto_prueba';
+  const accounts = loadAccounts();
+  if (!accounts[key]){
+    const salt = newSalt();
+    accounts[key] = {name:'Piloto_Prueba', salt, hash:await hashPass(salt, 'prueba123'), created:Date.now(), test:true};
+    saveAccounts(accounts);
+  }
+  localStorage.setItem('forja-astral-session', key);
+  location.reload();
+}
 function initStart(){
   const scr = document.getElementById('start');
   document.getElementById('tab-login').addEventListener('click', () => setAuthMode('login'));
   document.getElementById('tab-reg').addEventListener('click', () => setAuthMode('register'));
   document.getElementById('auth-form').addEventListener('submit', e => { e.preventDefault(); submitAuth(); });
+  document.getElementById('auth-quick').addEventListener('click', quickAccess);
   const key = currentUser();
   const acc = key ? loadAccounts()[key] : null;
   if (acc){
