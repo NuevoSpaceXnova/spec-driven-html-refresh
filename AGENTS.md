@@ -28,3 +28,6 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- The game is a single self-contained HTML file at `public/forja-astral.html` (vanilla JS, localStorage saves); the `/` route only frames it full-screen. Why: keeps the original game logic intact while the app shell stays TanStack.
