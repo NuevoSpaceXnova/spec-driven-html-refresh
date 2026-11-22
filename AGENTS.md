@@ -31,3 +31,4 @@ use the editor.
 
 ## Project rules
 - The game is a single self-contained HTML file at `public/forja-astral.html` (vanilla JS, localStorage saves); the `/` route only frames it full-screen. Why: keeps the original game logic intact while the app shell stays TanStack.
+- Game images (start background, mine scenes) are Lovable Assets referenced by their `/__l5e/...` URL inside the HTML; standalone copies delivered to Files inline them as base64 so they work offline. Why: the app stays light while downloaded files remain self-contained.
