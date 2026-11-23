@@ -308,6 +308,27 @@ button,select,input{font-family:inherit}
 @media (max-width:767px){ .grid3{grid-template-columns:1fr} }
 /* Astillero: tarjetas de naves de 3 en 3 en escritorio */
 .ships-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* Flota: asistente de 3 pasos con miniaturas de naves */
+.fleet-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.fleet-steps{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
+.fleet-step{display:flex;align-items:center;gap:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--r);color:var(--text-secondary);padding:8px 12px;font:500 13px var(--font-sans);cursor:pointer}
+.fleet-step.active{border-color:var(--accent-primary);color:var(--text-primary)}
+.fleet-step.done .fleet-num{background:var(--accent-primary);color:var(--text-primary)}
+.fleet-num{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 11px var(--font-mono);background:var(--bg-app);border:1px solid var(--border-subtle)}
+.fleet-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.fleet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.fleet-ship{display:flex;gap:12px;align-items:center;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r-lg);padding:12px}
+.fleet-ship.picked{border-color:var(--accent-primary)}
+.fleet-thumb{width:112px;height:72px;flex:none;object-fit:contain;background:#06080C;border:1px solid var(--border-subtle);border-radius:var(--r)}
+.fleet-thumb-ico{display:grid;place-items:center}
+.fleet-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-secondary)}
+.fleet-info b{color:var(--text-primary);font-size:14px}
+.fleet-qty{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.fleet-qty .qty{width:72px}
+.fleet-nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
+.fleet-form{display:flex;flex-direction:column;gap:12px}
+.fleet-confirm{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+
 @media (max-width:1100px){ .ships-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:767px){ .ships-grid{grid-template-columns:1fr} }
 
@@ -923,7 +944,21 @@ function handleFase2Click(e){
       case 'res-cat': state.resCat = act.dataset.cat; render(); return;
       case 'subtab': state.shipTab = act.dataset.sub; render(); return;
       case 'build-cancel': cancelBuild(); return;
-      case 'send-fleet': launchFleet(); return;
+      case 'fleet-step': syncFleetDraft(); state.fleetStep = Number(act.dataset.step); render(); return;
+      case 'fleet-adj': fleetAdjust(act.dataset.k, Number(act.dataset.d) || 0, !!act.dataset.max); render(); return;
+      case 'fleet-all': fleetAll(act.dataset.mode); render(); return;
+      case 'send-fleet': {
+        syncFleetDraft();
+        const before = state.moves.length;
+        launchFleet();
+        if (state.moves.length > before){
+          const msg = (document.getElementById('status') || {}).textContent || '';
+          state.fleetDraft = null; state.fleetStep = 1;
+          render();
+          const st = document.getElementById('status'); if (st) st.textContent = msg;
+        }
+        return;
+      }
       case 'sim-moon': simMoonDebug(); return;
       case 'phalanx': phalanxScan(act.dataset.coords); return;
       case 'fleet-prefill': {
@@ -2672,20 +2707,54 @@ function processMission(m){
 
 /* ----- Despacho de flotas (pestaña Flota) ----- */
 function valOf(id){ const el = document.getElementById(id); return el ? el.value : ''; }
+/* ----- Pestaña Flota: asistente de 3 pasos (seleccionar naves, destino y misión, confirmar) ----- */
+const FLEET_STEPS = [[1,'Seleccionar naves'],[2,'Destino y misión'],[3,'Confirmar']];
+function fleetDraft(){
+  if (!state.fleetDraft){
+    const others = state.planets.map((x, i) => i).filter(i => i !== state.active);
+    state.fleetDraft = {sel:{}, g:state.galaxy.g, s:state.galaxy.s, p:1, mis:'attack', own:(others.length ? others[0] : 0), cargo:{metal:0, crystal:0, deut:0}};
+  }
+  return state.fleetDraft;
+}
+// Copia los valores de los campos visibles al borrador, para no perderlos al cambiar de paso
+function syncFleetDraft(){
+  const d = fleetDraft(), P = activePlanet();
+  document.querySelectorAll('[data-fq]').forEach(inp => {
+    const k = inp.dataset.fq;
+    d.sel[k] = Math.min(P.fleet[k] || 0, Math.max(0, Math.floor(Number(inp.value) || 0)));
+  });
+  const v = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  if (v('f-g') !== null) d.g = clampInt(v('f-g'), 1, 9);
+  if (v('f-s') !== null) d.s = clampInt(v('f-s'), 1, 499);
+  if (v('f-p') !== null) d.p = clampInt(v('f-p'), 1, 15);
+  if (v('f-mis') !== null) d.mis = v('f-mis') || 'attack';
+  if (v('f-own') !== null) d.own = Number(v('f-own'));
+  RES.forEach(r => { if (v('f-c-' + r) !== null) d.cargo[r] = Math.max(0, Math.floor(Number(v('f-c-' + r)) || 0)); });
+}
+function fleetAdjust(k, delta, max){
+  syncFleetDraft();
+  const d = fleetDraft(), have = activePlanet().fleet[k] || 0;
+  d.sel[k] = max ? have : Math.min(have, Math.max(0, (d.sel[k] || 0) + delta));
+}
+function fleetAll(mode){
+  syncFleetDraft();
+  const d = fleetDraft(), P = activePlanet();
+  MOVE_SHIPS.forEach(k => { d.sel[k] = mode === 'max' ? (P.fleet[k] || 0) : 0; });
+}
 function readFleetForm(){
-  const P = activePlanet();
+  const P = activePlanet(), d = fleetDraft();
   const sel = {};
   let total = 0;
   MOVE_SHIPS.forEach(k => {
-    const inp = document.querySelector('[data-fq="' + k + '"]');
-    const n = Math.min(P.fleet[k] || 0, Math.max(0, Math.floor(Number(inp && inp.value) || 0)));
+    const n = Math.min(P.fleet[k] || 0, Math.max(0, Math.floor(Number(d.sel[k]) || 0)));
     if (n > 0){ sel[k] = n; total += n; }
   });
   const cargo = {};
-  RES.forEach(r => { cargo[r] = Math.min(P.res[r] || 0, Math.max(0, Math.floor(Number(valOf('f-c-' + r)) || 0))); });
-  return {sel, total, g:clampInt(valOf('f-g'), 1, 9), s:clampInt(valOf('f-s'), 1, 499), p:clampInt(valOf('f-p'), 1, 15),
-          mis:valOf('f-mis') || 'attack', cargo, own:Number(valOf('f-own'))};
+  RES.forEach(r => { cargo[r] = Math.min(P.res[r] || 0, Math.max(0, Math.floor(Number(d.cargo[r]) || 0))); });
+  return {sel, total, g:d.g, s:d.s, p:d.p, mis:d.mis, cargo, own:Number(d.own)};
 }
+
+
 // Cálculo en tiempo real: capacidad, combustible, distancia y tiempo
 function fleetPlan(f){
   const P = activePlanet(), L = state.lvl;
@@ -2706,11 +2775,8 @@ function fleetPlan(f){
   const secs = jump ? 0 : travelSeconds(dist);
   return {cap, loadTotal, fuel, secs, dist, target};
 }
-function updateFleetCalc(){
-  const box = document.getElementById('fleet-calc');
-  if (!box) return;
-  const f = readFleetForm(), pl = fleetPlan(f);
-  box.innerHTML = `<div class="rows">
+function fleetCalcHTML(f, pl){
+  return `<div class="rows">
     <div><span>Naves seleccionadas</span><span>${fmt(f.total)}</span></div>
     <div><span>Capacidad de carga total</span><span>${fmt(pl.cap)}</span></div>
     <div><span>Carga asignada</span><span class="${pl.loadTotal > pl.cap ? 'tag-bad' : ''}">${fmt(pl.loadTotal)}</span></div>
@@ -2718,6 +2784,14 @@ function updateFleetCalc(){
     <div><span>Consumo de Deuterio (combustible)</span><span class="${pl.fuel + f.cargo.deut > state.res.deut ? 'tag-bad' : ''}">${fmt(pl.fuel)} de ${fmt(state.res.deut)}</span></div>
   </div>`;
 }
+function updateFleetCalc(){
+  const box = document.getElementById('fleet-calc');
+  if (!box) return;
+  const f = readFleetForm();
+  box.innerHTML = fleetCalcHTML(f, fleetPlan(f));
+}
+
+
 function launchFleet(){
   const f = readFleetForm(), P = activePlanet();
   if (f.total < 1) return setStatus('Selecciona al menos una nave en el hangar.', true);
@@ -3482,53 +3556,119 @@ function viewTree(){
 /* ----- Flota ----- */
 function viewFleet(){
   const P = activePlanet(), L = state.lvl;
-  const ff = state.fleetForm || {g:state.galaxy.g, s:state.galaxy.s, p:1, mis:'attack'};
-  state.fleetForm = null;
+  const d = fleetDraft();
+  if (state.fleetForm){
+    Object.assign(d, {g:state.fleetForm.g, s:state.fleetForm.s, p:state.fleetForm.p, mis:state.fleetForm.mis});
+    state.fleetForm = null;
+    state.fleetStep = 2;
+  }
+  const step = state.fleetStep || 1;
+  const f = readFleetForm(), pl = fleetPlan(f);
   const hasJump = P.moon && (L.jg || 0) >= 1;
   const misOpts = Object.keys(FLEET_MISSIONS).filter(m => m !== 'jump' || hasJump)
-    .map(m => `<option value="${m}" ${m === ff.mis ? 'selected' : ''}>${FLEET_MISSIONS[m]}</option>`).join('');
-  const shipRows = MOVE_SHIPS.map(k => `
-    <tr><td>${SHIPS[k].name}</td><td class="r mono-cell">${fmt(P.fleet[k] || 0)}</td><td class="r mono-cell">${fmt(SHIPS[k].cargo || 0)}</td>
-      <td class="r"><input class="qty" type="number" min="0" max="${P.fleet[k] || 0}" value="0" data-fq="${k}" aria-label="Cantidad de ${SHIPS[k].name}"></td></tr>`).join('');
-  const ownOpts = state.planets.map((x, i) => i === state.active ? '' : `<option value="${i}">${esc(x.name)}${x.moon ? ' (luna)' : ''}</option>`).join('');
+    .map(m => `<option value="${m}" ${m === d.mis ? 'selected' : ''}>${FLEET_MISSIONS[m]}</option>`).join('');
+  const ownOpts = state.planets.map((x, i) => i === state.active ? '' : `<option value="${i}" ${i === d.own ? 'selected' : ''}>${esc(x.name)}${x.moon ? ' (luna)' : ''}</option>`).join('');
+  const activeFleets = state.moves.filter(m => m.owner === 'own').length;
+  const have = MOVE_SHIPS.filter(k => (P.fleet[k] || 0) > 0);
+
+  const stepper = `<div class="fleet-steps">${FLEET_STEPS.map(([n, label]) =>
+    `<button class="fleet-step${n === step ? ' active' : ''}${n < step ? ' done' : ''}" data-action="fleet-step" data-step="${n}"><span class="fleet-num">${n}</span>${label}</button>`).join('')}</div>`;
+
+  const shipCards = have.map(k => {
+    const s = SHIPS[k], n = d.sel[k] || 0, cnt = P.fleet[k] || 0;
+    const thumb = SHIP_SCENE[k]
+      ? `<img class="fleet-thumb" src="/assets/${k}.webp" alt="" loading="lazy">`
+      : `<div class="fleet-thumb fleet-thumb-ico">${icon(s.icon)}</div>`;
+    return `<article class="fleet-ship${n > 0 ? ' picked' : ''}">
+      ${thumb}
+      <div class="fleet-info">
+        <b>${s.name}</b>
+        <span>Disponibles: <span class="mono-cell">${fmt(cnt)}</span></span>
+        <span>Carga: ${fmt(s.cargo || 0)}</span>
+        <div class="fleet-qty">
+          <button class="btn inline secondary" data-action="fleet-adj" data-k="${k}" data-d="-1">−</button>
+          <input class="qty" type="number" min="0" max="${cnt}" value="${n}" data-fq="${k}" aria-label="Cantidad de ${s.name}">
+          <button class="btn inline secondary" data-action="fleet-adj" data-k="${k}" data-d="1">+</button>
+          <button class="btn inline secondary" data-action="fleet-adj" data-k="${k}" data-max="1">MAX</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+
+  const step1 = `
+    <div class="fleet-bar">
+      <span class="badge">Naves seleccionadas: ${fmt(f.total)}</span>
+      <div class="inline-form">
+        <button class="btn inline secondary" data-action="fleet-all" data-mode="max" ${have.length ? '' : 'disabled'}>Max. todas</button>
+        <button class="btn inline secondary" data-action="fleet-all" data-mode="clear">Quitar todas</button>
+      </div>
+    </div>
+    ${have.length ? `<div class="fleet-grid">${shipCards}</div>` : '<div class="empty">Sin naves disponibles</div>'}
+    <div class="fleet-nav">
+      <span></span>
+      <button class="btn" data-action="fleet-step" data-step="2" ${f.total < 1 ? 'disabled' : ''}>Continuar</button>
+    </div>`;
+
+  const step2 = `
+    <div class="fleet-form">
+      <div class="inline-form">
+        <label class="field">Galaxia<input class="input" id="f-g" type="number" min="1" max="9" value="${d.g}" style="width:90px"></label>
+        <label class="field">Sistema<input class="input" id="f-s" type="number" min="1" max="499" value="${d.s}" style="width:110px"></label>
+        <label class="field">Posición<input class="input" id="f-p" type="number" min="1" max="15" value="${d.p}" style="width:90px"></label>
+      </div>
+      <label class="field">Misión<select class="select full" id="f-mis">${misOpts}</select></label>
+      <label class="field">Destino propio (Transportar, Desplegar${hasJump ? ', Salto Cuántico' : ''})<select class="select full" id="f-own">${ownOpts}</select></label>
+      <span class="field">Carga para Transportar</span>
+      <div class="inline-form">
+        <input class="input" id="f-c-metal" type="number" min="0" value="${d.cargo.metal}" placeholder="Metal" style="flex:1">
+        <input class="input" id="f-c-crystal" type="number" min="0" value="${d.cargo.crystal}" placeholder="Cristal" style="flex:1">
+        <input class="input" id="f-c-deut" type="number" min="0" value="${d.cargo.deut}" placeholder="Deuterio" style="flex:1">
+      </div>
+    </div>
+    <div class="fleet-nav">
+      <button class="btn inline secondary" data-action="fleet-step" data-step="1">Atrás</button>
+      <button class="btn" data-action="fleet-step" data-step="3">Continuar</button>
+    </div>`;
+
+  const shipsSummary = Object.keys(f.sel).map(k =>
+    `<div><span>${SHIPS[k].name}</span><span class="mono-cell">${fmt(f.sel[k])}</span></div>`).join('')
+    || '<div class="muted">No has seleccionado naves.</div>';
+  const targetTxt = pl.target || (state.planets[f.own] ? state.planets[f.own].name : '—');
+  const step3 = `
+    <div class="fleet-confirm">
+      <section class="panel pad">
+        <h2 class="section-title" style="margin-top:0">Naves</h2>
+        <div class="rows">${shipsSummary}</div>
+      </section>
+      <section class="panel pad">
+        <h2 class="section-title" style="margin-top:0">Misión</h2>
+        <div class="rows">
+          <div><span>Misión</span><span>${FLEET_MISSIONS[f.mis]}</span></div>
+          <div><span>Destino</span><span>${esc(String(targetTxt))}</span></div>
+        </div>
+        <div id="fleet-calc" style="margin-top:12px">${fleetCalcHTML(f, pl)}</div>
+      </section>
+    </div>
+    <div class="fleet-nav">
+      <button class="btn inline secondary" data-action="fleet-step" data-step="2">Atrás</button>
+      <button class="btn" data-action="send-fleet" ${f.total < 1 ? 'disabled' : ''}>Enviar Flota</button>
+    </div>`;
+
   const debrisRows = Object.keys(state.debris).filter(id => state.debris[id].metal + state.debris[id].crystal > 0).map(id => {
     const D = state.debris[id];
     return `<tr><td class="mono-cell">${id}</td><td class="r mono-cell">${fmt(D.metal)}</td><td class="r mono-cell">${fmt(D.crystal)}</td>
       <td class="r"><button class="btn inline" data-action="fleet-prefill" data-coords="${id}" data-mis="recycle">Reciclar</button></td></tr>`;
   }).join('') || '<tr><td colspan="4" class="muted">No hay campos de escombros.</td></tr>';
+
   return `
     <h1 class="page-title">Flota</h1>
     <p class="page-sub">Despacha naves desde ${esc(P.name)}. Los escombros solo se recogen con Naves Recicladoras.</p>
+    <div class="fleet-top"><span class="badge">Flotas activas: ${activeFleets}/${maxFleets()}</span></div>
     <p id="status" class="page-sub"></p>
-    <div class="market-grid">
-      <section class="panel pad">
-        <h2 class="section-title" style="margin-top:0">Naves en el hangar</h2>
-        <div style="overflow-x:auto"><table class="table">
-          <thead><tr><th>Nave</th><th class="r">Disponibles</th><th class="r">Carga</th><th class="r">Enviar</th></tr></thead>
-          <tbody>${shipRows}</tbody>
-        </table></div>
-      </section>
-      <section class="panel pad">
-        <h2 class="section-title" style="margin-top:0">Destino y misión</h2>
-        <div class="form-stack">
-          <div class="inline-form">
-            <label class="field">Galaxia<input class="input" id="f-g" type="number" min="1" max="9" value="${ff.g}" style="width:90px"></label>
-            <label class="field">Sistema<input class="input" id="f-s" type="number" min="1" max="499" value="${ff.s}" style="width:110px"></label>
-            <label class="field">Posición<input class="input" id="f-p" type="number" min="1" max="15" value="${ff.p}" style="width:90px"></label>
-          </div>
-          <label class="field">Misión<select class="select full" id="f-mis">${misOpts}</select></label>
-          <label class="field">Destino propio (Transportar, Desplegar${hasJump ? ', Salto Cuántico' : ''})<select class="select full" id="f-own">${ownOpts}</select></label>
-          <span class="field">Carga para Transportar</span>
-          <div class="inline-form">
-            <input class="input" id="f-c-metal" type="number" min="0" value="0" placeholder="Metal" style="flex:1">
-            <input class="input" id="f-c-crystal" type="number" min="0" value="0" placeholder="Cristal" style="flex:1">
-            <input class="input" id="f-c-deut" type="number" min="0" value="0" placeholder="Deuterio" style="flex:1">
-          </div>
-          <div id="fleet-calc"></div>
-          <button class="btn" data-action="send-fleet">Enviar Flota</button>
-        </div>
-      </section>
-    </div>
+    ${stepper}
+    <section class="panel pad">
+      ${step === 1 ? step1 : step === 2 ? step2 : step3}
+    </section>
     <section class="panel pad" style="margin-top:16px">
       <h2 class="section-title" style="margin-top:0">Campos de escombros</h2>
       <div style="overflow-x:auto"><table class="table">
@@ -4012,8 +4152,8 @@ viewEl.addEventListener('change', e => {
   if (e.target.dataset.prod) { state.prod[e.target.dataset.prod] = Number(e.target.value); refresh(); }
   if (e.target.id === 'cfg-file') readCfgFile(e.target.files[0]);
 });
-viewEl.addEventListener('input', () => { if (state.tab === 'fleet') updateFleetCalc(); });
-viewEl.addEventListener('change', e => { if (e.target.id === 'f-mis' || e.target.id === 'f-own') updateFleetCalc(); });
+viewEl.addEventListener('input', () => { if (state.tab === 'fleet'){ syncFleetDraft(); updateFleetCalc(); } });
+viewEl.addEventListener('change', e => { if (e.target.id === 'f-mis' || e.target.id === 'f-own'){ syncFleetDraft(); updateFleetCalc(); } });
 
 loadGame();
 ensureFase5();
