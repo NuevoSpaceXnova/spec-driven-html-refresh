@@ -1328,7 +1328,18 @@ function closeModal(){
 
 
 /* ============ MERCADO P2P ============ */
+function shipUnitValue(k){
+  const c = SHIPS[k].cost || {};
+  return (c.metal || 0) + (c.crystal || 0) + (c.deut || 0);
+}
+function randomShipOffer(){
+  const k = MOVE_SHIPS[Math.floor(Math.random() * MOVE_SHIPS.length)];
+  const qty = 1 + Math.floor(Math.random() * 25);
+  const price = Math.max(1, Math.round(qty * shipUnitValue(k) / 1000 * (0.7 + Math.random() * 0.4)));
+  return {id:'rs' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), owner:PLAYERS[Math.floor(Math.random() * PLAYERS.length)], kind:'ship', res:k, qty, price};
+}
 function randomOffer(){
+  if (Math.random() < 0.3) return randomShipOffer();
   const res = RES[Math.floor(Math.random() * RES.length)];
   const qty = Math.round((500 + Math.random() * 19500) / 100) * 100;
   const price = Math.max(1, Math.round(qty * (0.2 + Math.random() * 0.3)));
@@ -1337,23 +1348,27 @@ function randomOffer(){
 function ensureMarket(){
   if (!state.market.rivals || !state.market.rivals.length) state.market.rivals = Array.from({length:6}, () => randomOffer());
   if (!state.market.own) state.market.own = [];
+  if (!state.market.rivals.some(o => o.kind === 'ship')) {
+    state.market.rivals = state.market.rivals.slice(0, 4).concat([randomShipOffer(), randomShipOffer()]);
+  }
 }
 function renderBook(){
   const el = document.getElementById('book');
   if (!el) return;
   const M = mktState();
   const total = state.market.rivals.length + state.market.own.length;
-  let list = M.sub === 'own'
-    ? state.market.own.map(o => ({...o, mine:true}))
-    : state.market.rivals.map(o => ({...o, mine:false}));
-  if (M.filter !== 'all') list = list.filter(o => o.res === M.filter);
+  const mine = state.market.own.map(o => ({...o, mine:true}));
+  const others = state.market.rivals.map(o => ({...o, mine:false}));
+  let list = M.sub === 'own' ? mine : [...mine, ...others];
+  if (M.filter === 'ship') list = list.filter(o => o.kind === 'ship');
+  else if (M.filter !== 'all') list = list.filter(o => o.kind !== 'ship' && o.res === M.filter);
   const q = M.q.trim().toLowerCase();
   if (q) list = list.filter(o => mktName(o).toLowerCase().includes(q) || String(o.owner).toLowerCase().includes(q));
   if (M.sort === 'price') list = [...list].sort((a, b) => a.price - b.price);
   else if (M.sort === 'qty') list = [...list].sort((a, b) => b.qty - a.qty);
   else list = [...list].reverse();
   el.innerHTML = `<div class="mk-count">Mostrando ${fmt(list.length)} de ${fmt(total)} ofertas</div>` + (list.length
-    ? `<div class="mk-grid">${list.map(o => mktCardHTML(o, o.mine)).join('')}</div>`
+    ? `<div class="mk-grid">${list.map(o => mktCardHTML(o, o.mine, M.sub === 'own')).join('')}</div>`
     : `<div class="empty">${M.sub === 'own' ? 'No tienes ofertas publicadas.' : 'No hay ofertas que coincidan.'}</div>`);
   state.dirtyMarket = false;
 }
@@ -4269,7 +4284,7 @@ function mktState(){
 }
 const MK_ITEM = {metal:'mm', crystal:'mc', deut:'ds'};
 function mktName(o){ return o.kind === 'ship' ? SHIPS[o.res].name : RES_NAME[o.res]; }
-function mktCardHTML(o, mine){
+function mktCardHTML(o, mine, cancelable){
   const isShip = o.kind === 'ship';
   const item = isShip ? SHIPS[o.res] : (ITEMS[MK_ITEM[o.res]] || {icon:'cube'});
   const img = isShip ? `assets/${o.res}.webp` : RES_MINI_IMG[o.res];
@@ -4288,7 +4303,7 @@ function mktCardHTML(o, mine){
         <div><small>Precio (Tokens)</small><span>${fmt(o.price)}</span></div>
         <div><small>Por unidad</small><span>${unit.toFixed(3)}</span></div>
       </div>
-      ${mine ? `<button class="btn inline secondary" data-cancel="${o.id}">Cancelar</button>` : `
+      ${mine ? (cancelable ? `<button class="btn inline secondary" data-cancel="${o.id}">Cancelar</button>` : `<button class="btn inline secondary" disabled>Tu publicación</button>`) : `
       <div class="mk-buy">
         <label class="mk-qty"><small>Cantidad (máx. ${fmt(o.qty)})</small><input class="qty" type="number" min="1" max="${o.qty}" value="${o.qty}" data-mqty="${o.id}"></label>
         <div class="mk-total"><small>Costo</small><span data-mtotal="${o.id}">${fmt(o.price)}</span></div>
@@ -4317,7 +4332,7 @@ function viewMarket(){
   const subs = [['explore','Explorar'],['sell','Vender recursos'],['sellship','Vender naves'],['own','Mis listados']];
   const subBtns = subs.map(([id, l]) =>
     `<button class="btn inline${M.sub === id ? '' : ' secondary'}" data-action="mkt-sub" data-sub="${id}" ${M.sub === id ? 'disabled' : ''}>${l}</button>`).join('');
-  const filters = [['all','Todos'],['metal','Metal'],['crystal','Cristal'],['deut','Deuterio']].map(([id, l]) =>
+  const filters = [['all','Todos'],['metal','Metal'],['crystal','Cristal'],['deut','Deuterio'],['ship','Naves']].map(([id, l]) =>
     `<button class="btn inline${M.filter === id ? '' : ' secondary'}" data-action="mkt-filter" data-f="${id}" ${M.filter === id ? 'disabled' : ''}>${l}</button>`).join('');
   const sortOpts = [['recent','Más recientes'],['price','Precio: menor a mayor'],['qty','Cantidad: mayor a menor']]
     .map(([v, l]) => `<option value="${v}" ${M.sort === v ? 'selected' : ''}>${l}</option>`).join('');
