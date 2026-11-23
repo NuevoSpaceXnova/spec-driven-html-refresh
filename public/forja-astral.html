@@ -596,7 +596,7 @@ button,select,input{font-family:inherit}
   #notif-menu{grid-area:notif}
   #user-menu{grid-area:user}
   .layout{flex-direction:column}
-  .sidebar{position:fixed;left:0;right:auto;top:calc(100px + env(safe-area-inset-top));bottom:0;width:min(260px,85vw);height:auto;border-right:1px solid var(--border-subtle);border-top:0;padding:0 0 env(safe-area-inset-bottom);z-index:30;overflow:hidden;display:flex;flex-direction:column;box-shadow:6px 0 18px rgba(0,0,0,.35)}
+  .sidebar{position:fixed;left:0;right:auto;top:var(--topbar-h,166px);bottom:0;width:min(260px,85vw);height:auto;border-right:1px solid var(--border-subtle);border-top:0;padding:0 0 env(safe-area-inset-bottom);z-index:30;overflow:hidden;display:flex;flex-direction:column;box-shadow:6px 0 18px rgba(0,0,0,.35)}
   .sidebar nav{flex:1;min-width:0;min-height:0;flex-direction:column;gap:0;overflow-y:auto;scrollbar-width:thin}
   .mobile-nav-toggle{order:-1;display:flex;align-items:center;justify-content:flex-start;gap:8px;flex:none;width:100%;height:44px;padding:0 12px;border:0;border-bottom:1px solid var(--border-subtle);background:var(--bg-panel);color:var(--text-secondary);font:600 10px var(--font-title);cursor:pointer}
   .mobile-nav-toggle:focus-visible{outline:1px solid var(--accent-primary);outline-offset:-2px}
@@ -4889,6 +4889,7 @@ document.getElementById('nav').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
   if (!b) return;
   state.tab = b.dataset.tab;
+  if (window.matchMedia('(max-width:767px)').matches) setMobileNavCollapsed(true);
   render();
 });
 
@@ -4909,8 +4910,18 @@ function setMobileNavCollapsed(collapsed, persist = false){
     }
   }
 }
+// Altura real de la barra superior: el menú móvil empieza justo debajo de ella
+function syncTopbarH(){
+  const tb = document.querySelector('.topbar');
+  if (tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
+}
+syncTopbarH();
+window.addEventListener('resize', syncTopbarH);
+if (window.ResizeObserver) new ResizeObserver(syncTopbarH).observe(document.querySelector('.topbar'));
 try {
-  setMobileNavCollapsed(localStorage.getItem(MOBILE_NAV_KEY) === 'true');
+  // En móvil el menú empieza contraído; en escritorio la clase no tiene efecto
+  const savedNav = localStorage.getItem(MOBILE_NAV_KEY);
+  setMobileNavCollapsed(savedNav === null ? true : savedNav === 'true');
 } catch (err) {
   console.warn('No se pudo leer la preferencia del menú móvil.', err);
 }
