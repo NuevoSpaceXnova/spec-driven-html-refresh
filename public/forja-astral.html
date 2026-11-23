@@ -293,6 +293,8 @@ button,select,input{font-family:inherit}
 .mono-cell{font:500 13px var(--font-mono)}
 .modal-back{position:fixed;inset:0;background:rgba(11,13,16,.8);display:grid;place-items:center;z-index:50;padding:16px}
 .modal{background:var(--bg-panel);border:1px solid var(--border-subtle);border-top:2px solid var(--accent-primary);border-radius:var(--r);padding:20px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+.modal.modal-wide{max-width:min(980px,100%);max-height:calc(100vh - 32px);overflow:auto}
+.modal.modal-wide .rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}
 .modal h2{margin:0;font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .rows{display:flex;flex-direction:column;gap:6px;font:500 12px var(--font-mono);background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:12px}
 .rows>div{display:flex;justify-content:space-between;gap:12px}
@@ -1317,13 +1319,13 @@ function exploreFromInputs(){
   setStatus('Sistema ' + state.galaxy.g + ':' + state.galaxy.s + ' explorado.');
 }
 
-function openModal(title, body, meta){
+function openModal(title, body, meta, wide){
   closeModal();
   if (meta) pushInbox({kind:meta.kind, title, html:body, t:state.simSec, data:meta.data || null});
   const d = document.createElement('div');
   d.className = 'modal-back';
   d.id = 'modal';
-  d.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><h2 id="modal-title">${title}</h2>${body}<button class="btn" data-action="close-modal">Cerrar</button></div>`;
+  d.innerHTML = `<div class="modal${wide ? ' modal-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><h2 id="modal-title">${title}</h2>${body}<button class="btn" data-action="close-modal">Cerrar</button></div>`;
   d.addEventListener('click', e => { if (e.target === d) closeModal(); });
   document.body.appendChild(d);
 }
@@ -2051,7 +2053,7 @@ function openInbox(id){
   if (!m) return;
   m.read = true;
   render();
-  openModal(m.title, m.html);
+  openModal(m.title, m.html, null, true);
 }
 
 /* ============ OFICIALES, CLASE Y BILLETERA ============ */
