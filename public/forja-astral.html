@@ -384,6 +384,8 @@ button,select,input{font-family:inherit}
 .sm-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-items:start}
 .sm-stat{background:transparent;border:1px solid transparent;border-radius:var(--r);padding:4px 6px;text-align:center;display:flex;flex-direction:column;gap:0}
 .sm-stat small{font-size:11px;color:var(--text-muted)}
+.sm-ic{width:20px;height:20px;display:block;margin:0 auto 4px}
+.sm-ic svg{width:100%;height:100%;display:block}
 .sm-stat b{font:600 14px var(--font-mono);color:var(--text-primary)}
 .sm-table{overflow-x:visible}
 .sm-table table{width:100%}
@@ -3670,6 +3672,15 @@ function shipCard(id){
   </article>`;
 }
 /* ----- Ventana de nave: se abre al hacer clic en una tarjeta del astillero ----- */
+// Iconos de color para las estadísticas de la ventana de nave
+const SM_ICONS = {
+  attack:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2.5l8 3v6c0 4.6-3.3 8.4-8 10-4.7-1.6-8-5.4-8-10v-6z"/></svg>',
+  hull:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M12 8v8M8.5 10l3.5-2 3.5 2"/></svg>',
+  cargo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M2 6.5h12v9.5H2zM14 10h4l3 3.5V16h-7"/><circle cx="6" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>',
+  speed:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 16a9 9 0 1118 0"/><path d="M12 16l4.5-5"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>',
+  fuel:'<svg viewBox="0 0 24 24" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/></svg>'
+};
 function openShipModal(id, msg){
   const S = SHIPS[id];
   if (!S) return;
@@ -3679,12 +3690,12 @@ function openShipModal(id, msg){
   const ok = unitOk(id);
   const img = SHIP_SCENE[id] ? `<img class="sm-img" src="/assets/${id}.webp" alt="" onerror="this.remove()">` : '';
   const stats = S.noCombat ? '' : `<div class="sm-stats">
-      <div class="sm-stat"><small>Ataque</small><b>${fmt(S.a)}</b></div>
-      <div class="sm-stat"><small>Escudo</small><b>${fmt(S.sh)}</b></div>
-      <div class="sm-stat"><small>Estructura</small><b>${fmt(S.s)}</b></div>
-      <div class="sm-stat"><small>Carga</small><b>${fmt(S.cargo || 0)}</b></div>
-      ${S.defense ? '' : `<div class="sm-stat"><small>Velocidad</small><b>${fmt(shipSpeed(id))}/h</b></div>
-      <div class="sm-stat"><small>Combustible</small><b>${S.fuel ? fmt(S.fuel) : '—'}</b></div>`}
+      <div class="sm-stat"><span class="sm-ic" style="color:#FF5A4F">${SM_ICONS.attack}</span><small>Ataque</small><b>${fmt(S.a)}</b></div>
+      <div class="sm-stat"><span class="sm-ic" style="color:#4FB8FF">${SM_ICONS.shield}</span><small>Escudo</small><b>${fmt(S.sh)}</b></div>
+      <div class="sm-stat"><span class="sm-ic" style="color:#E0508C">${SM_ICONS.hull}</span><small>Estructura</small><b>${fmt(S.s)}</b></div>
+      <div class="sm-stat"><span class="sm-ic" style="color:#5CE08A">${SM_ICONS.cargo}</span><small>Carga</small><b>${fmt(S.cargo || 0)}</b></div>
+      ${S.defense ? '' : `<div class="sm-stat"><span class="sm-ic" style="color:#F5C451">${SM_ICONS.speed}</span><small>Velocidad</small><b>${fmt(shipSpeed(id))}/h</b></div>
+      <div class="sm-stat"><span class="sm-ic" style="color:#4FD1C5">${SM_ICONS.fuel}</span><small>Combustible</small><b>${S.fuel ? fmt(S.fuel) : '—'}</b></div>`}
     </div>`;
   const costs = RES.filter(r => S.cost[r]).map(r =>
     `<div class="sm-stat"><small>${RES_NAME[r]}</small><b>${fmt(S.cost[r])}</b></div>`).join('') || '<div class="sm-stat"><small>Costo</small><b>Gratis</b></div>';
