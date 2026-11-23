@@ -386,6 +386,8 @@ button,select,input{font-family:inherit}
 .sm-head{display:flex;flex-direction:row;gap:18px;align-items:center;padding:16px 18px;background:#06080C;border-bottom:1px solid var(--border-subtle)}
 .sm-media{flex:none;width:260px;height:130px;display:grid;place-items:center}
 .sm-img{max-width:100%;max-height:130px;object-fit:contain}
+.sm-media-scene{width:340px;height:auto}
+.sm-img-scene{width:100%;max-height:none;height:auto;border-radius:6px}
 .sm-ico{width:72px;height:72px;display:grid;place-items:center;color:var(--accent-text)}
 .sm-ico svg{width:64px;height:64px}
 .sm-title{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
@@ -4201,7 +4203,8 @@ function openShipModal(id, msg){
   const have = state.fleet[id] || 0;
   const reqs = unitReqs(id);
   const ok = unitOk(id);
-  const img = SHIP_SCENE[id] ? `<img class="sm-img" src="/assets/${shipFile(id)}.webp" alt="" onerror="this.remove()">` : '';
+  const scene = !!SCENE_IMG[id];
+  const img = scene ? `<img class="sm-img sm-img-scene" src="${SCENE_IMG[id]}" alt="">` : (SHIP_SCENE[id] ? `<img class="sm-img" src="/assets/${shipFile(id)}.webp" alt="" onerror="this.remove()">` : '');
   const stats = S.noCombat ? '' : `<div class="sm-stats">
       <div class="sm-stat"><span class="sm-ic" style="color:#FF5A4F">${SM_ICONS.attack}</span><small>Ataque</small><b>${fmt(S.a)}</b></div>
       <div class="sm-stat"><span class="sm-ic" style="color:#4FB8FF">${SM_ICONS.shield}</span><small>Escudo</small><b>${fmt(S.sh)}</b></div>
@@ -4220,7 +4223,7 @@ function openShipModal(id, msg){
   }).join('');
   box.innerHTML = `
     <div class="sm-head">
-      <div class="sm-media">${img}${img ? '' : `<div class="sm-ico">${icon(S.icon)}</div>`}</div>
+      <div class="sm-media${scene ? ' sm-media-scene' : ''}">${img}${img ? '' : `<div class="sm-ico">${icon(S.icon)}</div>`}</div>
       <div class="sm-title">
         <h2 id="sm-title">${S.name}</h2>
         <p class="muted">${S.desc}</p>
