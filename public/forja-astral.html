@@ -388,6 +388,12 @@ button,select,input{font-family:inherit}
 .sm-build .qty{width:110px}
 .sm-msg{margin:0;font-size:12px;color:var(--text-secondary);min-height:16px;text-align:right}
 .card[data-info]{cursor:pointer}
+.shipq-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
+.shipq-row:last-child{border-bottom:0}
+.shipq-info{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--text-primary)}
+.shipq-bar{grid-column:1;height:6px;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:3px;overflow:hidden}
+.shipq-bar span{display:block;height:100%;background:var(--accent-primary)}
+.shipq-row .btn{grid-column:2;grid-row:1 / span 2}
 .card[data-info]:hover{border-color:#3A4452}
 
 
@@ -1010,6 +1016,7 @@ function handleFase2Click(e){
       case 'res-cat': state.resCat = act.dataset.cat; render(); return;
       case 'subtab': state.shipTab = act.dataset.sub; render(); return;
       case 'build-cancel': cancelBuild(); return;
+      case 'ship-cancel': cancelShipItem(Number(act.dataset.i)); return;
       case 'fleet-step': syncFleetDraft(); state.fleetStep = Number(act.dataset.step); render(); return;
       case 'fleet-adj': fleetAdjust(act.dataset.k, Number(act.dataset.d) || 0, !!act.dataset.max); render(); return;
       case 'fleet-all': fleetAll(act.dataset.mode); render(); return;
@@ -2330,6 +2337,11 @@ function cancelBuild(){
 // Completa las construcciones cuyo tiempo simulado ha pasado, en todos los planetas y lunas
 function processQueues(){
   state.planets.forEach(P => {
+    while (P.shipQueue && P.shipQueue.length && state.simSec >= P.shipQueue[0].end){
+      const it = P.shipQueue.shift();
+      P.fleet[it.id] = (P.fleet[it.id] || 0) + it.n;
+      setStatus('Naves terminadas: ' + it.n + ' × ' + SHIPS[it.id].name + '.');
+    }
     const q = P.queue;
     if (!q || state.simSec < q.end) return;
     P.lvl[q.id] = (P.lvl[q.id] || 0) + 1;
@@ -2984,11 +2996,25 @@ function simDataOf(p){
 
 /* ----- Construcción de naves y defensas ----- */
 function unitOk(id){ return reqOk(unitReqs(id)); }
+// Datos de prueba de velocidad (unidades por hora de vuelo); reemplazar por los valores de diseño
+const SHIP_SPEED_TEST = {cz:12500, ch:10000, nc:7500, ng:7500, cr:15000, bt:10000, ac:6000, bm:4000, de:9000, dr:5000, rc:2000, sp:100000, co:2500};
+function shipSpeed(id){ return SHIP_SPEED_TEST[id] != null ? SHIP_SPEED_TEST[id] : 5000; }
+// Tiempo de construcción simulado: proporcional al costo y más corto con un Astillero mayor
+function shipBuildSeconds(id, n){
+  const S = SHIPS[id];
+  const unit = ((S.cost.metal || 0) + (S.cost.crystal || 0)) / (0.7 * (1 + 0.5 * ((state.lvl.sy || 1) - 1)));
+  return Math.max(10, Math.round(unit)) * n;
+}
+function durHMS(sec){
+  sec = Math.max(0, Math.floor(sec));
+  return [Math.floor(sec / 3600), Math.floor(sec % 3600 / 60), sec % 60].map(v => String(v).padStart(2, '0')).join(':');
+}
 function buildShips(id, qtyOverride){
   const inp = document.querySelector('[data-qty="' + id + '"]');
   const q = Math.max(1, Math.floor(Number(qtyOverride != null ? qtyOverride : (inp && inp.value)) || 1));
   if (inp) inp.value = q;
   const S = SHIPS[id];
+  const P = activePlanet();
   if (state.lvl.sy < 1) return setStatus('Necesitas un Astillero Naval de nivel 1 o superior.', true);
   if (!unitOk(id)) return setStatus('Requisitos no cumplidos: ' + reqText(unitReqs(id)) + '.', true);
   if (id === 'mi'){
@@ -2998,11 +3024,42 @@ function buildShips(id, qtyOverride){
   const need = {metal:(S.cost.metal || 0) * q, crystal:(S.cost.crystal || 0) * q, deut:(S.cost.deut || 0) * q};
   if (!RES.every(r => state.res[r] >= need[r])) return setStatus('Recursos insuficientes para construir ' + q + ' × ' + S.name + '.', true);
   RES.forEach(r => { state.res[r] -= need[r]; });
-  state.fleet[id] = (state.fleet[id] || 0) + q;
   state.spent += need.metal + need.crystal + need.deut;
+  // Cola por planeta: cada orden empieza cuando termina la anterior
+  const queue = P.shipQueue || (P.shipQueue = []);
+  const start = queue.length ? queue[queue.length - 1].end : state.simSec;
+  const total = shipBuildSeconds(id, q);
+  queue.push({id, n:q, start, end:start + total, total});
   bumpMission('ships', q);
-  setStatus('Construidas ' + q + ' × ' + S.name + '.');
+  setStatus('En cola: ' + q + ' × ' + S.name + ' · ' + durHMS(start + total - state.simSec) + ' restantes.');
   refresh();
+}
+// Cancela una orden de la cola y reembolsa sus recursos; las siguientes se adelantan
+function cancelShipItem(i){
+  const P = activePlanet(), sq = P.shipQueue || [];
+  const it = sq[i];
+  if (!it) return;
+  const S = SHIPS[it.id];
+  RES.forEach(r => { state.res[r] += (S.cost[r] || 0) * it.n; });
+  state.spent -= ((S.cost.metal || 0) + (S.cost.crystal || 0) + (S.cost.deut || 0)) * it.n;
+  sq.splice(i, 1);
+  let t = i > 0 ? sq[i - 1].end : state.simSec;
+  for (let j = i; j < sq.length; j++){ sq[j].start = t; sq[j].end = t + sq[j].total; t = sq[j].end; }
+  setStatus('Construcción cancelada. Recursos reembolsados.');
+  refresh();
+}
+function shipQueueHTML(){
+  const sq = activePlanet().shipQueue || [];
+  if (!sq.length) return '<div class="empty">No hay naves en construcción.</div>';
+  return sq.map((it, i) => {
+    const rem = Math.max(0, it.end - state.simSec);
+    const pct = it.total ? Math.min(100, Math.max(0, (state.simSec - it.start) / it.total * 100)) : 100;
+    return `<div class="shipq-row">
+      <div class="shipq-info"><b>${it.n} × ${SHIPS[it.id].name}</b><span class="mono-cell">${durHMS(rem)}</span></div>
+      <div class="shipq-bar"><span style="width:${pct.toFixed(1)}%"></span></div>
+      <button class="btn inline secondary" data-action="ship-cancel" data-i="${i}">Cancelar</button>
+    </div>`;
+  }).join('');
 }
 
 function loadFleetToSim(){
@@ -3619,11 +3676,13 @@ function openShipModal(id, msg){
       <div class="sm-stat"><small>Escudo</small><b>${fmt(S.sh)}</b></div>
       <div class="sm-stat"><small>Estructura</small><b>${fmt(S.s)}</b></div>
       <div class="sm-stat"><small>Carga</small><b>${fmt(S.cargo || 0)}</b></div>
+      ${S.defense ? '' : `<div class="sm-stat"><small>Velocidad</small><b>${fmt(shipSpeed(id))}/h</b></div>
+      <div class="sm-stat"><small>Combustible por viaje</small><b>${S.fuel ? fmt(S.fuel) : '—'}</b></div>`}
     </div>`;
   const costs = RES.filter(r => S.cost[r]).map(r =>
     `<div class="sm-stat"><small>${RES_NAME[r]}</small><b>${fmt(S.cost[r])}</b></div>`).join('') || '<div class="sm-stat"><small>Costo</small><b>Gratis</b></div>';
   const qtys = [1, 5, 10, 50, 100, 500, 1000];
-  const qtyRows = qtys.map(n => `<tr><td>${fmt(n)}</td>${RES.map(r => `<td class="r mono-cell">${fmt((S.cost[r] || 0) * n)}</td>`).join('')}</tr>`).join('');
+  const qtyRows = qtys.map(n => `<tr><td>${fmt(n)}</td>${RES.map(r => `<td class="r mono-cell">${fmt((S.cost[r] || 0) * n)}</td>`).join('')}<td class="r mono-cell">${durHMS(shipBuildSeconds(id, n))}</td></tr>`).join('');
   const reqList = Object.keys(reqs).map(k => {
     const met = (state.lvl[k] || 0) >= reqs[k];
     return `<div class="${met ? 'tag-ok' : 'tag-bad'}">${met ? '✓' : '✗'} ${nameOf(k)} Nivel ${reqs[k]}</div>`;
@@ -3646,9 +3705,10 @@ function openShipModal(id, msg){
       <div class="cost">${reqList || '<span class="muted">Sin requisitos</span>'}</div>
       <h3 class="sm-sub">Costo según cantidad</h3>
       <div class="sm-table"><table class="table">
-        <thead><tr><th>Cantidad</th>${RES.map(r => `<th class="r">${RES_NAME[r]}</th>`).join('')}</tr></thead>
+        <thead><tr><th>Cantidad</th>${RES.map(r => `<th class="r">${RES_NAME[r]}</th>`).join('')}<th class="r">Tiempo</th></tr></thead>
         <tbody>${qtyRows}</tbody>
       </table></div>
+      <p class="muted" style="margin:0;font-size:12px">Tiempo por unidad: ${durHMS(shipBuildSeconds(id, 1))}. Las naves se construyen en cola y llegan al hangar al terminar.</p>
       <div class="sm-build">
         <input class="qty" type="number" min="1" value="1" data-mqty aria-label="Cantidad a construir">
         <button class="btn" data-mbuild="${id}" ${ok ? '' : 'disabled'}>Construir</button>
@@ -3693,6 +3753,10 @@ function viewShipyard(){
       <button class="btn inline" data-action="subtab" data-sub="hangar" ${tab === 'hangar' ? 'disabled' : ''}>Hangar de Naves</button>
       <button class="btn inline" data-action="subtab" data-sub="defense" ${tab === 'defense' ? 'disabled' : ''}>Defensas Planetarias</button>
     </div>
+    <section class="panel pad" style="margin-bottom:16px">
+      <h2 class="section-title" style="margin-top:0">Cola de construcción de naves</h2>
+      <div id="shipq">${shipQueueHTML()}</div>
+    </section>
     <div class="grid ships-grid">${keys.map(shipCard).join('')}</div>`;
 }
 
@@ -4069,6 +4133,8 @@ function refresh(){
     row.classList.toggle('lack', state.res[r] < c[r]);
   });
   refreshBuildButtons();
+  const shq = document.getElementById('shipq');
+  if (shq) shq.innerHTML = shipQueueHTML();
 }
 
 // Estados dependientes de cantidades e input del astillero y de la pestaña Flota
