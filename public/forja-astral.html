@@ -1363,7 +1363,7 @@ function renderBook(){
   if (M.filter === 'ship') list = list.filter(o => o.kind === 'ship');
   else if (M.filter !== 'all') list = list.filter(o => o.kind !== 'ship' && o.res === M.filter);
   const q = M.q.trim().toLowerCase();
-  if (q) list = list.filter(o => mktName(o).toLowerCase().includes(q) || String(o.owner).toLowerCase().includes(q));
+  if (q) list = list.filter(o => mktName(o).toLowerCase().includes(q));
   if (M.sort === 'price') list = [...list].sort((a, b) => a.price - b.price);
   else if (M.sort === 'qty') list = [...list].sort((a, b) => b.qty - a.qty);
   else list = [...list].reverse();
@@ -4298,7 +4298,6 @@ function mktCardHTML(o, mine, cancelable){
     </div>
     <div class="mk-body">
       <b>${mktName(o)}</b>
-      <span class="mk-seller">Vendedor: ${esc(o.owner)}</span>
       <div class="mk-price">
         <div><small>Precio (Tokens)</small><span>${fmt(o.price)}</span></div>
         <div><small>Por unidad</small><span>${unit.toFixed(3)}</span></div>
@@ -4350,7 +4349,7 @@ function viewMarket(){
     </section>`;
   const explore = `
     <div class="mk-toolbar">
-      <input class="input" id="mk-q" type="search" placeholder="Buscar por recurso o vendedor…" value="${esc(M.q)}">
+      <input class="input" id="mk-q" type="search" placeholder="Buscar por recurso o nave…" value="${esc(M.q)}">
       <select class="select" id="mk-sort" aria-label="Ordenar">${sortOpts}</select>
     </div>
     <div class="mk-filters">${filters}</div>
