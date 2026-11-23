@@ -403,6 +403,17 @@ button,select,input{font-family:inherit}
 .shipq-bar{grid-column:1;height:6px;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:3px;overflow:hidden}
 .shipq-bar span{display:block;height:100%;background:var(--accent-primary)}
 .shipq-row .btn{grid-column:2;grid-row:1 / span 2}
+/* Tarjetas de naves: estadísticas con iconos, requisitos y estado bloqueado */
+.sc-stats{display:flex;flex-wrap:wrap;gap:6px 14px;font:500 12px var(--font-mono);color:var(--text-primary)}
+.sc-stats span{display:inline-flex;align-items:center;gap:5px}
+.sc-ic{width:14px;height:14px;display:inline-block;flex:none}
+.sc-ic svg{width:100%;height:100%;display:block}
+.sc-req{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.sc-req-title{font-size:12px;color:var(--text-secondary)}
+.sc-lock{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#E0703A;padding:4px 0}
+.sc-lock svg{width:14px;height:14px}
+.ship-scene.is-locked .ship-float img,.card:hover .ship-scene.is-locked .ship-float img{filter:grayscale(1) brightness(.4) contrast(1.05)}
+.ship-scene.is-locked .ship-float .eng,.ship-scene.is-locked .ship-float .fx{display:none}
 @media (max-width:760px){ .sm-body{grid-template-columns:1fr} .sm-media{width:140px} }
 
 
@@ -3122,12 +3133,12 @@ const SHIP_SCENE = {
 };
 // Luces de navegación verdes en los extremos de cada nave
 const NAV_LIGHTS = [[8,50],[92,50]].map(([x, y], i) => fxEl('fx-blink', x, y, `--c:#5CFF8A;--s:4px;--d:1.5s;--dl:${i * .7}s`)).join('');
-function shipSceneHTML(id){
+function shipSceneHTML(id, locked){
   const c = SHIP_SCENE[id]; if (!c) return '';
   const src = `/assets/${id}.webp`;
   const w = Math.min(86, 66 * c.ar / 1.5).toFixed(1);
   const eng = c.e.map(([x, y, s], i) => `<i class="eng" style="left:${x}%;top:${y}%;--s:${s}px;animation-delay:0s,${(i*.25).toFixed(2)}s"></i>`).join('');
-  return `<div class="scene ship-scene" aria-hidden="true">
+  return `<div class="scene ship-scene${locked ? ' is-locked' : ''}" aria-hidden="true">
       <div class="hangar"><i class="hangar-beam" style="left:18%"></i><i class="hangar-beam" style="left:62%;animation-delay:-4s"></i><i class="hangar-grid"></i></div>
       <div class="ship-float" style="width:${w}%">${eng}<img src="${src}" alt="" loading="lazy"><i class="ship-scan" style="--m:url('${src}')"></i>${NAV_LIGHTS}${c.fx().join('')}</div>
       <span class="scene-tag">${c.tag}</span>
@@ -3643,32 +3654,35 @@ function viewResearch(){
 /* ----- Astillero: Hangar de Naves y Defensas Planetarias ----- */
 function shipCard(id){
   const s = SHIPS[id];
-  const rows = RES.filter(r => s.cost[r]).map(r =>
-    `<div class="cost-row" data-shiprow="${id}|${r}"><span>${RES_NAME[r]}</span><span>${fmt(s.cost[r])}</span></div>`).join('');
+  const locked = !unitOk(id);
+  const ic = (k, color) => `<span class="sc-ic" style="color:${color}">${SM_ICONS[k]}</span>`;
   const st = [];
-  if (!s.noCombat){ st.push(['Ataque', s.a], ['Escudo', s.sh], ['Estructura', s.s]); }
-  if (s.cargo) st.push(['Capacidad de carga', s.cargo]);
-  if (s.fuel) st.push(['Combustible por viaje', s.fuel]);
-  if (id === 'sat') st.push(['Energía por satélite', 5]);
-  if (id === 'mi') st.push(['Capacidad del Silo', 10]);
-  const stats = st.map(([l, v]) => `<div class="stat-line">${l}: <b>${fmt(v)}</b></div>`).join('');
-  const reqs = reqLine(unitReqs(id));
+  if (!s.noCombat) st.push(ic('attack', '#FF5A4F') + fmt(s.a), ic('shield', '#4FB8FF') + fmt(s.sh), ic('hull', '#E0508C') + fmt(s.s));
+  if (s.cargo) st.push(ic('cargo', '#5CE08A') + fmt(s.cargo));
+  if (!s.defense) st.push(ic('speed', '#F5C451') + fmt(shipSpeed(id)));
+  if (s.fuel && !s.defense) st.push(ic('fuel', '#4FD1C5') + fmt(s.fuel));
+  const stats = st.length ? `<div class="sc-stats">${st.map(x => `<span>${x}</span>`).join('')}</div>` : '';
+  const lockIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>';
+  const foot = locked
+    ? `<div class="sc-lock">${lockIco} Bloqueada</div>`
+    : `<div class="inline-form">
+        <input class="qty" type="number" min="1" value="1" data-qty="${id}" aria-label="Cantidad a construir">
+        <button class="btn" data-ship="${id}">Construir</button>
+      </div>`;
   return `
   <article class="card" data-info="${id}">
     <div class="card-head">
       <div class="icon-box">${icon(s.icon)}</div>
       <div class="card-title">${s.name}</div>
-      <span class="badge">${s.defense ? 'En planeta' : 'En hangar'}: <span data-bind="hangar:${id}"></span></span>
+      <span class="badge">${s.defense ? 'En planeta' : 'Tienes'} <span data-bind="hangar:${id}"></span></span>
     </div>
-    ${shipSceneHTML(id)}
-    <p class="desc">${s.desc}</p>
+    ${shipSceneHTML(id, locked)}
     ${stats}
-    ${reqs}
-    <div class="cost">${rows}</div>
-    <div class="inline-form">
-      <input class="qty" type="number" min="1" value="1" data-qty="${id}" aria-label="Cantidad a construir">
-      <button class="btn" data-ship="${id}">Construir</button>
+    <div class="cost sc-req">
+      <span class="sc-req-title">Requisitos</span>
+      ${reqChecklist(id)}
     </div>
+    ${foot}
   </article>`;
 }
 /* ----- Ventana de nave: se abre al hacer clic en una tarjeta del astillero ----- */
