@@ -14,7 +14,7 @@
   --bg-app:#0B0D10; --bg-panel:#0E1220; --bg-surface:#151C2B;
   --border-subtle:#1E2A44; --border-active:#2F63D1;
   --text-primary:#FFFFFF; --text-secondary:#D4DCED; --text-muted:#A8B5D1;
-  --accent-primary:#2450C5; --accent-hover:#3266E0; --accent-text:#8FB4FF; --accent-glow:rgba(36,80,197,.45);
+  --accent-primary:#2450C5; --accent-hover:#3266E0; --accent-text:#8FB4FF;
   --up:#3DF08F; --down:#FF4444;
   --font-sans:'Rajdhani',sans-serif; --font-title:'Orbitron',sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -26,25 +26,25 @@ body{background:radial-gradient(ellipse at top,#131a33 0%,var(--bg-app) 60%);col
 button,input,select{font-family:inherit}
 
 /* Cabecera */
-.top{position:sticky;top:0;z-index:5;height:56px;display:flex;align-items:center;gap:18px;padding:0 20px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle);flex-wrap:wrap}
+.top{position:sticky;top:0;z-index:5;min-height:56px;display:flex;align-items:center;gap:18px;padding:8px 20px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle);flex-wrap:wrap}
 .top a.back{color:var(--accent-text);text-decoration:none;font:600 12px var(--font-title);letter-spacing:.08em}
 .top a.back:hover{color:var(--text-primary)}
 .top h1{margin:0;font:600 15px var(--font-title);letter-spacing:.1em}
-.bal{margin-left:auto;display:flex;gap:16px;font:500 12px var(--font-mono);color:var(--text-secondary);flex-wrap:wrap}
+.bal{margin-left:auto;display:flex;gap:14px;font:500 12px var(--font-mono);color:var(--text-secondary);flex-wrap:wrap}
 .bal b{color:var(--text-primary);font-weight:600}
 .tag{font:500 10px var(--font-mono);color:var(--text-muted);border:1px solid var(--border-subtle);border-radius:2px;padding:2px 6px;text-transform:uppercase;letter-spacing:.1em}
 
 /* Rejilla */
-.wrap{display:grid;grid-template-columns:210px minmax(0,1fr) 300px;gap:14px;padding:14px;max-width:1400px;margin:0 auto}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr) 320px;gap:14px;padding:14px;max-width:1440px;margin:0 auto}
 .panel{background:linear-gradient(rgba(6,8,12,.5),rgba(6,8,12,.6)),var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r);padding:14px;min-width:0}
 .panel h3{margin:0 0 10px;font:600 11px var(--font-title);letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary)}
-.pairs{grid-column:1;grid-row:1 / span 2;align-self:start}
+.pairs{grid-column:1;grid-row:1 / span 2;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
 .chart{grid-column:2;grid-row:1}
 .hist{grid-column:2;grid-row:2}
-.swapbox{grid-column:3;grid-row:1 / span 2;align-self:start}
+.side{grid-column:3;grid-row:1 / span 2;align-self:start;display:flex;flex-direction:column;gap:14px}
 
 /* Mercados */
-.pair{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r);padding:8px 10px;color:var(--text-primary);cursor:pointer;text-align:left}
+.pair{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r);padding:7px 9px;color:var(--text-primary);cursor:pointer;text-align:left}
 .pair:hover{background:rgba(36,80,197,.18)}
 .pair.active{background:var(--bg-surface);border-color:var(--border-active)}
 .pair .nm{font:600 14px var(--font-sans);letter-spacing:.04em}
@@ -64,7 +64,7 @@ button,input,select{font-family:inherit}
 .ohlc{font:500 11px var(--font-mono);color:var(--text-muted);margin-bottom:6px;min-height:16px;display:flex;gap:12px;flex-wrap:wrap}
 .ohlc b{color:var(--text-primary);font-weight:500}
 #cv{display:block;width:100%;height:380px;cursor:crosshair;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-app)}
-.foot{margin-top:8px;font:500 10px var(--font-mono);color:var(--text-muted);letter-spacing:.04em}
+.foot{margin-top:8px;font:500 10px var(--font-mono);color:var(--text-muted);letter-spacing:.04em;line-height:1.5}
 
 /* Historial */
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -73,6 +73,16 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 .mono{font-family:var(--font-mono);font-size:12px}
 .r{text-align:right}
 .empty{color:var(--text-muted);padding:12px 10px}
+
+/* Billeteras */
+.wlist{display:flex;flex-direction:column;gap:6px}
+.wbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px 10px;color:var(--text-primary);cursor:pointer;font:600 13px var(--font-sans)}
+.wbtn:hover:not(:disabled){border-color:var(--border-active)}
+.wbtn small{font:500 10px var(--font-mono);color:var(--text-muted)}
+.wbtn:disabled{cursor:not-allowed;opacity:.6}
+.wconn{font:500 12px var(--font-mono);color:var(--text-secondary);word-break:break-all;margin-bottom:8px}
+.wconn b{color:var(--up);font-weight:600}
+.link{background:none;border:0;color:var(--accent-text);font:500 12px var(--font-mono);cursor:pointer;padding:0;text-decoration:underline}
 
 /* Swap */
 .field{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
@@ -95,18 +105,17 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 .msg.bad{color:var(--down)}
 .msg.ok{color:var(--up)}
 
-@media (max-width:1040px){
-  .wrap{grid-template-columns:minmax(0,1fr) 300px}
-  .pairs{grid-column:1 / -1;grid-row:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:4px}
+@media (max-width:1100px){
+  .wrap{grid-template-columns:minmax(0,1fr) 320px}
+  .pairs{grid-column:1 / -1;grid-row:auto;max-height:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px}
   .pairs h3{grid-column:1 / -1}
   .chart{grid-column:1;grid-row:auto}
-  .swapbox{grid-column:2;grid-row:auto}
+  .side{grid-column:2;grid-row:auto}
   .hist{grid-column:1 / -1;grid-row:auto}
 }
 @media (max-width:720px){
   .wrap{grid-template-columns:minmax(0,1fr);padding:10px}
-  .chart,.swapbox,.hist{grid-column:1}
-  .swapbox{order:-1}
+  .chart,.side,.hist{grid-column:1}
   #cv{height:300px}
   .bal{margin-left:0;width:100%}
   .tfs{margin-left:0}
@@ -123,7 +132,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 
 <div class="wrap">
   <aside class="panel pairs">
-    <h3>Mercados</h3>
+    <h3>Mercados · BNB Chain</h3>
     <div id="pairList"></div>
   </aside>
 
@@ -139,29 +148,36 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
     <div class="foot">Precios generados en el navegador para la demo. Para precios reales, sustituir genPath() por datos de una API de mercado.</div>
   </section>
 
-  <section class="panel swapbox">
-    <h3>Intercambio</h3>
-    <div class="field">
-      <label for="fromA">Desde</label>
-      <div class="row">
-        <select class="sel" id="fromA"></select>
-        <input class="amt" id="fromAmt" type="number" min="0" step="1" placeholder="0">
+  <div class="side">
+    <section class="panel">
+      <h3>Billetera</h3>
+      <div id="walletBox"></div>
+    </section>
+
+    <section class="panel">
+      <h3>Intercambio</h3>
+      <div class="field">
+        <label for="fromA">Desde</label>
+        <div class="row">
+          <select class="sel" id="fromA"></select>
+          <input class="amt" id="fromAmt" type="number" min="0" step="any" placeholder="0">
+        </div>
+        <small id="fromBal"></small>
       </div>
-      <small id="fromBal"></small>
-    </div>
-    <button class="flip" id="flip" type="button" aria-label="Invertir par">⇅</button>
-    <div class="field">
-      <label for="toA">Hacia</label>
-      <div class="row">
-        <select class="sel" id="toA"></select>
-        <input class="amt" id="toAmt" type="text" readonly value="">
+      <button class="flip" id="flip" type="button" aria-label="Invertir par">⇅</button>
+      <div class="field">
+        <label for="toA">Hacia</label>
+        <div class="row">
+          <select class="sel" id="toA"></select>
+          <input class="amt" id="toAmt" type="text" readonly value="">
+        </div>
+        <small id="toBal"></small>
       </div>
-      <small id="toBal"></small>
-    </div>
-    <div class="rates" id="rates"></div>
-    <button class="btn" id="doSwap" type="button">Intercambiar</button>
-    <p class="msg" id="msg"></p>
-  </section>
+      <div class="rates" id="rates"></div>
+      <button class="btn" id="doSwap" type="button">Intercambiar</button>
+      <p class="msg" id="msg"></p>
+    </section>
+  </div>
 
   <section class="panel hist">
     <h3>Operaciones de swap</h3>
@@ -170,57 +186,66 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 </div>
 
 <script>
-/* ============ CONFIGURACIÓN ============ */
-const FEE = 0.003;                       // comisión del swap (0,3 %)
-const N_MIN = 43200;                     // 30 días de velas de 1 minuto (datos ficticios)
-const TF = {                              // temporalidades
-  '1m': {size:1,    show:120, label:'1m'},
-  '1h': {size:60,   show:120, label:'1H'},
-  '1d': {size:1440, show:30,  label:'1D'}
+/* ==========================================================================
+   CONFIGURACIÓN PARA LA INTEGRACIÓN OFICIAL
+   - contract: dirección del token en BNB Smart Chain. Pendiente: completar
+     desde BscScan o la fuente oficial cuando el token se liste.
+   - Las direcciones de las criptos también quedan en null hasta verificarlas
+     en una fuente oficial. No se inventan aquí.
+   ========================================================================== */
+const CHAIN = {
+  name:'BNB Smart Chain', chainId:56, hex:'0x38',
+  rpc:['https://bsc-dataseed.binance.org/'],
+  explorer:'https://bscscan.com', currency:{name:'BNB', symbol:'BNB', decimals:18}
 };
-// Mercados de la gráfica. start = precio inicial ficticio, vol = volatilidad por minuto.
-const PAIRS = [
-  {id:'TOKEN', name:'TOKEN / USDT',  start:0.80,   vol:0.0015, sub:'Token del juego'},
-  {id:'BNB',   name:'BNB / USDT',    start:600,    vol:0.0008, sub:'BNB Chain'},
-  {id:'SOL',   name:'SOL / USDT',    start:150,    vol:0.0012, sub:'Solana'},
-  {id:'MATIC', name:'MATIC / USDT',  start:0.55,   vol:0.0018, sub:'Polygon'}
+const TOKEN = {sym:'TOKEN', name:'Token Forja Astral', contract:null, decimals:18, inGame:true, start:0.80, vol:0.0015};
+const CRYPTOS = [
+  {sym:'USDT',  name:'Tether USD',    start:1,      vol:0.00002, stable:true, contract:null},
+  {sym:'USDC',  name:'USD Coin',      start:1,      vol:0.00002, stable:true, contract:null},
+  {sym:'BNB',   name:'BNB',           start:600,    vol:0.0008,  contract:null},
+  {sym:'BTCB',  name:'Bitcoin (BTCB)',start:65000,  vol:0.0006,  contract:null},
+  {sym:'ETH',   name:'Ethereum',      start:3200,   vol:0.0009,  contract:null},
+  {sym:'CAKE',  name:'PancakeSwap',   start:2.5,    vol:0.0016,  contract:null},
+  {sym:'XRP',   name:'XRP',           start:0.6,    vol:0.0013,  contract:null},
+  {sym:'ADA',   name:'Cardano',       start:0.45,   vol:0.0014,  contract:null},
+  {sym:'DOGE',  name:'Dogecoin',      start:0.15,   vol:0.0018,  contract:null},
+  {sym:'LINK',  name:'Chainlink',     start:14,     vol:0.0013,  contract:null},
+  {sym:'DOT',   name:'Polkadot',      start:6.5,    vol:0.0013,  contract:null},
+  {sym:'LTC',   name:'Litecoin',      start:80,     vol:0.0011,  contract:null},
+  {sym:'TRX',   name:'TRON',          start:0.13,   vol:0.0009,  contract:null},
+  {sym:'UNI',   name:'Uniswap',       start:8,      vol:0.0015,  contract:null},
+  {sym:'MATIC', name:'Polygon',       start:0.55,   vol:0.0018,  contract:null}
 ];
-// Activos intercambiables dentro del juego. usdt = precio de referencia en USDT.
-const ASSETS = [
-  {id:'token', label:'Token',     key:'token', usdt:()=>lastPrice('TOKEN')},
-  {id:'metal', label:'Metal',     key:'metal', usdt:()=>0.05},
-  {id:'crystal', label:'Cristal', key:'crystal', usdt:()=>0.08},
-  {id:'deut',  label:'Deuterio',  key:'deut',  usdt:()=>0.20}
-];
-const ASSET_LABEL = Object.fromEntries(ASSETS.map(a => [a.id, a.label]));
+const FEE = 0.003;                              // comisión del swap (0,3 %)
+const N_MIN = 43200;                            // 30 días de velas de 1 minuto (ficticias)
+const TF = {'1m':{size:1,show:120,label:'1m'}, '1h':{size:60,show:120,label:'1H'}, '1d':{size:1440,show:30,label:'1D'}};
+const ALL = [TOKEN, ...CRYPTOS];                // todos los activos del swap
+const PAIRS = ALL.filter(a => a.sym !== 'USDT');// mercados graficados contra USDT
+const BY = Object.fromEntries(ALL.map(a => [a.sym, a]));
 
-/* ============ DATOS FICTICIOS ============ */
+/* ============ DATOS FICTICIOS (reemplazar por API real) ============ */
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function hashStr(s){ let h=2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
 function gauss(r){ let u=0; while(u===0) u=r(); const v=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
-
 const T0 = Math.floor(Date.now()/1000) - N_MIN*60;
 const paths = {};
-function genPath(p){
-  const r = mulberry32(hashStr(p.id));
+function genPath(a){
+  const r = mulberry32(hashStr(a.sym));
   const out = new Array(N_MIN);
-  let cur = p.start;
+  let cur = a.start;
   for (let i=0;i<N_MIN;i++){
     const o = cur;
-    const c = Math.max(o*(1+gauss(r)*p.vol), 1e-6);
-    const wick = Math.abs(gauss(r))*p.vol*0.5;
-    const h = Math.max(o,c)*(1+wick);
-    const l = Math.max(Math.min(o,c)*(1-wick), 1e-6);
-    out[i] = {t:T0+i*60, o, h, l, c, v:100+r()*900};
+    const c = Math.max(o*(1+gauss(r)*a.vol), 1e-8);
+    const wick = Math.abs(gauss(r))*a.vol*0.5;
+    out[i] = {t:T0+i*60, o, h:Math.max(o,c)*(1+wick), l:Math.max(Math.min(o,c)*(1-wick),1e-8), c, v:100+r()*900};
     cur = c;
   }
   return out;
 }
-PAIRS.forEach(p => paths[p.id] = genPath(p));
+ALL.forEach(a => { if (a.sym!=='USDT') paths[a.sym] = genPath(a); });
 
-// Agrupa velas de 1 minuto en la temporalidad pedida
-function candles(pairId, tf){
-  const size = TF[tf].size, path = paths[pairId], out = [];
+function candles(sym, tf){
+  const size = TF[tf].size, path = paths[sym], out = [];
   for (let i=0;i<path.length;i+=size){
     const end = Math.min(i+size, path.length);
     let h=-Infinity, l=Infinity, v=0;
@@ -229,63 +254,117 @@ function candles(pairId, tf){
   }
   return out;
 }
-function lastPrice(pairId){ const p = paths[pairId]; return p[p.length-1].c; }
-function changeFor(pairId){
-  const p = paths[pairId]; const now = p[p.length-1].c;
-  const prev = p[Math.max(0, p.length-1440)].o;
+// Precio en USDT de cualquier activo
+function usdt(sym){ if (sym==='USDT') return 1; const p = paths[sym]; return p[p.length-1].c; }
+function changeFor(sym){
+  if (sym==='USDT') return 0;
+  const p = paths[sym]; const now = p[p.length-1].c, prev = p[Math.max(0,p.length-1440)].o;
   return (now-prev)/prev;
 }
-// Simula movimiento en vivo cambiando solo la última vela de 1 minuto
+// Movimiento en vivo: cambia solo la última vela de 1 minuto
 setInterval(() => {
-  PAIRS.forEach(p => {
-    const last = paths[p.id][N_MIN-1];
-    const nc = Math.max(last.c*(1+gauss(Math.random)*p.vol*0.25), 1e-6);
-    last.c = nc;
-    if (nc>last.h) last.h = nc;
-    if (nc<last.l) last.l = nc;
+  PAIRS.forEach(a => {
+    const last = paths[a.sym][N_MIN-1];
+    const nc = Math.max(last.c*(1+gauss(Math.random)*a.vol*0.25), 1e-8);
+    last.c = nc; if (nc>last.h) last.h = nc; if (nc<last.l) last.l = nc;
   });
-  refreshMarket();
+  refreshAll();
 }, 2000);
 
-/* ============ ESTADO ============ */
-let cur = 'TOKEN';
-let tf = '1m';
-let hover = null;
-
-function fmtPrice(v){ return v>=100 ? v.toLocaleString('es-ES',{maximumFractionDigits:2,minimumFractionDigits:2}) : v.toFixed(v<1?4:2); }
-function fmt(n){ return Math.floor(n||0).toLocaleString('es-ES'); }
-// Mismo formato de reloj que el juego: "Día N · HH:MM"
+/* ============ FORMATO ============ */
+function fmtPrice(v){ return v>=100 ? v.toLocaleString('es-ES',{maximumFractionDigits:2,minimumFractionDigits:2}) : v>=1 ? v.toFixed(3) : v.toFixed(v<0.01?6:4); }
+function fmtAmt(n){ const x = Number(n)||0; return x>=1000 ? x.toLocaleString('es-ES',{maximumFractionDigits:2}) : x>=1 ? x.toLocaleString('es-ES',{maximumFractionDigits:4}) : x.toFixed(6); }
 function fmtClock(t){
-  const s = Math.floor(t||0);
-  const day = Math.floor(s/86400)+1, hh = Math.floor((s%86400)/3600), mm = Math.floor((s%3600)/60);
+  const s = Math.floor(t||0), day = Math.floor(s/86400)+1, hh = Math.floor((s%86400)/3600), mm = Math.floor((s%3600)/60);
   return 'Día ' + day + ' · ' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
 }
 function fmtTime(t, frame){
   const d = new Date(t*1000);
-  return frame==='1d'
-    ? d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'})
-    : d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  return frame==='1d' ? d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}) : d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+function short(a){ return a ? a.slice(0,6) + '…' + a.slice(-4) : ''; }
+
+/* ============ PARTIDA DEL JUEGO Y SALDOS DEMO ============ */
+function userSuffix(){ try { return localStorage.getItem('forja-astral-session') || ''; } catch(e){ return ''; } }
+function sessionKey(){ const u = userSuffix(); return u ? 'forja-astral-save-v2:' + u : 'forja-astral-save-v2'; }
+function demoKey(){ const u = userSuffix(); return 'forja-astral-swap-demo' + (u ? ':' + u : ''); }
+function readSave(){ try { const raw = localStorage.getItem(sessionKey()); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
+function planetOf(d){ return d ? ((d.planets||[])[d.active||0] || (d.planets||[])[0] || null) : null; }
+// Saldos demo de criptos (no tocan la partida del juego). Empiezan con 500 USDT ficticios.
+function readDemo(){
+  try { const raw = localStorage.getItem(demoKey()); if (raw) return JSON.parse(raw); } catch(e){}
+  return {bal:{USDT:500}, hist:[]};
+}
+function writeDemo(x){ localStorage.setItem(demoKey(), JSON.stringify(x)); }
+
+function balanceOf(sym, d, demo){
+  if (sym==='TOKEN'){ const P = planetOf(d); return P ? (P.res.token||0) : 0; }
+  return (demo.bal[sym]||0);
 }
 
-/* ============ PARTIDA GUARDADA (misma clave que el juego) ============ */
-function sessionKey(){
-  let u = ''; try { u = localStorage.getItem('forja-astral-session') || ''; } catch(e){}
-  return u ? 'forja-astral-save-v2:' + u : 'forja-astral-save-v2';
-}
-function readSave(){
-  try { const raw = localStorage.getItem(sessionKey()); return raw ? JSON.parse(raw) : null; }
-  catch(e){ return null; }
-}
-function planetOf(d){ return (d.planets||[])[d.active||0] || (d.planets||[])[0] || null; }
+/* ============ BILLETERAS (preparadas para integración) ============
+   EVM (MetaMask, Ronin, Trust, etc.): EIP-6963 para detectar cada extensión por separado.
+   Solana (Solflare, Phantom): proveedores inyectados. Ronin también expone window.ronin.
+   Aquí solo se conecta y se cambia la red. Las transacciones on-chain quedan pendientes. */
+const evmProviders = new Map();
+window.addEventListener('eip6963:announceProvider', e => { evmProviders.set(e.detail.info.uuid, e.detail); renderWallet(); });
+window.dispatchEvent(new Event('eip6963:requestProvider'));
 
-/* ============ RENDER ============ */
+let wallet = null;     // {kind:'evm'|'sol', name, address, provider}
+
+function detectWallets(){
+  const list = [];
+  evmProviders.forEach(d => list.push({id:'evm:'+d.info.uuid, kind:'evm', name:d.info.name, provider:d.provider, note:'EVM · BNB Chain'}));
+  if (!evmProviders.size && window.ethereum) list.push({id:'evm:injected', kind:'evm', name:'Wallet inyectada', provider:window.ethereum, note:'EVM · BNB Chain'});
+  if (window.ronin && window.ronin.provider) list.push({id:'evm:ronin', kind:'evm', name:'Ronin Wallet', provider:window.ronin.provider, note:'EVM · Red Ronin (cambiar a BNB)'});
+  if (window.solflare && window.solflare.isSolflare) list.push({id:'sol:solflare', kind:'sol', name:'Solflare', provider:window.solflare, note:'Solana · no es BNB Chain'});
+  if (window.phantom && window.phantom.solana) list.push({id:'sol:phantom', kind:'sol', name:'Phantom', provider:window.phantom.solana, note:'Solana · no es BNB Chain'});
+  return list;
+}
+async function ensureBsc(p){
+  const cur = await p.request({method:'eth_chainId'});
+  if (cur === CHAIN.hex) return true;
+  try { await p.request({method:'wallet_switchEthereumChain', params:[{chainId:CHAIN.hex}]}); return true; }
+  catch (err){
+    if (err && err.code === 4902){
+      await p.request({method:'wallet_addEthereumChain', params:[{chainId:CHAIN.hex, chainName:CHAIN.name, nativeCurrency:CHAIN.currency, rpcUrls:CHAIN.rpc, blockExplorerUrls:[CHAIN.explorer]}]});
+      return true;
+    }
+    throw err;
+  }
+}
+async function connectWallet(id){
+  const w = detectWallets().find(x => x.id === id);
+  if (!w) return setMsg('Esa billetera ya no está disponible. Revisa que la extensión esté activa.', 'bad');
+  try {
+    if (w.kind === 'evm'){
+      const acc = await w.provider.request({method:'eth_requestAccounts'});
+      if (!acc || !acc[0]) throw new Error('Sin cuenta');
+      if (!w.note.includes('Ronin')) await ensureBsc(w.provider);
+      wallet = {kind:'evm', name:w.name, address:acc[0], provider:w.provider};
+    } else {
+      const res = await w.provider.connect();
+      wallet = {kind:'sol', name:w.name, address:res.publicKey.toString(), provider:w.provider};
+    }
+    setMsg('Conectado con ' + wallet.name + '.', 'ok');
+  } catch (err){
+    setMsg('No se pudo conectar: ' + ((err && err.message) || 'cancelado'), 'bad');
+  }
+  renderWallet();
+}
+function disconnectWallet(){ wallet = null; setMsg('Billetera desconectada.'); renderWallet(); }
+
+/* ============ ESTADO Y RENDER ============ */
+let cur = 'TOKEN';
+let tf = '1m';
+let hover = null;
+
 function renderPairs(){
-  const el = document.getElementById('pairList');
-  el.innerHTML = PAIRS.map(p => {
-    const ch = changeFor(p.id);
-    return `<button class="pair${p.id===cur?' active':''}" data-pair="${p.id}" type="button">
-      <span><span class="nm">${p.name}</span><br><span class="sub">${p.sub}</span></span>
-      <span><span class="px">${fmtPrice(lastPrice(p.id))}</span><br><span class="chg ${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)}%</span></span>
+  document.getElementById('pairList').innerHTML = PAIRS.map(a => {
+    const ch = changeFor(a.sym);
+    return `<button class="pair${a.sym===cur?' active':''}" data-pair="${a.sym}" type="button">
+      <span><span class="nm">${a.sym} / USDT</span><br><span class="sub">${a.inGame ? 'Token del juego' : a.name}</span></span>
+      <span><span class="px">${fmtPrice(usdt(a.sym))}</span><br><span class="chg ${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)}%</span></span>
     </button>`;
   }).join('');
 }
@@ -293,13 +372,11 @@ function renderTfs(){
   document.getElementById('tfs').innerHTML = Object.keys(TF).map(k =>
     `<button class="tf${k===tf?' active':''}" data-tf="${k}" type="button">${TF[k].label}</button>`).join('');
 }
-function visible(){ const all = candles(cur, tf); return all.slice(-TF[tf].show); }
-
+function visible(){ return candles(cur, tf).slice(-TF[tf].show); }
 function renderHeader(){
-  const p = PAIRS.find(x => x.id===cur);
   const ch = changeFor(cur);
-  document.getElementById('pName').textContent = p.name;
-  document.getElementById('pPrice').textContent = fmtPrice(lastPrice(cur));
+  document.getElementById('pName').textContent = cur + ' / USDT';
+  document.getElementById('pPrice').textContent = fmtPrice(usdt(cur));
   const chg = document.getElementById('pChg');
   chg.textContent = (ch>=0?'+':'') + (ch*100).toFixed(2) + '% (24 h)';
   chg.className = 'chg ' + (ch>=0?'up':'down');
@@ -309,9 +386,8 @@ function renderOhlc(){
   const data = visible(); if (!data.length) return;
   const c = (hover!=null && data[hover]) ? data[hover] : data[data.length-1];
   document.getElementById('ohlc').innerHTML =
-    `<span>${fmtTime(c.t, tf)}</span><span>A <b>${fmtPrice(c.o)}</b></span><span>M <b>${fmtPrice(c.h)}</b></span><span>m <b>${fmtPrice(c.l)}</b></span><span>C <b>${fmtPrice(c.c)}</b></span><span>Vol <b>${fmt(c.v)}</b></span>`;
+    `<span>${fmtTime(c.t, tf)}</span><span>A <b>${fmtPrice(c.o)}</b></span><span>M <b>${fmtPrice(c.h)}</b></span><span>m <b>${fmtPrice(c.l)}</b></span><span>C <b>${fmtPrice(c.c)}</b></span><span>Vol <b>${fmtAmt(c.v)}</b></span>`;
 }
-
 function drawChart(){
   const cv = document.getElementById('cv');
   const dpr = window.devicePixelRatio || 1;
@@ -340,17 +416,15 @@ function drawChart(){
     ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
     ctx.fillText(fmtPrice(v), W-padR+8, y+4);
   }
-
   const step = pw/data.length, bw = Math.max(2, step*0.6);
   data.forEach((c,i) => {
-    const x = padL+(i+0.5)*step, up = c.c>=c.o, col = up ? '#3DF08F' : '#FF4444';
+    const x = padL+(i+0.5)*step, col = c.c>=c.o ? '#3DF08F' : '#FF4444';
     ctx.strokeStyle = col;
     ctx.beginPath(); ctx.moveTo(Math.round(x)+0.5, Y(c.h)); ctx.lineTo(Math.round(x)+0.5, Y(c.l)); ctx.stroke();
     const yo = Y(c.o), yc = Y(c.c);
     ctx.fillStyle = col;
     ctx.fillRect(x-bw/2, Math.min(yo,yc), bw, Math.max(1, Math.abs(yc-yo)));
   });
-
   const every = Math.max(1, Math.floor(data.length/6));
   ctx.fillStyle = '#A8B5D1';
   data.forEach((c,i) => { if (i%every===0) ctx.fillText(fmtTime(c.t, tf), padL+(i+0.5)*step-18, H-7); });
@@ -362,7 +436,6 @@ function drawChart(){
   ctx.setLineDash([]);
   ctx.fillStyle = lc; ctx.fillRect(W-padR+2, yl-9, padR-4, 18);
   ctx.fillStyle = '#06080C'; ctx.fillText(fmtPrice(last.c), W-padR+6, yl+4);
-
   if (hover!=null && hover<data.length){
     const x = Math.round(padL+(hover+0.5)*step)+0.5;
     ctx.strokeStyle = 'rgba(143,180,255,.6)'; ctx.setLineDash([3,3]);
@@ -371,85 +444,100 @@ function drawChart(){
   }
 }
 
-function renderBalances(d){
-  const bal = document.getElementById('bal');
-  const P = d ? planetOf(d) : null;
-  if (!P){ bal.innerHTML = '<span>Sin partida guardada. Abre el juego e inicia sesión.</span>'; return; }
-  bal.innerHTML = ASSETS.map(a => `<span>${a.label} <b>${fmt(P.res[a.key])}</b></span>`).join('');
+function renderBalances(d, demo){
+  const items = ALL.map(a => ({sym:a.sym, v:balanceOf(a.sym, d, demo)})).filter(x => x.v > 0 || x.sym==='TOKEN');
+  const aviso = d ? '' : '<span>Sin partida guardada: abre el juego e inicia sesión para usar TOKEN.</span>';
+  document.getElementById('bal').innerHTML = aviso + items.map(x => `<span>${x.sym} <b>${fmtAmt(x.v)}</b></span>`).join('');
+}
+function renderWallet(){
+  const box = document.getElementById('walletBox');
+  if (wallet){
+    box.innerHTML = `<div class="wconn">Conectado · ${wallet.name}<br><b>${short(wallet.address)}</b></div>
+      <button class="btn" type="button" id="wDisc" style="height:34px;font-size:11px">Desconectar</button>`;
+    document.getElementById('wDisc').onclick = disconnectWallet;
+    return;
+  }
+  const list = detectWallets();
+  const body = list.length
+    ? list.map(w => `<button class="wbtn" type="button" data-wallet="${w.id}"><span>${w.name}</span><small>${w.note}</small></button>`).join('')
+    : '<p class="empty" style="padding:0">No se detectó ninguna billetera. Instala MetaMask, Solflare, Phantom o Ronin Wallet y recarga la página.</p>';
+  box.innerHTML = `<div class="wlist">${body}</div>
+    <p class="foot" style="margin-top:10px">Conexión preparada. Las transacciones on-chain del token se activarán con la integración oficial.</p>`;
 }
 
-function quote(from, to, amt){
-  return amt * ASSETS.find(a=>a.id===from).usdt() / ASSETS.find(a=>a.id===to).usdt() * (1-FEE);
-}
-function renderSwapForm(d){
+function quote(from, to, amt){ return amt * usdt(from) / usdt(to) * (1-FEE); }
+function renderSwapForm(d, demo){
   const fromSel = document.getElementById('fromA'), toSel = document.getElementById('toA');
   if (!fromSel.options.length){
-    const opts = ASSETS.map(a => `<option value="${a.id}">${a.label}</option>`).join('');
+    const opts = ALL.map(a => `<option value="${a.sym}">${a.sym}</option>`).join('');
     fromSel.innerHTML = opts; toSel.innerHTML = opts;
-    fromSel.value = 'token'; toSel.value = 'metal';
+    fromSel.value = 'TOKEN'; toSel.value = 'USDT';
   }
-  const P = d ? planetOf(d) : null;
   const from = fromSel.value, to = toSel.value;
-  document.getElementById('fromBal').textContent = P ? 'Disponible: ' + fmt(P.res[from]) : '';
-  document.getElementById('toBal').textContent = P ? 'Saldo actual: ' + fmt(P.res[to]) : '';
-  const amt = Math.floor(Number(document.getElementById('fromAmt').value) || 0);
-  const out = amt>0 && from!==to ? Math.floor(quote(from,to,amt)) : 0;
-  document.getElementById('toAmt').value = out ? fmt(out) : '';
+  document.getElementById('fromBal').textContent = 'Disponible: ' + fmtAmt(balanceOf(from, d, demo));
+  document.getElementById('toBal').textContent = 'Saldo actual: ' + fmtAmt(balanceOf(to, d, demo));
+  const amt = Number(document.getElementById('fromAmt').value) || 0;
+  const out = amt>0 && from!==to ? quote(from,to,amt) : 0;
+  document.getElementById('toAmt').value = out ? fmtAmt(out) : '';
   const rate = from===to ? 1 : quote(from,to,1)/(1-FEE);
-  document.getElementById('rates').innerHTML =
-    from===to ? '<span>Elige dos activos distintos.</span>' :
-    `<span>1 ${ASSET_LABEL[from]} ≈ <b>${rate.toFixed(4)}</b> ${ASSET_LABEL[to]}</span>
-     <span>Comisión: <b>${(FEE*100).toFixed(1)} %</b> · Referencia en USDT</span>`;
-  document.getElementById('doSwap').disabled = !P;
+  document.getElementById('rates').innerHTML = from===to
+    ? '<span>Elige dos activos distintos.</span>'
+    : `<span>1 ${from} ≈ <b>${fmtAmt(rate)}</b> ${to}</span><span>Comisión: <b>${(FEE*100).toFixed(1)} %</b> · Precio de referencia en USDT</span>`;
+  document.getElementById('doSwap').disabled = !(from!==to);
 }
 
-function renderHistory(d){
+function renderHistory(d, demo){
   const wrap = document.getElementById('histWrap');
-  const txs = ((d && d.txs) || []).filter(t => String(t.type||'').startsWith('Swap'));
-  if (!txs.length){ wrap.innerHTML = '<p class="empty">Aún no hay operaciones de swap.</p>'; return; }
+  const rows = demo.hist || [];
+  if (!rows.length){ wrap.innerHTML = '<p class="empty">Aún no hay operaciones de swap.</p>'; return; }
   wrap.innerHTML = `<table><thead><tr><th>Hora</th><th>Operación</th><th class="r">Recibido</th><th>Estado</th></tr></thead><tbody>
-    ${txs.slice(0,20).map(t => `<tr><td class="mono">${fmtClock(t.t)}</td><td>${t.type}</td><td class="r mono">+${fmt(t.amount)}</td><td>${t.status||'Completado'}</td></tr>`).join('')}
+    ${rows.slice(0,20).map(r => `<tr><td class="mono">${fmtClock(r.t)}</td><td>${r.pay} → ${r.get}</td><td class="r mono">+${fmtAmt(r.out)} ${r.get}</td><td>Completado</td></tr>`).join('')}
   </tbody></table>`;
 }
 
-function refreshMarket(){
-  renderPairs();
-  renderHeader();
-  drawChart();
-}
 function refreshAll(){
-  const d = readSave();
-  renderBalances(d);
-  renderSwapForm(d);
-  renderHistory(d);
-  refreshMarket();
+  const d = readSave(), demo = readDemo();
+  renderPairs(); renderHeader(); drawChart();
+  renderBalances(d, demo); renderSwapForm(d, demo); renderHistory(d, demo);
 }
 
-/* ============ SWAP ============ */
+/* ============ SWAP (saldos del juego para TOKEN, saldos demo para criptos) ============ */
 function setMsg(text, kind){
   const m = document.getElementById('msg');
   m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
 }
 function doSwap(){
-  const d = readSave();
-  if (!d) return setMsg('No hay partida guardada. Abre el juego e inicia sesión primero.', 'bad');
-  const P = planetOf(d);
   const from = document.getElementById('fromA').value, to = document.getElementById('toA').value;
   if (from===to) return setMsg('Elige dos activos distintos.', 'bad');
-  const amt = Math.floor(Number(document.getElementById('fromAmt').value) || 0);
+  let amt = Number(document.getElementById('fromAmt').value) || 0;
+  if (from==='TOKEN') amt = Math.floor(amt);   // el token del juego se maneja en unidades enteras
   if (amt<=0) return setMsg('Ingresa una cantidad válida.', 'bad');
-  if ((P.res[from]||0) < amt) return setMsg('Saldo insuficiente de ' + ASSET_LABEL[from] + '.', 'bad');
-  const out = Math.floor(quote(from,to,amt));
-  if (out<=0) return setMsg('La cantidad es muy pequeña para ese intercambio.', 'bad');
+  const d = readSave(), demo = readDemo();
+  if ((from==='TOKEN' || to==='TOKEN') && !d) return setMsg('Para usar TOKEN necesitas una partida guardada. Abre el juego primero.', 'bad');
+  const have = balanceOf(from, d, demo);
+  if (have < amt) return setMsg('Saldo insuficiente de ' + from + '.', 'bad');
+  const out = quote(from, to, amt);
+  const get = to==='TOKEN' ? Math.floor(out) : Number(out.toFixed(6));
+  if (get<=0) return setMsg('La cantidad es muy pequeña para ese intercambio.', 'bad');
 
-  P.res[from] -= amt;
-  P.res[to] = (P.res[to]||0) + out;
-  d.txs = d.txs || [];
-  d.txs.unshift({t:d.simSec||0, type:'Swap ' + ASSET_LABEL[from] + ' → ' + ASSET_LABEL[to], amount:out, status:'Completado'});
-  if (d.txs.length>100) d.txs.length = 100;
-  localStorage.setItem(sessionKey(), JSON.stringify(d));
+  // Descontar origen
+  if (from==='TOKEN'){ planetOf(d).res.token -= amt; }
+  else { demo.bal[from] = Number((have - amt).toFixed(6)); }
+  // Acreditar destino
+  if (to==='TOKEN'){ planetOf(d).res.token = (planetOf(d).res.token||0) + get; }
+  else { demo.bal[to] = Number(((demo.bal[to]||0) + get).toFixed(6)); }
 
-  setMsg('Recibiste ' + fmt(out) + ' ' + ASSET_LABEL[to] + '.', 'ok');
+  demo.hist = demo.hist || [];
+  demo.hist.unshift({t:(d && d.simSec) || 0, pay:from, get:to, out:get});
+  if (demo.hist.length>100) demo.hist.length = 100;
+  writeDemo(demo);
+  if (d){
+    d.txs = d.txs || [];
+    d.txs.unshift({t:d.simSec||0, type:'Swap ' + from + ' → ' + to, amount:get, status:'Completado'});
+    if (d.txs.length>100) d.txs.length = 100;
+    if (from==='TOKEN' || to==='TOKEN') localStorage.setItem(sessionKey(), JSON.stringify(d));
+  }
+  setMsg('Recibiste ' + fmtAmt(get) + ' ' + to + '.', 'ok');
   document.getElementById('fromAmt').value = '';
   refreshAll();
 }
@@ -457,28 +545,31 @@ function doSwap(){
 /* ============ EVENTOS ============ */
 document.getElementById('pairList').addEventListener('click', e => {
   const b = e.target.closest('[data-pair]'); if (!b) return;
-  cur = b.dataset.pair; hover = null; refreshMarket();
+  cur = b.dataset.pair; hover = null; refreshAll();
 });
 document.getElementById('tfs').addEventListener('click', e => {
   const b = e.target.closest('[data-tf]'); if (!b) return;
-  tf = b.dataset.tf; hover = null; renderTfs(); refreshMarket();
+  tf = b.dataset.tf; hover = null; renderTfs(); refreshAll();
+});
+document.getElementById('walletBox').addEventListener('click', e => {
+  const b = e.target.closest('[data-wallet]'); if (!b) return;
+  connectWallet(b.dataset.wallet);
 });
 const cv = document.getElementById('cv');
 cv.addEventListener('mousemove', e => {
   const data = visible(); if (!data.length) return;
   const rect = cv.getBoundingClientRect();
-  const padL=10, padR=76;
-  const pw = rect.width - padL - padR;
-  const i = Math.floor((e.clientX-rect.left-padL)/(pw/data.length));
+  const i = Math.floor((e.clientX-rect.left-10)/((rect.width-86)/data.length));
   hover = (i>=0 && i<data.length) ? i : null;
   renderOhlc(); drawChart();
 });
 cv.addEventListener('mouseleave', () => { hover = null; renderOhlc(); drawChart(); });
 window.addEventListener('resize', drawChart);
+window.addEventListener('storage', e => { if (e.key===sessionKey() || e.key===demoKey()) refreshAll(); });
 
-['fromA','toA','fromAmt'].forEach(id => document.getElementById(id).addEventListener('input', () => refreshAll()));
-document.getElementById('fromA').addEventListener('change', () => refreshAll());
-document.getElementById('toA').addEventListener('change', () => refreshAll());
+['fromA','toA','fromAmt'].forEach(id => document.getElementById(id).addEventListener('input', refreshAll));
+document.getElementById('fromA').addEventListener('change', refreshAll);
+document.getElementById('toA').addEventListener('change', refreshAll);
 document.getElementById('flip').addEventListener('click', () => {
   const f = document.getElementById('fromA'), t = document.getElementById('toA');
   const tmp = f.value; f.value = t.value; t.value = tmp; refreshAll();
@@ -486,6 +577,7 @@ document.getElementById('flip').addEventListener('click', () => {
 document.getElementById('doSwap').addEventListener('click', doSwap);
 
 renderTfs();
+renderWallet();
 refreshAll();
 </script>
 </body>
