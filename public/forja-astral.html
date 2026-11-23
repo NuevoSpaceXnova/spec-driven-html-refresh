@@ -3652,6 +3652,14 @@ function viewResearch(){
     </div>`;
 }
 /* ----- Astillero: Hangar de Naves y Defensas Planetarias ----- */
+// Lista de requisitos: ✓ en verde si se cumplen, ✗ en rojo si faltan
+function reqChecklist(id){
+  const reqs = unitReqs(id);
+  return Object.keys(reqs).map(k => {
+    const ok = (state.lvl[k] || 0) >= reqs[k];
+    return `<div class="${ok ? 'tag-ok' : 'tag-bad'}">${ok ? '✓' : '✗'} ${nameOf(k)} Nivel ${reqs[k]}</div>`;
+  }).join('');
+}
 function shipCard(id){
   const s = SHIPS[id];
   const locked = !unitOk(id);
