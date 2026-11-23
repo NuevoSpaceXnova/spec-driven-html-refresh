@@ -403,6 +403,17 @@ button,select,input{font-family:inherit}
 .shipq-bar{grid-column:1;height:6px;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:3px;overflow:hidden}
 .shipq-bar span{display:block;height:100%;background:var(--accent-primary)}
 .shipq-row .btn{grid-column:2;grid-row:1 / span 2}
+.sc-costs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.sc-cost{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:4px 6px;text-align:center}
+.sc-cost small{display:block;font-size:10px;color:var(--text-muted)}
+.sc-cost b{font:600 12px var(--font-mono);color:var(--text-primary)}
+.sc-qty{display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap}
+.sc-qty .btn{width:auto;min-width:0;height:26px;padding:0 8px;font-size:11px}
+.sc-qty .qty{width:64px;height:26px;text-align:center;font-size:12px;padding:0 6px}
+.sc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sc-time{display:inline-flex;align-items:center;gap:6px;font:500 12px var(--font-mono);color:var(--text-secondary)}
+.sc-time svg{width:14px;height:14px}
+.sc-foot .btn{width:auto;min-width:0;height:30px;padding:0 14px}
 /* Tarjetas de naves: estadísticas con iconos, requisitos y estado bloqueado */
 .sc-stats{display:flex;flex-wrap:wrap;gap:6px 14px;font:500 12px var(--font-mono);color:var(--text-primary)}
 .sc-stats span{display:inline-flex;align-items:center;gap:5px}
@@ -1037,6 +1048,7 @@ function handleFase2Click(e){
       case 'subtab': state.shipTab = act.dataset.sub; render(); return;
       case 'build-cancel': cancelBuild(); return;
       case 'ship-cancel': cancelShipItem(Number(act.dataset.i)); return;
+      case 'qty-adj': qtyAdjust(act.dataset.id, Number(act.dataset.d) || 0, !!act.dataset.max); return;
       case 'fleet-step': syncFleetDraft(); state.fleetStep = Number(act.dataset.step); render(); return;
       case 'fleet-adj': fleetAdjust(act.dataset.k, Number(act.dataset.d) || 0, !!act.dataset.max); render(); return;
       case 'fleet-all': fleetAll(act.dataset.mode); render(); return;
@@ -3068,6 +3080,16 @@ function cancelShipItem(i){
   setStatus('Construcción cancelada. Recursos reembolsados.');
   refresh();
 }
+// Ajusta la cantidad a construir: −/+ o MAX (la cantidad que alcanzan los recursos)
+function qtyAdjust(id, delta, max){
+  const inp = document.querySelector('[data-qty="' + id + '"]');
+  if (!inp) return;
+  const S = SHIPS[id];
+  const costs = RES.filter(r => S.cost[r]);
+  const can = costs.length ? Math.min(...costs.map(r => Math.floor(state.res[r] / S.cost[r]))) : 999;
+  const top = Math.max(1, can);
+  inp.value = max ? top : Math.min(top, Math.max(1, (Number(inp.value) || 1) + delta));
+}
 function shipQueueHTML(){
   const sq = activePlanet().shipQueue || [];
   if (!sq.length) return '<div class="empty">No hay naves en construcción.</div>';
@@ -3671,10 +3693,22 @@ function shipCard(id){
   if (s.fuel && !s.defense) st.push(ic('fuel', '#4FD1C5') + fmt(s.fuel));
   const stats = st.length ? `<div class="sc-stats">${st.map(x => `<span>${x}</span>`).join('')}</div>` : '';
   const lockIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>';
+  const clockIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  const costBoxes = RES.filter(r => s.cost[r]).map(r =>
+    `<div class="sc-cost" data-shiprow="${id}|${r}"><small>${RES_NAME[r]}</small><b>${fmt(s.cost[r])}</b></div>`).join('');
   const foot = locked
     ? `<div class="sc-lock">${lockIco} Bloqueada</div>`
-    : `<div class="inline-form">
+    : `<div class="sc-costs">${costBoxes}</div>
+      <div class="sc-qty">
+        <button class="btn inline secondary" data-action="qty-adj" data-id="${id}" data-d="-10">−10</button>
+        <button class="btn inline secondary" data-action="qty-adj" data-id="${id}" data-d="-1">−1</button>
         <input class="qty" type="number" min="1" value="1" data-qty="${id}" aria-label="Cantidad a construir">
+        <button class="btn inline secondary" data-action="qty-adj" data-id="${id}" data-d="1">+1</button>
+        <button class="btn inline secondary" data-action="qty-adj" data-id="${id}" data-d="10">+10</button>
+        <button class="btn inline secondary" data-action="qty-adj" data-id="${id}" data-max="1">MAX</button>
+      </div>
+      <div class="sc-foot">
+        <span class="sc-time">${clockIco} ${durHMS(shipBuildSeconds(id, 1))}</span>
         <button class="btn" data-ship="${id}">Construir</button>
       </div>`;
   return `
@@ -3686,10 +3720,10 @@ function shipCard(id){
     </div>
     ${shipSceneHTML(id, locked)}
     ${stats}
-    <div class="cost sc-req">
+    ${locked ? `<div class="cost sc-req">
       <span class="sc-req-title">Requisitos</span>
       ${reqChecklist(id)}
-    </div>
+    </div>` : ''}
     ${foot}
   </article>`;
 }
