@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forja Astral · Swap</title>
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Swap · mismo lenguaje visual que Forja Astral (consola táctica) */
+:root{
+  --bg-app:#0B0D10; --bg-panel:#0E1220; --bg-surface:#151C2B;
+  --border-subtle:#1E2A44; --border-active:#2F63D1;
+  --text-primary:#FFFFFF; --text-secondary:#D4DCED; --text-muted:#A8B5D1;
+  --accent-primary:#2450C5; --accent-hover:#3266E0; --accent-text:#8FB4FF; --accent-glow:rgba(36,80,197,.45);
+  --up:#3DF08F; --down:#FF4444;
+  --font-sans:'Rajdhani',sans-serif; --font-title:'Orbitron',sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:4px;
+}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--border-subtle) transparent}
+html,body{margin:0;min-height:100%}
+body{background:radial-gradient(ellipse at top,#131a33 0%,var(--bg-app) 60%);color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.4}
+button,input,select{font-family:inherit}
+
+/* Cabecera */
+.top{position:sticky;top:0;z-index:5;height:56px;display:flex;align-items:center;gap:18px;padding:0 20px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle);flex-wrap:wrap}
+.top a.back{color:var(--accent-text);text-decoration:none;font:600 12px var(--font-title);letter-spacing:.08em}
+.top a.back:hover{color:var(--text-primary)}
+.top h1{margin:0;font:600 15px var(--font-title);letter-spacing:.1em}
+.bal{margin-left:auto;display:flex;gap:16px;font:500 12px var(--font-mono);color:var(--text-secondary);flex-wrap:wrap}
+.bal b{color:var(--text-primary);font-weight:600}
+.tag{font:500 10px var(--font-mono);color:var(--text-muted);border:1px solid var(--border-subtle);border-radius:2px;padding:2px 6px;text-transform:uppercase;letter-spacing:.1em}
+
+/* Rejilla */
+.wrap{display:grid;grid-template-columns:210px minmax(0,1fr) 300px;gap:14px;padding:14px;max-width:1400px;margin:0 auto}
+.panel{background:linear-gradient(rgba(6,8,12,.5),rgba(6,8,12,.6)),var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r);padding:14px;min-width:0}
+.panel h3{margin:0 0 10px;font:600 11px var(--font-title);letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary)}
+.pairs{grid-column:1;grid-row:1 / span 2;align-self:start}
+.chart{grid-column:2;grid-row:1}
+.hist{grid-column:2;grid-row:2}
+.swapbox{grid-column:3;grid-row:1 / span 2;align-self:start}
+
+/* Mercados */
+.pair{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r);padding:8px 10px;color:var(--text-primary);cursor:pointer;text-align:left}
+.pair:hover{background:rgba(36,80,197,.18)}
+.pair.active{background:var(--bg-surface);border-color:var(--border-active)}
+.pair .nm{font:600 14px var(--font-sans);letter-spacing:.04em}
+.pair .sub{font:500 10px var(--font-mono);color:var(--text-muted)}
+.pair .px{font:500 12px var(--font-mono);text-align:right;color:var(--text-primary)}
+.pair .chg{font:500 11px var(--font-mono);text-align:right}
+.up{color:var(--up)} .down{color:var(--down)}
+
+/* Gráfica */
+.chart-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.chart-head .nm{font:600 16px var(--font-title);letter-spacing:.06em}
+.chart-head .px{font:600 18px var(--font-mono)}
+.chart-head .chg{font:500 12px var(--font-mono)}
+.tfs{margin-left:auto;display:flex;gap:4px}
+.tf{background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-muted);border-radius:var(--r);height:28px;padding:0 10px;font:500 12px var(--font-mono);cursor:pointer}
+.tf.active{color:var(--text-primary);border-color:var(--border-active);background:linear-gradient(180deg,#1E3F9E,#2450C5)}
+.ohlc{font:500 11px var(--font-mono);color:var(--text-muted);margin-bottom:6px;min-height:16px;display:flex;gap:12px;flex-wrap:wrap}
+.ohlc b{color:var(--text-primary);font-weight:500}
+#cv{display:block;width:100%;height:380px;cursor:crosshair;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-app)}
+.foot{margin-top:8px;font:500 10px var(--font-mono);color:var(--text-muted);letter-spacing:.04em}
+
+/* Historial */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font:600 10px var(--font-sans);text-transform:uppercase;letter-spacing:.12em;color:var(--text-secondary);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface)}
+td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
+.mono{font-family:var(--font-mono);font-size:12px}
+.r{text-align:right}
+.empty{color:var(--text-muted);padding:12px 10px}
+
+/* Swap */
+.field{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.field label{font:600 10px var(--font-sans);text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+.field .row{display:flex;gap:8px;align-items:center}
+.field small{font:500 11px var(--font-mono);color:var(--text-muted)}
+.sel,.amt{height:38px;background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:var(--r);padding:0 10px;font:500 13px var(--font-mono)}
+.sel{min-width:130px}
+.amt{flex:1;min-width:0;text-align:right}
+.amt[readonly]{color:var(--accent-text)}
+.sel:focus-visible,.amt:focus-visible{outline:none;border-color:var(--accent-primary)}
+.flip{display:block;margin:6px auto;width:36px;height:30px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--r);color:var(--accent-text);cursor:pointer;font-size:16px}
+.flip:hover{border-color:var(--border-active)}
+.rates{margin:10px 0;display:flex;flex-direction:column;gap:4px;font:500 11px var(--font-mono);color:var(--text-muted)}
+.rates b{color:var(--text-primary);font-weight:500}
+.btn{width:100%;height:42px;background:linear-gradient(180deg,#2450C5,#1B3A99);border:1px solid var(--accent-primary);color:#fff;border-radius:var(--r);font:600 13px var(--font-title);letter-spacing:.08em;cursor:pointer;text-transform:uppercase}
+.btn:hover:not(:disabled){background:var(--accent-hover)}
+.btn:disabled{background:var(--bg-surface);border-color:var(--border-subtle);color:var(--text-muted);cursor:not-allowed}
+.msg{min-height:18px;margin:10px 0 0;font:500 12px var(--font-mono);color:var(--text-secondary)}
+.msg.bad{color:var(--down)}
+.msg.ok{color:var(--up)}
+
+@media (max-width:1040px){
+  .wrap{grid-template-columns:minmax(0,1fr) 300px}
+  .pairs{grid-column:1 / -1;grid-row:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:4px}
+  .pairs h3{grid-column:1 / -1}
+  .chart{grid-column:1;grid-row:auto}
+  .swapbox{grid-column:2;grid-row:auto}
+  .hist{grid-column:1 / -1;grid-row:auto}
+}
+@media (max-width:720px){
+  .wrap{grid-template-columns:minmax(0,1fr);padding:10px}
+  .chart,.swapbox,.hist{grid-column:1}
+  .swapbox{order:-1}
+  #cv{height:300px}
+  .bal{margin-left:0;width:100%}
+  .tfs{margin-left:0}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="back" href="forja-astral.html">◂ FORJA ASTRAL</a>
+  <h1>SWAP</h1>
+  <span class="tag">Datos ficticios · demo</span>
+  <div class="bal" id="bal"></div>
+</header>
+
+<div class="wrap">
+  <aside class="panel pairs">
+    <h3>Mercados</h3>
+    <div id="pairList"></div>
+  </aside>
+
+  <section class="panel chart">
+    <div class="chart-head">
+      <span class="nm" id="pName"></span>
+      <span class="px" id="pPrice"></span>
+      <span class="chg" id="pChg"></span>
+      <div class="tfs" id="tfs"></div>
+    </div>
+    <div class="ohlc" id="ohlc"></div>
+    <canvas id="cv"></canvas>
+    <div class="foot">Precios generados en el navegador para la demo. Para precios reales, sustituir genPath() por datos de una API de mercado.</div>
+  </section>
+
+  <section class="panel swapbox">
+    <h3>Intercambio</h3>
+    <div class="field">
+      <label for="fromA">Desde</label>
+      <div class="row">
+        <select class="sel" id="fromA"></select>
+        <input class="amt" id="fromAmt" type="number" min="0" step="1" placeholder="0">
+      </div>
+      <small id="fromBal"></small>
+    </div>
+    <button class="flip" id="flip" type="button" aria-label="Invertir par">⇅</button>
+    <div class="field">
+      <label for="toA">Hacia</label>
+      <div class="row">
+        <select class="sel" id="toA"></select>
+        <input class="amt" id="toAmt" type="text" readonly value="">
+      </div>
+      <small id="toBal"></small>
+    </div>
+    <div class="rates" id="rates"></div>
+    <button class="btn" id="doSwap" type="button">Intercambiar</button>
+    <p class="msg" id="msg"></p>
+  </section>
+
+  <section class="panel hist">
+    <h3>Operaciones de swap</h3>
+    <div id="histWrap"></div>
+  </section>
+</div>
+
+<script>
+/* ============ CONFIGURACIÓN ============ */
+const FEE = 0.003;                       // comisión del swap (0,3 %)
+const N_MIN = 43200;                     // 30 días de velas de 1 minuto (datos ficticios)
+const TF = {                              // temporalidades
+  '1m': {size:1,    show:120, label:'1m'},
+  '1h': {size:60,   show:120, label:'1H'},
+  '1d': {size:1440, show:30,  label:'1D'}
+};
+// Mercados de la gráfica. start = precio inicial ficticio, vol = volatilidad por minuto.
+const PAIRS = [
+  {id:'TOKEN', name:'TOKEN / USDT',  start:0.80,   vol:0.0015, sub:'Token del juego'},
+  {id:'BNB',   name:'BNB / USDT',    start:600,    vol:0.0008, sub:'BNB Chain'},
+  {id:'SOL',   name:'SOL / USDT',    start:150,    vol:0.0012, sub:'Solana'},
+  {id:'MATIC', name:'MATIC / USDT',  start:0.55,   vol:0.0018, sub:'Polygon'}
+];
+// Activos intercambiables dentro del juego. usdt = precio de referencia en USDT.
+const ASSETS = [
+  {id:'token', label:'Token',     key:'token', usdt:()=>lastPrice('TOKEN')},
+  {id:'metal', label:'Metal',     key:'metal', usdt:()=>0.05},
+  {id:'crystal', label:'Cristal', key:'crystal', usdt:()=>0.08},
+  {id:'deut',  label:'Deuterio',  key:'deut',  usdt:()=>0.20}
+];
+const ASSET_LABEL = Object.fromEntries(ASSETS.map(a => [a.id, a.label]));
+
+/* ============ DATOS FICTICIOS ============ */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hashStr(s){ let h=2166136261; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function gauss(r){ let u=0; while(u===0) u=r(); const v=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+const T0 = Math.floor(Date.now()/1000) - N_MIN*60;
+const paths = {};
+function genPath(p){
+  const r = mulberry32(hashStr(p.id));
+  const out = new Array(N_MIN);
+  let cur = p.start;
+  for (let i=0;i<N_MIN;i++){
+    const o = cur;
+    const c = Math.max(o*(1+gauss(r)*p.vol), 1e-6);
+    const wick = Math.abs(gauss(r))*p.vol*0.5;
+    const h = Math.max(o,c)*(1+wick);
+    const l = Math.max(Math.min(o,c)*(1-wick), 1e-6);
+    out[i] = {t:T0+i*60, o, h, l, c, v:100+r()*900};
+    cur = c;
+  }
+  return out;
+}
+PAIRS.forEach(p => paths[p.id] = genPath(p));
+
+// Agrupa velas de 1 minuto en la temporalidad pedida
+function candles(pairId, tf){
+  const size = TF[tf].size, path = paths[pairId], out = [];
+  for (let i=0;i<path.length;i+=size){
+    const end = Math.min(i+size, path.length);
+    let h=-Infinity, l=Infinity, v=0;
+    for (let j=i;j<end;j++){ if(path[j].h>h) h=path[j].h; if(path[j].l<l) l=path[j].l; v+=path[j].v; }
+    out.push({t:path[i].t, o:path[i].o, h, l, c:path[end-1].c, v});
+  }
+  return out;
+}
+function lastPrice(pairId){ const p = paths[pairId]; return p[p.length-1].c; }
+function changeFor(pairId){
+  const p = paths[pairId]; const now = p[p.length-1].c;
+  const prev = p[Math.max(0, p.length-1440)].o;
+  return (now-prev)/prev;
+}
+// Simula movimiento en vivo cambiando solo la última vela de 1 minuto
+setInterval(() => {
+  PAIRS.forEach(p => {
+    const last = paths[p.id][N_MIN-1];
+    const nc = Math.max(last.c*(1+gauss(Math.random)*p.vol*0.25), 1e-6);
+    last.c = nc;
+    if (nc>last.h) last.h = nc;
+    if (nc<last.l) last.l = nc;
+  });
+  refreshMarket();
+}, 2000);
+
+/* ============ ESTADO ============ */
+let cur = 'TOKEN';
+let tf = '1m';
+let hover = null;
+
+function fmtPrice(v){ return v>=100 ? v.toLocaleString('es-ES',{maximumFractionDigits:2,minimumFractionDigits:2}) : v.toFixed(v<1?4:2); }
+function fmt(n){ return Math.floor(n||0).toLocaleString('es-ES'); }
+// Mismo formato de reloj que el juego: "Día N · HH:MM"
+function fmtClock(t){
+  const s = Math.floor(t||0);
+  const day = Math.floor(s/86400)+1, hh = Math.floor((s%86400)/3600), mm = Math.floor((s%3600)/60);
+  return 'Día ' + day + ' · ' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+function fmtTime(t, frame){
+  const d = new Date(t*1000);
+  return frame==='1d'
+    ? d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'})
+    : d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ============ PARTIDA GUARDADA (misma clave que el juego) ============ */
+function sessionKey(){
+  let u = ''; try { u = localStorage.getItem('forja-astral-session') || ''; } catch(e){}
+  return u ? 'forja-astral-save-v2:' + u : 'forja-astral-save-v2';
+}
+function readSave(){
+  try { const raw = localStorage.getItem(sessionKey()); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function planetOf(d){ return (d.planets||[])[d.active||0] || (d.planets||[])[0] || null; }
+
+/* ============ RENDER ============ */
+function renderPairs(){
+  const el = document.getElementById('pairList');
+  el.innerHTML = PAIRS.map(p => {
+    const ch = changeFor(p.id);
+    return `<button class="pair${p.id===cur?' active':''}" data-pair="${p.id}" type="button">
+      <span><span class="nm">${p.name}</span><br><span class="sub">${p.sub}</span></span>
+      <span><span class="px">${fmtPrice(lastPrice(p.id))}</span><br><span class="chg ${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)}%</span></span>
+    </button>`;
+  }).join('');
+}
+function renderTfs(){
+  document.getElementById('tfs').innerHTML = Object.keys(TF).map(k =>
+    `<button class="tf${k===tf?' active':''}" data-tf="${k}" type="button">${TF[k].label}</button>`).join('');
+}
+function visible(){ const all = candles(cur, tf); return all.slice(-TF[tf].show); }
+
+function renderHeader(){
+  const p = PAIRS.find(x => x.id===cur);
+  const ch = changeFor(cur);
+  document.getElementById('pName').textContent = p.name;
+  document.getElementById('pPrice').textContent = fmtPrice(lastPrice(cur));
+  const chg = document.getElementById('pChg');
+  chg.textContent = (ch>=0?'+':'') + (ch*100).toFixed(2) + '% (24 h)';
+  chg.className = 'chg ' + (ch>=0?'up':'down');
+  renderOhlc();
+}
+function renderOhlc(){
+  const data = visible(); if (!data.length) return;
+  const c = (hover!=null && data[hover]) ? data[hover] : data[data.length-1];
+  document.getElementById('ohlc').innerHTML =
+    `<span>${fmtTime(c.t, tf)}</span><span>A <b>${fmtPrice(c.o)}</b></span><span>M <b>${fmtPrice(c.h)}</b></span><span>m <b>${fmtPrice(c.l)}</b></span><span>C <b>${fmtPrice(c.c)}</b></span><span>Vol <b>${fmt(c.v)}</b></span>`;
+}
+
+function drawChart(){
+  const cv = document.getElementById('cv');
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const data = visible(); if (!data.length) return;
+
+  const padL=10, padR=76, padT=12, padB=24;
+  const pw = W-padL-padR, ph = H-padT-padB;
+  let lo=Infinity, hi=-Infinity;
+  data.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
+  const m = (hi-lo)*0.06 || hi*0.01;
+  lo -= m; hi += m;
+  const Y = v => padT + (hi-v)/(hi-lo)*ph;
+
+  ctx.font = '11px "IBM Plex Mono", monospace';
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(30,42,68,.95)';
+  ctx.fillStyle = '#A8B5D1';
+  for (let i=0;i<=4;i++){
+    const v = hi-(hi-lo)*i/4, y = Math.round(Y(v))+0.5;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillText(fmtPrice(v), W-padR+8, y+4);
+  }
+
+  const step = pw/data.length, bw = Math.max(2, step*0.6);
+  data.forEach((c,i) => {
+    const x = padL+(i+0.5)*step, up = c.c>=c.o, col = up ? '#3DF08F' : '#FF4444';
+    ctx.strokeStyle = col;
+    ctx.beginPath(); ctx.moveTo(Math.round(x)+0.5, Y(c.h)); ctx.lineTo(Math.round(x)+0.5, Y(c.l)); ctx.stroke();
+    const yo = Y(c.o), yc = Y(c.c);
+    ctx.fillStyle = col;
+    ctx.fillRect(x-bw/2, Math.min(yo,yc), bw, Math.max(1, Math.abs(yc-yo)));
+  });
+
+  const every = Math.max(1, Math.floor(data.length/6));
+  ctx.fillStyle = '#A8B5D1';
+  data.forEach((c,i) => { if (i%every===0) ctx.fillText(fmtTime(c.t, tf), padL+(i+0.5)*step-18, H-7); });
+
+  const last = data[data.length-1], yl = Math.round(Y(last.c))+0.5;
+  const lc = last.c>=last.o ? '#3DF08F' : '#FF4444';
+  ctx.setLineDash([4,4]); ctx.strokeStyle = lc;
+  ctx.beginPath(); ctx.moveTo(padL,yl); ctx.lineTo(W-padR,yl); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = lc; ctx.fillRect(W-padR+2, yl-9, padR-4, 18);
+  ctx.fillStyle = '#06080C'; ctx.fillText(fmtPrice(last.c), W-padR+6, yl+4);
+
+  if (hover!=null && hover<data.length){
+    const x = Math.round(padL+(hover+0.5)*step)+0.5;
+    ctx.strokeStyle = 'rgba(143,180,255,.6)'; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,H-padB); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function renderBalances(d){
+  const bal = document.getElementById('bal');
+  const P = d ? planetOf(d) : null;
+  if (!P){ bal.innerHTML = '<span>Sin partida guardada. Abre el juego e inicia sesión.</span>'; return; }
+  bal.innerHTML = ASSETS.map(a => `<span>${a.label} <b>${fmt(P.res[a.key])}</b></span>`).join('');
+}
+
+function quote(from, to, amt){
+  return amt * ASSETS.find(a=>a.id===from).usdt() / ASSETS.find(a=>a.id===to).usdt() * (1-FEE);
+}
+function renderSwapForm(d){
+  const fromSel = document.getElementById('fromA'), toSel = document.getElementById('toA');
+  if (!fromSel.options.length){
+    const opts = ASSETS.map(a => `<option value="${a.id}">${a.label}</option>`).join('');
+    fromSel.innerHTML = opts; toSel.innerHTML = opts;
+    fromSel.value = 'token'; toSel.value = 'metal';
+  }
+  const P = d ? planetOf(d) : null;
+  const from = fromSel.value, to = toSel.value;
+  document.getElementById('fromBal').textContent = P ? 'Disponible: ' + fmt(P.res[from]) : '';
+  document.getElementById('toBal').textContent = P ? 'Saldo actual: ' + fmt(P.res[to]) : '';
+  const amt = Math.floor(Number(document.getElementById('fromAmt').value) || 0);
+  const out = amt>0 && from!==to ? Math.floor(quote(from,to,amt)) : 0;
+  document.getElementById('toAmt').value = out ? fmt(out) : '';
+  const rate = from===to ? 1 : quote(from,to,1)/(1-FEE);
+  document.getElementById('rates').innerHTML =
+    from===to ? '<span>Elige dos activos distintos.</span>' :
+    `<span>1 ${ASSET_LABEL[from]} ≈ <b>${rate.toFixed(4)}</b> ${ASSET_LABEL[to]}</span>
+     <span>Comisión: <b>${(FEE*100).toFixed(1)} %</b> · Referencia en USDT</span>`;
+  document.getElementById('doSwap').disabled = !P;
+}
+
+function renderHistory(d){
+  const wrap = document.getElementById('histWrap');
+  const txs = ((d && d.txs) || []).filter(t => String(t.type||'').startsWith('Swap'));
+  if (!txs.length){ wrap.innerHTML = '<p class="empty">Aún no hay operaciones de swap.</p>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th>Hora</th><th>Operación</th><th class="r">Recibido</th><th>Estado</th></tr></thead><tbody>
+    ${txs.slice(0,20).map(t => `<tr><td class="mono">${fmtClock(t.t)}</td><td>${t.type}</td><td class="r mono">+${fmt(t.amount)}</td><td>${t.status||'Completado'}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+function refreshMarket(){
+  renderPairs();
+  renderHeader();
+  drawChart();
+}
+function refreshAll(){
+  const d = readSave();
+  renderBalances(d);
+  renderSwapForm(d);
+  renderHistory(d);
+  refreshMarket();
+}
+
+/* ============ SWAP ============ */
+function setMsg(text, kind){
+  const m = document.getElementById('msg');
+  m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
+}
+function doSwap(){
+  const d = readSave();
+  if (!d) return setMsg('No hay partida guardada. Abre el juego e inicia sesión primero.', 'bad');
+  const P = planetOf(d);
+  const from = document.getElementById('fromA').value, to = document.getElementById('toA').value;
+  if (from===to) return setMsg('Elige dos activos distintos.', 'bad');
+  const amt = Math.floor(Number(document.getElementById('fromAmt').value) || 0);
+  if (amt<=0) return setMsg('Ingresa una cantidad válida.', 'bad');
+  if ((P.res[from]||0) < amt) return setMsg('Saldo insuficiente de ' + ASSET_LABEL[from] + '.', 'bad');
+  const out = Math.floor(quote(from,to,amt));
+  if (out<=0) return setMsg('La cantidad es muy pequeña para ese intercambio.', 'bad');
+
+  P.res[from] -= amt;
+  P.res[to] = (P.res[to]||0) + out;
+  d.txs = d.txs || [];
+  d.txs.unshift({t:d.simSec||0, type:'Swap ' + ASSET_LABEL[from] + ' → ' + ASSET_LABEL[to], amount:out, status:'Completado'});
+  if (d.txs.length>100) d.txs.length = 100;
+  localStorage.setItem(sessionKey(), JSON.stringify(d));
+
+  setMsg('Recibiste ' + fmt(out) + ' ' + ASSET_LABEL[to] + '.', 'ok');
+  document.getElementById('fromAmt').value = '';
+  refreshAll();
+}
+
+/* ============ EVENTOS ============ */
+document.getElementById('pairList').addEventListener('click', e => {
+  const b = e.target.closest('[data-pair]'); if (!b) return;
+  cur = b.dataset.pair; hover = null; refreshMarket();
+});
+document.getElementById('tfs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tf]'); if (!b) return;
+  tf = b.dataset.tf; hover = null; renderTfs(); refreshMarket();
+});
+const cv = document.getElementById('cv');
+cv.addEventListener('mousemove', e => {
+  const data = visible(); if (!data.length) return;
+  const rect = cv.getBoundingClientRect();
+  const padL=10, padR=76;
+  const pw = rect.width - padL - padR;
+  const i = Math.floor((e.clientX-rect.left-padL)/(pw/data.length));
+  hover = (i>=0 && i<data.length) ? i : null;
+  renderOhlc(); drawChart();
+});
+cv.addEventListener('mouseleave', () => { hover = null; renderOhlc(); drawChart(); });
+window.addEventListener('resize', drawChart);
+
+['fromA','toA','fromAmt'].forEach(id => document.getElementById(id).addEventListener('input', () => refreshAll()));
+document.getElementById('fromA').addEventListener('change', () => refreshAll());
+document.getElementById('toA').addEventListener('change', () => refreshAll());
+document.getElementById('flip').addEventListener('click', () => {
+  const f = document.getElementById('fromA'), t = document.getElementById('toA');
+  const tmp = f.value; f.value = t.value; t.value = tmp; refreshAll();
+});
+document.getElementById('doSwap').addEventListener('click', doSwap);
+
+renderTfs();
+refreshAll();
+</script>
+</body>
+</html>

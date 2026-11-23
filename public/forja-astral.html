@@ -69,6 +69,9 @@ button,select,input{font-family:inherit}
 .resources::-webkit-scrollbar{display:none}
 .res-box{min-width:118px;height:40px;border:0;border-left:1px solid var(--border-subtle);border-radius:0;background:transparent;display:flex;align-items:center;gap:10px;padding:0 14px;flex:none}
 .res-box:last-child{border-right:1px solid var(--border-subtle)}
+.swap-open{height:34px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--accent-primary);border-radius:var(--r);background:linear-gradient(180deg,#2450C5,#1B3A99);color:#fff;font:600 12px var(--font-title);letter-spacing:.08em;text-decoration:none;flex:none}
+.swap-open:hover{background:var(--accent-hover)}
+.swap-open:focus-visible{outline:1px solid var(--text-primary);outline-offset:2px}
 .res-box svg{flex:none;width:16px;height:16px}
 .res-icon{display:block;width:40px;height:40px;flex:none;object-fit:contain}
 .res-label{font-size:11px;color:var(--text-secondary);line-height:1.1;white-space:nowrap}
@@ -812,6 +815,7 @@ button,select,input{font-family:inherit}
         <div><div class="res-label">Token</div><div class="res-val" style="color:var(--text-primary)" data-bind="res:token"></div></div>
       </div>
     </div>
+    <a class="swap-open" href="swap.html" target="_blank" rel="noopener" title="Abrir Swap en una página nueva">Swap</a>
     <div id="notif-menu" class="notif-menu"></div>
     <div id="user-menu" class="user-menu"></div>
   </header>
@@ -5085,6 +5089,12 @@ render();
 initStart();
 setInterval(() => { tick(); checkMoves(); refresh(); if (++uiN % 5 === 0){ if (state.tab === 'overview'){ renderMoves(); renderCC(); } if (state.tab === 'fleet') renderMoves(); } if (state.tab === 'market' && state.dirtyMarket) renderBook(); if (state.tab === 'ranking') renderRanking(); if (state.tab === 'alliances' && state.wallDirty) renderWall(); }, 200);
 setInterval(saveGame, 30000);
+/* Si la página Swap cambia la partida guardada, el juego recarga esos saldos
+   para no sobrescribirlos con su copia en memoria. */
+window.addEventListener('storage', e => {
+  if (e.key !== SAVE_KEY || !e.newValue) return;
+  if (loadGame(e.newValue)){ renderPlanetSelect(); render(); }
+});
 buildSky(document.getElementById('sky-start'),{tw:110,sh:7,sat:6,flare:true});
 buildSky(document.getElementById('sky-app'),{tw:40,sh:4,sat:3});
 </script>
