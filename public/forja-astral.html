@@ -79,6 +79,7 @@ button,select,input{font-family:inherit}
 .layout{display:flex;flex:1;min-height:0}
 .sidebar{width:220px;flex:none;background:var(--bg-panel);border-right:1px solid var(--border-subtle);padding:12px 0;overflow-y:auto;font-family:var(--font-title)}
 .sidebar nav{display:flex;flex-direction:column;gap:0}
+.mobile-nav-toggle{display:none}
 .nav-item{width:100%;display:flex;align-items:center;gap:12px;height:40px;padding:0 16px 0 13px;border-radius:0;background:transparent;border:0;border-left:3px solid transparent;color:var(--text-secondary);font:600 11px var(--font-title);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;text-align:left}
 .nav-item:hover{background:rgba(123, 63, 228, 0.22);color:var(--text-primary)}
 .nav-item.active{background:var(--bg-surface);color:var(--text-primary);border-left-color:var(--accent-primary)}
@@ -596,8 +597,16 @@ button,select,input{font-family:inherit}
   #user-menu{grid-area:user}
   .layout{flex-direction:column}
   .sidebar{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;height:calc(60px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--border-subtle);padding:0 0 env(safe-area-inset-bottom);z-index:30;overflow:hidden}
-  .sidebar nav{flex-direction:row;height:100%;gap:0;overflow-x:auto;scrollbar-width:none}
+  .sidebar{display:flex;align-items:stretch}
+  .sidebar nav{flex:1;min-width:0;flex-direction:row;height:100%;gap:0;overflow-x:auto;scrollbar-width:none}
   .sidebar nav::-webkit-scrollbar{display:none}
+  .mobile-nav-toggle{display:grid;place-items:center;flex:none;width:40px;height:60px;padding:0;border:0;border-left:1px solid var(--border-subtle);background:var(--bg-panel);color:var(--text-secondary);font:600 10px var(--font-title);cursor:pointer}
+  .mobile-nav-toggle:focus-visible{outline:1px solid var(--accent-primary);outline-offset:-2px}
+  .mobile-nav-toggle svg{width:18px;height:18px;transition:transform .2s ease}
+  .sidebar.mobile-collapsed{height:calc(36px + env(safe-area-inset-bottom))}
+  .sidebar.mobile-collapsed nav{display:none}
+  .sidebar.mobile-collapsed .mobile-nav-toggle{width:100%;height:36px;border-left:0}
+  .sidebar.mobile-collapsed .mobile-nav-toggle svg{transform:rotate(180deg)}
   .nav-item{flex:0 0 68px;flex-direction:column;justify-content:center;gap:2px;height:60px;padding:4px 2px;text-align:center;border-left:0;border-top:2px solid transparent;font-size:9px;font-weight:500;letter-spacing:normal;text-transform:none}
   .nav-item.active{border-top-color:var(--accent-primary)}
   .nav-item .label{flex:none;max-width:64px;font-size:9px;line-height:1.1;white-space:normal;overflow-wrap:anywhere}
@@ -678,6 +687,18 @@ button,select,input{font-family:inherit}
 .res-val{font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:1400px){.res-box{width:134px;min-width:134px;max-width:134px}}
 @media (max-width:1100px){.res-box{width:124px;min-width:124px;max-width:124px}}
+@media (max-width:767px){
+  .resources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding-top:6px;overflow:visible}
+  .res-box,.res-box[title^="Energía"]{width:auto;min-width:0;max-width:none;height:48px;min-height:0;gap:4px;padding:4px 6px;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-surface)}
+  .res-box:last-child{border-right:1px solid var(--border-subtle)}
+  .res-icon{width:24px;height:24px}
+  .res-box svg{width:16px;height:16px}
+  .res-box>div{min-width:0;flex:1}
+  .res-label,.res-rate{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .res-label{font-size:9px}
+  .res-val{font-size:10px;line-height:1.2}
+  .res-rate{font-size:8px}
+}
 
 /* Edificios: cola arriba, tarjetas en 3 columnas, estadisticas abajo */
 .bld-queue{margin-top:16px}
@@ -693,6 +714,7 @@ button,select,input{font-family:inherit}
 .bld-queue .panel::after,.bld-stats .panel::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='69.28' viewBox='0 0 60 69.28'%3E%3Cpolygon points='-40.00,-69.28 -50.00,-51.96 -70.00,-51.96 -80.00,-69.28 -70.00,-86.60 -50.00,-86.60' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-40.00,0.00 -50.00,17.32 -70.00,17.32 -80.00,0.00 -70.00,-17.32 -50.00,-17.32' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-40.00,69.28 -50.00,86.60 -70.00,86.60 -80.00,69.28 -70.00,51.96 -50.00,51.96' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='20.00,-69.28 10.00,-51.96 -10.00,-51.96 -20.00,-69.28 -10.00,-86.60 10.00,-86.60' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='20.00,0.00 10.00,17.32 -10.00,17.32 -20.00,0.00 -10.00,-17.32 10.00,-17.32' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='20.00,69.28 10.00,86.60 -10.00,86.60 -20.00,69.28 -10.00,51.96 10.00,51.96' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='80.00,-69.28 70.00,-51.96 50.00,-51.96 40.00,-69.28 50.00,-86.60 70.00,-86.60' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='80.00,0.00 70.00,17.32 50.00,17.32 40.00,0.00 50.00,-17.32 70.00,-17.32' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='80.00,69.28 70.00,86.60 50.00,86.60 40.00,69.28 50.00,51.96 70.00,51.96' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-40.00,-34.64 -50.00,-17.32 -70.00,-17.32 -80.00,-34.64 -70.00,-51.96 -50.00,-51.96' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-40.00,34.64 -50.00,51.96 -70.00,51.96 -80.00,34.64 -70.00,17.32 -50.00,17.32' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-40.00,103.92 -50.00,121.24 -70.00,121.24 -80.00,103.92 -70.00,86.60 -50.00,86.60' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='20.00,-34.64 10.00,-17.32 -10.00,-17.32 -20.00,-34.64 -10.00,-51.96 10.00,-51.96' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='20.00,34.64 10.00,51.96 -10.00,51.96 -20.00,34.64 -10.00,17.32 10.00,17.32' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='20.00,103.92 10.00,121.24 -10.00,121.24 -20.00,103.92 -10.00,86.60 10.00,86.60' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='80.00,-34.64 70.00,-17.32 50.00,-17.32 40.00,-34.64 50.00,-51.96 70.00,-51.96' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='80.00,34.64 70.00,51.96 50.00,51.96 40.00,34.64 50.00,17.32 70.00,17.32' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='80.00,103.92 70.00,121.24 50.00,121.24 40.00,103.92 50.00,86.60 70.00,86.60' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-10.00,-51.96 -20.00,-34.64 -40.00,-34.64 -50.00,-51.96 -40.00,-69.28 -20.00,-69.28' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-10.00,17.32 -20.00,34.64 -40.00,34.64 -50.00,17.32 -40.00,0.00 -20.00,0.00' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-10.00,86.60 -20.00,103.92 -40.00,103.92 -50.00,86.60 -40.00,69.28 -20.00,69.28' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='50.00,-51.96 40.00,-34.64 20.00,-34.64 10.00,-51.96 20.00,-69.28 40.00,-69.28' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='50.00,17.32 40.00,34.64 20.00,34.64 10.00,17.32 20.00,0.00 40.00,0.00' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='50.00,86.60 40.00,103.92 20.00,103.92 10.00,86.60 20.00,69.28 40.00,69.28' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='110.00,-51.96 100.00,-34.64 80.00,-34.64 70.00,-51.96 80.00,-69.28 100.00,-69.28' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='110.00,17.32 100.00,34.64 80.00,34.64 70.00,17.32 80.00,0.00 100.00,0.00' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='110.00,86.60 100.00,103.92 80.00,103.92 70.00,86.60 80.00,69.28 100.00,69.28' fill='none' stroke='%2324488F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-10.00,-17.32 -20.00,0.00 -40.00,0.00 -50.00,-17.32 -40.00,-34.64 -20.00,-34.64' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-10.00,51.96 -20.00,69.28 -40.00,69.28 -50.00,51.96 -40.00,34.64 -20.00,34.64' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='-10.00,121.24 -20.00,138.56 -40.00,138.56 -50.00,121.24 -40.00,103.92 -20.00,103.92' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='50.00,-17.32 40.00,0.00 20.00,0.00 10.00,-17.32 20.00,-34.64 40.00,-34.64' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='50.00,51.96 40.00,69.28 20.00,69.28 10.00,51.96 20.00,34.64 40.00,34.64' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='50.00,121.24 40.00,138.56 20.00,138.56 10.00,121.24 20.00,103.92 40.00,103.92' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='110.00,-17.32 100.00,0.00 80.00,0.00 70.00,-17.32 80.00,-34.64 100.00,-34.64' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='110.00,51.96 100.00,69.28 80.00,69.28 70.00,51.96 80.00,34.64 100.00,34.64' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3Cpolygon points='110.00,121.24 100.00,138.56 80.00,138.56 70.00,121.24 80.00,103.92 100.00,103.92' fill='none' stroke='%234A2F8F' stroke-opacity='0.22' stroke-width='0.5'/%3E%3C/svg%3E");-webkit-mask-image:linear-gradient(90deg,transparent 30%,rgba(0,0,0,.5) 60%,#000 90%);mask-image:linear-gradient(90deg,transparent 30%,rgba(0,0,0,.5) 60%,#000 90%)}
 /* Energía necesita más ancho para su etiqueta completa */
 .res-box[title^="Energía"]{width:172px;min-width:172px;max-width:172px}
+@media (max-width:767px){.res-box[title^="Energía"]{width:auto;min-width:0;max-width:none}}
 /* Icono de recurso en la tarjeta */
 .card-res-icon{width:28px;height:28px;object-fit:contain;display:block}
 /* Miniatura de planeta en la tabla de galaxia */
@@ -797,6 +819,9 @@ button,select,input{font-family:inherit}
   <div class="layout">
     <aside class="sidebar">
       <nav id="nav" aria-label="Navegación principal"></nav>
+      <button class="mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-controls="nav" aria-expanded="true" aria-label="Ocultar menú de navegación" title="Ocultar menú de navegación">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 7 5 5 5-5"/></svg>
+      </button>
     </aside>
     <main class="main">
       <div class="main-inner" id="view"></div>
@@ -4850,6 +4875,32 @@ document.getElementById('nav').addEventListener('click', e => {
   if (!b) return;
   state.tab = b.dataset.tab;
   render();
+});
+
+const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+const mobileSidebar = mobileNavToggle.closest('.sidebar');
+const MOBILE_NAV_KEY = 'forja-astral-mobile-nav-collapsed';
+function setMobileNavCollapsed(collapsed, persist = false){
+  mobileSidebar.classList.toggle('mobile-collapsed', collapsed);
+  mobileNavToggle.setAttribute('aria-expanded', String(!collapsed));
+  const label = collapsed ? 'Mostrar menú de navegación' : 'Ocultar menú de navegación';
+  mobileNavToggle.setAttribute('aria-label', label);
+  mobileNavToggle.title = label;
+  if (persist){
+    try {
+      localStorage.setItem(MOBILE_NAV_KEY, String(collapsed));
+    } catch (err) {
+      console.warn('No se pudo guardar la preferencia del menú móvil.', err);
+    }
+  }
+}
+try {
+  setMobileNavCollapsed(localStorage.getItem(MOBILE_NAV_KEY) === 'true');
+} catch (err) {
+  console.warn('No se pudo leer la preferencia del menú móvil.', err);
+}
+mobileNavToggle.addEventListener('click', () => {
+  setMobileNavCollapsed(!mobileSidebar.classList.contains('mobile-collapsed'), true);
 });
 
 const viewEl = document.getElementById('view');
