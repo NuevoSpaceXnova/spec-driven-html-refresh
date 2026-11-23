@@ -446,6 +446,11 @@ button,select,input{font-family:inherit}
 /* ---------- MENÚ DE PERFIL ---------- */
 .user-menu{position:relative;flex:none}
 .notif-menu{position:relative;flex:none}
+.toast-stack{position:fixed;right:22px;bottom:22px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:10px;max-width:380px;padding:12px 18px;border-radius:16px;font-size:14px;line-height:1.35;color:#e9fff1;background:linear-gradient(135deg,rgba(40,255,128,.28),rgba(40,255,128,.12));backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 0 18px 2px rgba(40,255,128,.45),inset 0 0 12px rgba(40,255,128,.18);text-shadow:0 0 8px rgba(40,255,128,.6);animation:toastIn .35s ease-out both;transition:opacity .4s,transform .4s}
+.toast::before{content:"✓";flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(40,255,128,.35);color:#fff;font-weight:700;box-shadow:0 0 10px rgba(40,255,128,.7)}
+.toast.out{opacity:0;transform:translateX(24px)}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
 .notif-btn{position:relative;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-primary);cursor:pointer;padding:0}
 .notif-btn:hover{border-color:var(--text-secondary)}
 .notif-count{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--status-danger);color:#fff;font:600 10px var(--font-mono);display:grid;place-items:center}
@@ -1476,6 +1481,23 @@ function setStatus(msg, bad){
   if (!el) return;
   el.textContent = msg;
   el.className = 'page-sub' + (bad ? ' danger' : '');
+}
+// Avisos flotantes abajo a la derecha (construcciones, investigaciones y naves terminadas)
+function toast(msg){
+  let stack = document.getElementById('toast-stack');
+  if (!stack){
+    stack = document.createElement('div');
+    stack.id = 'toast-stack';
+    stack.className = 'toast-stack';
+    document.body.appendChild(stack);
+  }
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  stack.appendChild(t);
+  while (stack.children.length > 4) stack.firstElementChild.remove();
+  setTimeout(() => t.classList.add('out'), 4200);
+  setTimeout(() => t.remove(), 4700);
 }
 
 
@@ -2557,13 +2579,13 @@ function processQueues(){
     while (P.shipQueue && P.shipQueue.length && state.simSec >= P.shipQueue[0].end){
       const it = P.shipQueue.shift();
       P.fleet[it.id] = (P.fleet[it.id] || 0) + it.n;
-      setStatus('Naves terminadas: ' + it.n + ' × ' + SHIPS[it.id].name + '.');
+      toast('Naves terminadas: ' + it.n + ' × ' + SHIPS[it.id].name + '.');
     }
     const q = P.queue;
     if (!q || state.simSec < q.end) return;
     P.lvl[q.id] = (P.lvl[q.id] || 0) + 1;
     P.queue = null;
-    setStatus('Construcción terminada: ' + ITEMS[q.id].name + ' nivel ' + P.lvl[q.id] + '.');
+    toast((TECH_KEYS.includes(q.id) ? 'Investigación terminada: ' : 'Construcción terminada: ') + ITEMS[q.id].name + ' nivel ' + P.lvl[q.id] + '.');
   });
 }
 
