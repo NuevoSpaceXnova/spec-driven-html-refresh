@@ -363,13 +363,13 @@ button,select,input{font-family:inherit}
 .mk-price span{color:var(--text-primary)}
 .mk-body .btn{width:auto;align-self:center;min-width:140px}
 .mk-sell{max-width:520px}
-/* Ventana de nave */
-.modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;background:rgba(3,5,8,.72)}
-.modal[hidden]{display:none}
-.modal-box{width:min(680px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r-lg);box-shadow:0 24px 60px rgba(0,0,0,.6)}
-.sm-head{display:flex;gap:16px;align-items:center;padding:16px 18px;background:#06080C;border-bottom:1px solid var(--border-subtle)}
-.sm-media{flex:none;width:200px;height:110px;display:grid;place-items:center}
-.sm-img{max-width:100%;max-height:110px;object-fit:contain}
+/* Ventana de nave: dos columnas, centrada */
+.ship-modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;background:rgba(3,5,8,.72)}
+.ship-modal[hidden]{display:none}
+.ship-modal-box{width:min(900px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r-lg);box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.sm-head{display:flex;flex-direction:row;gap:18px;align-items:center;padding:16px 18px;background:#06080C;border-bottom:1px solid var(--border-subtle)}
+.sm-media{flex:none;width:260px;height:130px;display:grid;place-items:center}
+.sm-img{max-width:100%;max-height:130px;object-fit:contain}
 .sm-ico{width:72px;height:72px;display:grid;place-items:center;color:var(--accent-text)}
 .sm-ico svg{width:64px;height:64px}
 .sm-title{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
@@ -377,24 +377,22 @@ button,select,input{font-family:inherit}
 .sm-title p{margin:0;font-size:12px}
 .sm-close{background:none;border:0;color:var(--text-secondary);font-size:18px;cursor:pointer;padding:4px 8px;align-self:flex-start}
 .sm-close:hover{color:var(--text-primary)}
-.sm-body{display:flex;flex-direction:column;gap:12px;padding:16px 18px 18px}
-.sm-sub{margin:8px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)}
-.sm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.sm-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;padding:16px 18px 18px;align-items:start}
+.sm-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sm-foot{grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--border-subtle);padding-top:14px}
+.sm-sub{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary)}
+.sm-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .sm-stat{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px;text-align:center;display:flex;flex-direction:column;gap:4px}
 .sm-stat small{font-size:11px;color:var(--text-muted)}
 .sm-stat b{font:600 15px var(--font-mono);color:var(--text-primary)}
 .sm-table{overflow-x:auto}
-.sm-build{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px;flex-wrap:wrap}
+.sm-table table{width:100%}
+.sm-build{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .sm-build .qty{width:110px}
-.sm-msg{margin:0;font-size:12px;color:var(--text-secondary);min-height:16px;text-align:right}
+.sm-msg{margin:0;font-size:12px;color:var(--text-secondary);min-height:16px}
 .card[data-info]{cursor:pointer}
-.shipq-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
-.shipq-row:last-child{border-bottom:0}
-.shipq-info{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--text-primary)}
-.shipq-bar{grid-column:1;height:6px;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:3px;overflow:hidden}
-.shipq-bar span{display:block;height:100%;background:var(--accent-primary)}
-.shipq-row .btn{grid-column:2;grid-row:1 / span 2}
 .card[data-info]:hover{border-color:#3A4452}
+@media (max-width:760px){ .sm-body{grid-template-columns:1fr} .sm-media{width:140px} }
 
 
 @media (max-width:1100px){ .ships-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -532,7 +530,7 @@ button,select,input{font-family:inherit}
 </style>
 </head>
 <body>
-<div id="ship-modal" class="modal" hidden><div class="modal-box" id="ship-modal-box" role="dialog" aria-modal="true" aria-labelledby="sm-title"></div></div>
+<div id="ship-modal" class="ship-modal" hidden><div class="ship-modal-box" id="ship-modal-box" role="dialog" aria-modal="true" aria-labelledby="sm-title"></div></div>
 <div id="loader" class="loader" role="status" aria-live="polite">
   <div class="loader-card">
     <div class="loader-title">Forja Astral</div>
@@ -3677,7 +3675,7 @@ function openShipModal(id, msg){
       <div class="sm-stat"><small>Estructura</small><b>${fmt(S.s)}</b></div>
       <div class="sm-stat"><small>Carga</small><b>${fmt(S.cargo || 0)}</b></div>
       ${S.defense ? '' : `<div class="sm-stat"><small>Velocidad</small><b>${fmt(shipSpeed(id))}/h</b></div>
-      <div class="sm-stat"><small>Combustible por viaje</small><b>${S.fuel ? fmt(S.fuel) : '—'}</b></div>`}
+      <div class="sm-stat"><small>Combustible</small><b>${S.fuel ? fmt(S.fuel) : '—'}</b></div>`}
     </div>`;
   const costs = RES.filter(r => S.cost[r]).map(r =>
     `<div class="sm-stat"><small>${RES_NAME[r]}</small><b>${fmt(S.cost[r])}</b></div>`).join('') || '<div class="sm-stat"><small>Costo</small><b>Gratis</b></div>';
@@ -3698,25 +3696,30 @@ function openShipModal(id, msg){
       <button class="sm-close" data-mclose aria-label="Cerrar">✕</button>
     </div>
     <div class="sm-body">
-      ${stats}
-      <h3 class="sm-sub">Costo por unidad</h3>
-      <div class="sm-stats">${costs}</div>
-      <h3 class="sm-sub">Requisitos</h3>
-      <div class="cost">${reqList || '<span class="muted">Sin requisitos</span>'}</div>
-      <h3 class="sm-sub">Costo según cantidad</h3>
-      <div class="sm-table"><table class="table">
-        <thead><tr><th>Cantidad</th>${RES.map(r => `<th class="r">${RES_NAME[r]}</th>`).join('')}<th class="r">Tiempo</th></tr></thead>
-        <tbody>${qtyRows}</tbody>
-      </table></div>
-      <p class="muted" style="margin:0;font-size:12px">Tiempo por unidad: ${durHMS(shipBuildSeconds(id, 1))}. Las naves se construyen en cola y llegan al hangar al terminar.</p>
-      <div class="sm-build">
-        <input class="qty" type="number" min="1" value="1" data-mqty aria-label="Cantidad a construir">
-        <button class="btn" data-mbuild="${id}" ${ok ? '' : 'disabled'}>Construir</button>
+      <div class="sm-col">
+        ${stats}
+        <h3 class="sm-sub">Costo por unidad</h3>
+        <div class="sm-stats">${costs}</div>
+        <h3 class="sm-sub">Requisitos</h3>
+        <div class="cost">${reqList || '<span class="muted">Sin requisitos</span>'}</div>
       </div>
-      <p id="sm-msg" class="sm-msg">${msg || (ok ? '' : 'Completa los requisitos para construir.')}</p>
+      <div class="sm-col">
+        <h3 class="sm-sub">Costo y tiempo según cantidad</h3>
+        <div class="sm-table"><table class="table">
+          <thead><tr><th>Cantidad</th>${RES.map(r => `<th class="r">${RES_NAME[r]}</th>`).join('')}<th class="r">Tiempo</th></tr></thead>
+          <tbody>${qtyRows}</tbody>
+        </table></div>
+        <p class="muted" style="margin:0;font-size:12px">Tiempo por unidad: ${durHMS(shipBuildSeconds(id, 1))}. Las naves se construyen en cola y llegan al hangar al terminar.</p>
+      </div>
+      <div class="sm-foot">
+        <p id="sm-msg" class="sm-msg">${msg || (ok ? '' : 'Completa los requisitos para construir.')}</p>
+        <div class="sm-build">
+          <input class="qty" type="number" min="1" value="1" data-mqty aria-label="Cantidad a construir">
+          <button class="btn" data-mbuild="${id}" ${ok ? '' : 'disabled'}>Construir</button>
+        </div>
+      </div>
     </div>`;
   document.getElementById('ship-modal').hidden = false;
-  box.focus && box.focus();
 }
 function closeShipModal(){ document.getElementById('ship-modal').hidden = true; }
 document.addEventListener('click', e => {
