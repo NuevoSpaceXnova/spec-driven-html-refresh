@@ -198,10 +198,11 @@ button,select,input{font-family:inherit}
 @keyframes gridRun{to{background-position:0 34px,0 0}}
 .hangar-beam{display:none!important;position:absolute;top:-10%;width:22%;height:90%;background:linear-gradient(180deg,rgba(190,212,240,.22),transparent 80%);filter:blur(6px);transform-origin:50% 0;animation:beamSwing 9s ease-in-out infinite alternate}
 @keyframes beamSwing{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
-.ship-float{position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);animation:shipFloat 6s ease-in-out infinite;will-change:transform}
-@keyframes shipFloat{0%,100%{transform:translate(-50%, -50%) rotate(-0.6deg)}50%{transform:translate(-50%, calc(-50% - 4px)) rotate(0.6deg)}}
-.ship-float img{display:block;width:100%;height:auto;position:relative;z-index:2;filter:contrast(1.18) brightness(1.08) drop-shadow(0 2px 8px rgba(0,0,0,0.85));image-rendering:-webkit-optimize-contrast}
-.card:hover .ship-float img{filter:contrast(1.18) brightness(1.08) drop-shadow(0 2px 8px rgba(0,0,0,0.85))}
+/* Centrado por layout (inset:0 + margin:auto), sin depender de translate(-50%) */
+.ship-float{position:absolute;inset:0;margin:auto;height:max-content;animation:shipFloat 6s ease-in-out infinite;will-change:transform}
+@keyframes shipFloat{0%,100%{transform:translateY(0) rotate(-0.6deg)}50%{transform:translateY(-4px) rotate(0.6deg)}}
+.ship-float img{display:block;width:100%;height:auto;position:relative;z-index:2;filter:contrast(1.2) brightness(1.22) saturate(1.15) drop-shadow(0 2px 8px rgba(0,0,0,0.85));image-rendering:-webkit-optimize-contrast}
+.card:hover .ship-float img{filter:contrast(1.2) brightness(1.22) saturate(1.15) drop-shadow(0 2px 8px rgba(0,0,0,0.85))}
 .ship-scan{display:none !important;position:absolute;inset:0;z-index:3;pointer-events:none;-webkit-mask:var(--m) center/100% 100% no-repeat;mask:var(--m) center/100% 100% no-repeat;mix-blend-mode:screen;overflow:hidden}
 .ship-scan::before{content:"";position:absolute;top:0;bottom:0;left:-30%;width:18%;background:linear-gradient(90deg,transparent,rgba(141,176,216,.85) 45%,#fff 50%,rgba(141,176,216,.85) 55%,transparent);animation:shipScan 4.5s ease-in-out infinite}
 @keyframes shipScan{0%{left:-30%}55%,100%{left:120%}}
