@@ -422,9 +422,28 @@ button,select,input{font-family:inherit}
   .start-card{padding:24px}
   .start-title{font-size:24px}
 }
+/* ---------- Pantalla de carga: se muestra en cada arranque con sesión (incluido F5) ---------- */
+.loader{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:16px;background:var(--bg-app)}
+.loader[hidden]{display:none}
+.loader::before{content:"";position:absolute;inset:0;background:var(--space-bg) center/cover no-repeat;opacity:.3}
+.loader-card{position:relative;width:min(380px,100%);background:rgba(19,23,29,.88);border:1px solid rgba(74,84,98,.7);border-radius:var(--r-lg);padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.loader-card::before{content:"";position:absolute;left:-1px;right:-1px;top:-1px;height:2px;background:var(--accent-primary)}
+.loader-title{font-size:14px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--text-primary)}
+.loader-msg{font:500 13px var(--font-mono);color:var(--text-secondary);min-height:18px}
+.loader-bar{height:8px;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:4px;overflow:hidden}
+.loader-fill{display:block;height:100%;width:0;background:var(--accent-primary)}
+.loader-pct{font:600 12px var(--font-mono);color:var(--text-primary);text-align:right}
 </style>
 </head>
 <body>
+<div id="loader" class="loader" role="status" aria-live="polite">
+  <div class="loader-card">
+    <div class="loader-title">Forja Astral</div>
+    <div class="loader-msg" id="loader-msg">Iniciando sistemas…</div>
+    <div class="loader-bar"><span class="loader-fill" id="loader-fill"></span></div>
+    <div class="loader-pct" id="loader-pct">1%</div>
+  </div>
+</div>
 <div id="start" class="start" hidden>
   <div class="start-bg" aria-hidden="true"></div>
   <div class="sky" id="sky-start" aria-hidden="true"></div>
@@ -3783,6 +3802,62 @@ async function quickAccess(){
   localStorage.setItem('forja-astral-session', key);
   location.reload();
 }
+/* ---------- Precarga de TODAS las imágenes (fondo, minas, naves) ---------- */
+const LOADER_MIN_MS = 2000;     // ritmo mínimo para que se lean los mensajes
+const LOADER_MAX_MS = 15000;    // si una imagen tarda demasiado, no bloquea el juego
+const PRELOADED = [];           // referencias vivas: el navegador conserva las imágenes en memoria
+function loaderSet(pct, msg){
+  const f = document.getElementById('loader-fill'), p = document.getElementById('loader-pct'), m = document.getElementById('loader-msg');
+  if (f) f.style.width = pct + '%';
+  if (p) p.textContent = pct + '%';
+  if (m && msg) m.textContent = msg;
+}
+function hideLoader(){ const l = document.getElementById('loader'); if (l) l.hidden = true; }
+function preloadGroups(){
+  const bgMatch = getComputedStyle(document.documentElement).getPropertyValue('--space-bg').match(/url\(['"]?(.*?)['"]?\)/);
+  return [
+    {msg:'Cargando fondo estelar…', urls: bgMatch ? [bgMatch[1]] : []},
+    {msg:'Cargando minas…', urls: Object.values(SCENE_IMG)},
+    {msg:'Cargando naves y astillero…', urls: Object.keys(SHIP_SCENE).map(id => `/assets/${id}.webp`)}
+  ];
+}
+function loadOne(url){
+  return new Promise(res => {
+    const im = new Image();
+    PRELOADED.push(im);
+    const done = () => res();
+    im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(done, done); };
+    im.onerror = done;
+    im.src = url;
+  });
+}
+const sleepMs = ms => new Promise(r => setTimeout(r, ms));
+async function runLoader(){
+  const groups = preloadGroups();
+  const total = groups.reduce((n, g) => n + g.urls.length, 0) || 1;
+  const t0 = Date.now();
+  let done = 0, realPct = 0, msg = groups[0].msg;
+  // El porcentaje mostrado nunca supera el progreso real ni el ritmo mínimo
+  const tick = setInterval(() => {
+    const timePct = Math.min(100, (Date.now() - t0) / LOADER_MIN_MS * 100);
+    loaderSet(Math.max(1, Math.floor(Math.min(realPct, timePct))), msg);
+  }, 50);
+  loaderSet(1, msg);
+  const loadAll = (async () => {
+    for (const g of groups){
+      msg = g.msg;
+      await Promise.all(g.urls.map(u => loadOne(u).then(() => { done++; realPct = done / total * 100; })));
+    }
+  })();
+  await Promise.race([loadAll, sleepMs(LOADER_MAX_MS)]);
+  realPct = 100;
+  await sleepMs(Math.max(0, LOADER_MIN_MS - (Date.now() - t0)));
+  clearInterval(tick);
+  loaderSet(100, 'Listo');
+  await sleepMs(250);
+  hideLoader();
+}
+
 function initStart(){
   const scr = document.getElementById('start');
   document.getElementById('tab-login').addEventListener('click', () => setAuthMode('login'));
@@ -3796,9 +3871,11 @@ function initStart(){
     if (state.profile) state.profile.name = acc.name;
     saveGame();
     render();
+    runLoader();   // cada arranque con sesión (login, recarga o F5) pasa por la pantalla de carga
     return;
   }
   if (key) localStorage.removeItem('forja-astral-session');
+  hideLoader();    // sin sesión: se muestra el inicio de sesión, no la carga
   setAuthMode('login');
   scr.hidden = false;
 }
