@@ -304,6 +304,10 @@ button,select,input{font-family:inherit}
 
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 @media (max-width:767px){ .grid3{grid-template-columns:1fr} }
+/* Astillero: tarjetas de naves de 3 en 3 en escritorio */
+.ships-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1100px){ .ships-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:767px){ .ships-grid{grid-template-columns:1fr} }
 
 /* ---------- MENÚ DE PERFIL ---------- */
 .user-menu{position:relative;flex:none}
@@ -3434,7 +3438,7 @@ function viewShipyard(){
       <button class="btn inline" data-action="subtab" data-sub="hangar" ${tab === 'hangar' ? 'disabled' : ''}>Hangar de Naves</button>
       <button class="btn inline" data-action="subtab" data-sub="defense" ${tab === 'defense' ? 'disabled' : ''}>Defensas Planetarias</button>
     </div>
-    <div class="grid">${keys.map(shipCard).join('')}</div>`;
+    <div class="grid ships-grid">${keys.map(shipCard).join('')}</div>`;
 }
 
 /* ----- Árbol Tecnológico ----- */
