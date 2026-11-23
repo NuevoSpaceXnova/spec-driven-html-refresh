@@ -340,6 +340,30 @@ button,select,input{font-family:inherit}
 .fleet-panel .fleet-form .field{width:100%;max-width:420px}
 .fleet-panel .fleet-form .inline-form .input{width:auto}
 .fleet-panel .select.full{max-width:420px}
+/* Mercado: pestañas, buscador, filtros y tarjetas de oferta */
+.mk-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.mk-toolbar .input{flex:1;min-width:220px;width:auto}
+.mk-toolbar .select{min-width:220px}
+.mk-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.mk-count{font-size:12px;color:var(--text-muted);margin-bottom:10px}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.mk-card{position:relative;display:flex;flex-direction:column;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r-lg);overflow:hidden}
+.mk-card:hover{border-color:#3A4452}
+.mk-card.mine{border-color:var(--accent-primary)}
+.mk-media{position:relative;height:150px;display:grid;place-items:center;background:#06080C;border-bottom:1px solid var(--border-subtle)}
+.mk-media svg{width:64px;height:64px;color:var(--accent-text)}
+.mk-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:14px;background:#06080C}
+.mk-tag{position:absolute;left:10px;top:10px;font:500 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-text);border:1px solid var(--accent-primary);border-radius:2px;padding:2px 6px;background:rgba(6,8,12,.85)}
+.mk-mult{position:absolute;right:10px;top:10px;font:600 11px var(--font-mono);color:var(--text-primary);background:rgba(6,8,12,.85);border:1px solid var(--border-subtle);border-radius:2px;padding:2px 6px}
+.mk-body{display:flex;flex-direction:column;gap:8px;padding:12px 14px 14px}
+.mk-body b{font-size:15px;color:var(--text-primary)}
+.mk-seller{font-size:12px;color:var(--text-secondary)}
+.mk-price{display:flex;justify-content:space-between;gap:8px;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px 10px;font:500 13px var(--font-mono)}
+.mk-price small{display:block;font-size:10px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase}
+.mk-price span{color:var(--text-primary)}
+.mk-body .btn{width:auto;align-self:center;min-width:140px}
+.mk-sell{max-width:520px}
+
 
 @media (max-width:1100px){ .ships-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:767px){ .ships-grid{grid-template-columns:1fr} }
@@ -920,6 +944,8 @@ function handleFase2Click(e){
       case 'save': setStatus(saveGame() ? 'Partida guardada en este navegador.' : 'No se pudo guardar: el almacenamiento del navegador no está disponible.', false); return;
       case 'load': { const ok = loadGame(); render(); setStatus(ok ? 'Partida cargada.' : 'No hay partida guardada o no se pudo leer.', !ok); return; }
       case 'publish': publishOffer(); return;
+      case 'mkt-sub': mktState().sub = act.dataset.sub; render(); return;
+      case 'mkt-filter': mktState().filter = act.dataset.f; render(); return;
       case 'explore': exploreFromInputs(); return;
       case 'launch-exp': launchExpedition(); return;
       case 'create-alliance': createAlliance(); return;
@@ -1106,17 +1132,23 @@ function ensureMarket(){
 function renderBook(){
   const el = document.getElementById('book');
   if (!el) return;
-  const rows = [...state.market.rivals.map(o => ({...o, mine:false})), ...state.market.own.map(o => ({...o, mine:true}))];
-  el.innerHTML = rows.length ? `<div style="overflow-x:auto"><table class="table">
-    <thead><tr><th>Jugador</th><th>Recurso</th><th class="r">Cantidad</th><th class="r">Precio (Tokens)</th><th class="r">Acción</th></tr></thead>
-    <tbody>${rows.map(o => `<tr class="${o.mine ? 'row-own' : ''}">
-      <td>${o.owner}</td><td>${RES_NAME[o.res]}</td>
-      <td class="r mono-cell">${fmt(o.qty)}</td><td class="r mono-cell">${fmt(o.price)}</td>
-      <td class="r">${o.mine ? `<button class="btn inline" data-cancel="${o.id}">Cancelar</button>` : `<button class="btn inline" data-buy="${o.id}">Comprar</button>`}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>` : '<div class="empty">No hay ofertas activas.</div>';
+  const M = mktState();
+  const total = state.market.rivals.length + state.market.own.length;
+  let list = M.sub === 'own'
+    ? state.market.own.map(o => ({...o, mine:true}))
+    : state.market.rivals.map(o => ({...o, mine:false}));
+  if (M.filter !== 'all') list = list.filter(o => o.res === M.filter);
+  const q = M.q.trim().toLowerCase();
+  if (q) list = list.filter(o => RES_NAME[o.res].toLowerCase().includes(q) || String(o.owner).toLowerCase().includes(q));
+  if (M.sort === 'price') list = [...list].sort((a, b) => a.price - b.price);
+  else if (M.sort === 'qty') list = [...list].sort((a, b) => b.qty - a.qty);
+  else list = [...list].reverse();
+  el.innerHTML = `<div class="mk-count">Mostrando ${fmt(list.length)} de ${fmt(total)} ofertas</div>` + (list.length
+    ? `<div class="mk-grid">${list.map(o => mktCardHTML(o, o.mine)).join('')}</div>`
+    : `<div class="empty">${M.sub === 'own' ? 'No tienes ofertas publicadas.' : 'No hay ofertas que coincidan.'}</div>`);
   state.dirtyMarket = false;
 }
+
 function publishOffer(){
   const res = document.getElementById('m-res').value;
   const qty = Math.floor(Number(document.getElementById('m-qty').value));
@@ -3711,28 +3743,66 @@ function viewGalaxy(){
     <section class="panel" id="galaxy-table">${galaxyTable(g, s)}</section>`;
 }
 
+function mktState(){
+  if (!state.mkt) state.mkt = {sub:'explore', filter:'all', q:'', sort:'recent'};
+  return state.mkt;
+}
+const MK_ITEM = {metal:'mm', crystal:'mc', deut:'ds'};
+function mktCardHTML(o, mine){
+  const item = ITEMS[MK_ITEM[o.res]] || {icon:'cube'};
+  const unit = o.qty ? o.price / o.qty : 0;
+  return `<article class="mk-card${mine ? ' mine' : ''}">
+    <div class="mk-media">
+      ${icon(item.icon)}
+      <img class="mk-img" src="/assets/res-${o.res}.webp" alt="" loading="lazy" onerror="this.remove()">
+      <span class="mk-tag">Recurso</span>
+      <span class="mk-mult">x${fmt(o.qty)}</span>
+    </div>
+    <div class="mk-body">
+      <b>${RES_NAME[o.res]}</b>
+      <span class="mk-seller">Vendedor: ${esc(o.owner)}</span>
+      <div class="mk-price">
+        <div><small>Precio (Tokens)</small><span>${fmt(o.price)}</span></div>
+        <div><small>Por unidad</small><span>${unit.toFixed(3)}</span></div>
+      </div>
+      ${mine ? `<button class="btn inline secondary" data-cancel="${o.id}">Cancelar</button>` : `<button class="btn" data-buy="${o.id}">Comprar</button>`}
+    </div>
+  </article>`;
+}
 function viewMarket(){
+  const M = mktState();
+  const subs = [['explore','Explorar'],['sell','Vender'],['own','Mis listados']];
+  const subBtns = subs.map(([id, l]) =>
+    `<button class="btn inline${M.sub === id ? '' : ' secondary'}" data-action="mkt-sub" data-sub="${id}" ${M.sub === id ? 'disabled' : ''}>${l}</button>`).join('');
+  const filters = [['all','Todos'],['metal','Metal'],['crystal','Cristal'],['deut','Deuterio']].map(([id, l]) =>
+    `<button class="btn inline${M.filter === id ? '' : ' secondary'}" data-action="mkt-filter" data-f="${id}" ${M.filter === id ? 'disabled' : ''}>${l}</button>`).join('');
+  const sortOpts = [['recent','Más recientes'],['price','Precio: menor a mayor'],['qty','Cantidad: mayor a menor']]
+    .map(([v, l]) => `<option value="${v}" ${M.sort === v ? 'selected' : ''}>${l}</option>`).join('');
+  const sell = `
+    <section class="panel pad mk-sell">
+      <h2 class="section-title" style="margin-top:0">Publicar oferta</h2>
+      <div class="form-stack">
+        <label class="field">Recurso a vender
+          <select class="select full" id="m-res">${RES.map(r => `<option value="${r}">${RES_NAME[r]}</option>`).join('')}</select>
+        </label>
+        <label class="field">Cantidad a vender<input class="input" id="m-qty" type="number" min="1" value="1000"></label>
+        <label class="field">Precio total (Tokens)<input class="input" id="m-price" type="number" min="1" value="500"></label>
+        <button class="btn" data-action="publish">Publicar Venta</button>
+      </div>
+    </section>`;
+  const explore = `
+    <div class="mk-toolbar">
+      <input class="input" id="mk-q" type="search" placeholder="Buscar por recurso o vendedor…" value="${esc(M.q)}">
+      <select class="select" id="mk-sort" aria-label="Ordenar">${sortOpts}</select>
+    </div>
+    <div class="mk-filters">${filters}</div>
+    <div id="book"></div>`;
   return `
-    <h1 class="page-title">Mercado P2P</h1>
-    <p class="page-sub">Economía de Tokens entre jugadores. Tokens disponibles: <span class="mono" data-bind="res:token"></span></p>
+    <h1 class="page-title">Mercado</h1>
+    <p class="page-sub">Ofertas y compra de recursos entre jugadores. Tokens disponibles: <span class="mono" data-bind="res:token"></span></p>
     <p id="status" class="page-sub"></p>
-    <div class="market-grid">
-      <section class="panel pad">
-        <h2 class="section-title" style="margin-top:0">Publicar Oferta</h2>
-        <div class="form-stack">
-          <label class="field">Recurso a vender
-            <select class="select full" id="m-res">${RES.map(r => `<option value="${r}">${RES_NAME[r]}</option>`).join('')}</select>
-          </label>
-          <label class="field">Cantidad a vender<input class="input" id="m-qty" type="number" min="1" value="1000"></label>
-          <label class="field">Precio total (Tokens)<input class="input" id="m-price" type="number" min="1" value="500"></label>
-          <button class="btn" data-action="publish">Publicar Venta</button>
-        </div>
-      </section>
-      <section class="panel">
-        <h2 class="section-title" style="margin:16px 16px 0">Libro de Órdenes P2P</h2>
-        <div id="book" style="padding:0 0 8px"></div>
-      </section>
-    </div>`;
+    <div class="inline-form" style="margin-bottom:16px">${subBtns}</div>
+    ${M.sub === 'sell' ? sell : explore}`;
 }
 
 const VIEWS = {
@@ -4164,6 +4234,8 @@ viewEl.addEventListener('change', e => {
   if (e.target.id === 'cfg-file') readCfgFile(e.target.files[0]);
 });
 viewEl.addEventListener('input', () => { if (state.tab === 'fleet'){ syncFleetDraft(); updateFleetCalc(); } });
+viewEl.addEventListener('input', e => { if (e.target.id === 'mk-q'){ mktState().q = e.target.value; renderBook(); } });
+viewEl.addEventListener('change', e => { if (e.target.id === 'mk-sort'){ mktState().sort = e.target.value; renderBook(); } });
 viewEl.addEventListener('change', e => { if (e.target.id === 'f-mis' || e.target.id === 'f-own'){ syncFleetDraft(); updateFleetCalc(); } });
 
 loadGame();
