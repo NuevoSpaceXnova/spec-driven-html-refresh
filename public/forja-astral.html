@@ -690,6 +690,9 @@ button,select,input{font-family:inherit}
 /* Acciones de galaxia: planeta siempre alineado a la derecha */
 .gal-act{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .gal-act .planet-thumb{margin-left:auto}
+/* Iconos de recurso en reportes de espionaje */
+.rs-name{display:inline-flex;align-items:center;gap:8px}
+.res-mini{width:20px;height:20px;object-fit:contain;flex:none}
 </style>
 </head>
 <body>
@@ -2783,6 +2786,7 @@ function resolveHostile(m){
 }
 
 /* ----- Espionaje ----- */
+const RES_MINI_IMG = {metal:'assets/recursos_01.png', crystal:'assets/recursos_02.png', deut:'assets/recursos_03.png'};
 function spyReportHTML(p){
   const real = effEs() >= 1;
   const fleetRows = real
@@ -2791,7 +2795,7 @@ function spyReportHTML(p){
   const defRows = Object.keys(p.defense || {}).map(k => `<div><span>${SHIPS[k] ? SHIPS[k].name : k}</span><span>${fmt(p.defense[k])}</span></div>`).join('');
   return `
     <div class="field">Jugador: ${p.owner}${p.alli ? ' · Alianza ' + p.alli : ''} · Coordenadas ${p.id}</div>
-    <div class="rows">${RES.map(r => `<div><span>${RES_NAME[r]}</span><span>${fmt(p.res[r])}</span></div>`).join('')}</div>
+    <div class="rows">${RES.map(r => `<div><span class="rs-name"><img class="res-mini" src="${RES_MINI_IMG[r]}" alt="" aria-hidden="true">${RES_NAME[r]}</span><span>${fmt(p.res[r])}</span></div>`).join('')}</div>
     <div class="rows">${fleetRows}</div>
     <div class="rows">${defRows}</div>
     <button class="btn" data-action="sim-from-report" data-def="${encodeURIComponent(JSON.stringify(simDataOf(p)))}" style="margin-top:4px">Simular Combate</button>`;
