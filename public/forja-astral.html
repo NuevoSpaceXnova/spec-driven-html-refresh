@@ -109,7 +109,9 @@ button,select,input{font-family:inherit}
 .stat-line b{font:500 12px var(--font-mono);color:var(--text-primary)}
 .cost{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px 12px;font:500 12px var(--font-mono);display:flex;flex-direction:column;gap:4px}
 .cost-row{display:flex;justify-content:space-between;gap:8px}
-.cost-row.lack{color:var(--status-danger)}
+.cost-row>span:first-child{color:var(--text-primary)}
+.cost-row>span:last-child{color:var(--status-success)}
+.cost-row.lack>span:last-child{color:var(--status-danger)}
 /* Botones alineados al pie de cada tarjeta, sin importar cuántos requisitos tenga */
 .card>.btn:last-child,.card>.inline-form:last-child,.card>.cost{margin-top:auto}
 .card>.cost~.btn,.card>.cost~.inline-form,.card>.cost~.bar{margin-top:0}
@@ -4286,7 +4288,7 @@ function valueOf(key){
     case 'eCons':   return fmt(e.cons);
     case 'fields':  return fmt(usedFields(P)) + ' / ' + fmt(maxFields(P));
     case 'lvl':     return 'Nivel ' + (L[a] || 0);
-    case 'cost':    return fmt(costOf(a, (L[a] || 0) + 1)[b]);
+    case 'cost':    return fmt(state.res[b] || 0) + '/' + fmt(costOf(a, (L[a] || 0) + 1)[b]);
     case 'hourly': {
       const r = rates();
       let v = r[a];
