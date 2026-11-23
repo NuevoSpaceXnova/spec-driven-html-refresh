@@ -685,6 +685,8 @@ button,select,input{font-family:inherit}
 .res-box[title^="Energía"]{width:172px;min-width:172px;max-width:172px}
 /* Icono de recurso en la tarjeta */
 .card-res-icon{width:28px;height:28px;object-fit:contain;display:block}
+/* Miniatura de planeta en la tabla de galaxia */
+.planet-thumb{width:36px;height:36px;flex:none;display:block;border-radius:50%;box-shadow:0 0 8px rgba(120,160,255,.22)}
 </style>
 </head>
 <body>
@@ -2819,6 +2821,54 @@ function getPlanet(g, s, p){
   return {...base, res, fleet, defense, debris:dbr};
 }
 
+// Planetas procedurales: forma y colores aleatorios, fijos para cada posición
+function planetSVG(seedStr){
+  let h = 2166136261;
+  for (const ch of String(seedStr)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const uid = 'pl' + (h >>> 0).toString(36);
+  const rnd = () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const f = (n, d = 1) => n.toFixed(d);
+  const hue = Math.floor(rnd() * 360);
+  const kind = pick(['gas', 'rock', 'ocean', 'lava', 'ice']);
+  const c1 = `hsl(${hue} ${f(55 + rnd() * 30, 0)}% ${f(45 + rnd() * 15, 0)}%)`;
+  const c2 = `hsl(${f((hue + rnd() * 60 - 30 + 360) % 360, 0)} ${f(50 + rnd() * 35, 0)}% ${f(22 + rnd() * 18, 0)}%)`;
+  const c3 = `hsl(${(hue + 180) % 360} ${f(40 + rnd() * 40, 0)}% ${f(60 + rnd() * 20, 0)}%)`;
+  let body = '';
+  if (kind === 'gas') {
+    for (let y = 0; y < 100; y += 6 + rnd() * 8) {
+      const hh = (hue + rnd() * 40 - 20 + 360) % 360;
+      body += `<rect x="0" y="${f(y)}" width="100" height="${f(4 + rnd() * 7)}" fill="hsl(${f(hh, 0)} ${f(40 + rnd() * 40, 0)}% ${f(30 + rnd() * 35, 0)}%)" opacity="${f(0.5 + rnd() * 0.5, 2)}"/>`;
+    }
+  } else if (kind === 'rock') {
+    body = `<rect width="100" height="100" fill="${c2}"/>`;
+    for (let i = 0; i < 14; i++) {
+      const x = rnd() * 100, y = rnd() * 100, r = 2 + rnd() * 9;
+      body += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="${c1}" opacity="0.35"/><circle cx="${f(x + r * 0.25)}" cy="${f(y + r * 0.25)}" r="${f(r * 0.8)}" fill="#000" opacity="0.35"/>`;
+    }
+  } else if (kind === 'ocean') {
+    body = `<rect width="100" height="100" fill="hsl(${hue} 70% 35%)"/>`;
+    for (let i = 0; i < 5; i++) {
+      const x = rnd() * 80 + 10, y = rnd() * 80 + 10, r = 8 + rnd() * 14;
+      body += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(r)}" ry="${f(r * (0.5 + rnd() * 0.5))}" fill="hsl(${(hue + 90) % 360} 45% 40%)" opacity="0.85"/>`;
+    }
+  } else if (kind === 'lava') {
+    body = `<rect width="100" height="100" fill="${c2}"/>`;
+    for (let i = 0; i < 9; i++) {
+      const x = rnd() * 100, y = rnd() * 100;
+      body += `<path d="M${f(x)} ${f(y)} q${f(rnd() * 20 - 10)} ${f(rnd() * 20 - 10)} ${f(rnd() * 24 - 12)} ${f(rnd() * 24 - 12)}" stroke="hsl(${(hue + 20) % 360} 100% 60%)" stroke-width="${f(1 + rnd() * 2)}" fill="none" opacity="0.8"/>`;
+    }
+  } else {
+    body = `<rect width="100" height="100" fill="${c3}"/>`;
+    for (let i = 0; i < 8; i++) {
+      const x = rnd() * 100, y = rnd() * 100;
+      body += `<path d="M${f(x)} ${f(y)} l${f(rnd() * 30 - 15)} ${f(rnd() * 30 - 15)}" stroke="#fff" stroke-opacity=".5" stroke-width=".8"/>`;
+    }
+  }
+  const ring = rnd() < 0.3 ? `<ellipse cx="50" cy="52" rx="48" ry="11" fill="none" stroke="${c3}" stroke-opacity=".55" stroke-width="3" transform="rotate(${f(rnd() * 30 - 15)} 50 50)"/>` : '';
+  return `<svg class="planet-thumb" viewBox="0 0 100 100" aria-hidden="true"><defs><clipPath id="${uid}"><circle cx="50" cy="50" r="42"/></clipPath><radialGradient id="${uid}s" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".85"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="${c1}" opacity=".18"/><g clip-path="url(#${uid})">${body}<circle cx="50" cy="50" r="42" fill="url(#${uid}s)"/></g>${ring}</svg>`;
+}
+
 function galaxyTable(g, s){
   const P = activePlanet();
   const canScan = P.moon && (P.lvl.ph || 0) >= 1;
@@ -2837,7 +2887,7 @@ function galaxyTable(g, s){
         <td>${p.occupied ? p.owner : '—'}</td>
         <td>${p.occupied && p.alli ? p.alli : '—'}</td>
         <td class="mono-cell">${debrisTxt}</td>
-        <td><div class="inline-form">${main}${recy}${scan}</div></td>
+        <td><div class="inline-form">${main}${recy}${scan}${planetSVG(p.id)}</div></td>
       </tr>`;
     }).join('')}
     </tbody>
