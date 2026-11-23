@@ -70,11 +70,7 @@ button,select,input{font-family:inherit}
 .res-box{min-width:118px;height:40px;border:0;border-left:1px solid var(--border-subtle);border-radius:0;background:transparent;display:flex;align-items:center;gap:10px;padding:0 14px;flex:none}
 .res-box:last-child{border-right:1px solid var(--border-subtle)}
 .res-box svg{flex:none;width:16px;height:16px}
-.res-icon{width:44px;height:44px;flex:none;background-image:url('assets/recursos.png');background-repeat:no-repeat}
-.res-icon-metal{background-size:150.189px 100.126px;background-position:-1.287px -26.679px}
-.res-icon-crystal{background-size:150.621px 100.414px;background-position:-39.431px -26.155px}
-.res-icon-deuterium{background-size:153.713px 102.475px;background-position:-74.194px -28.067px}
-.res-icon-energy{background-size:168px 112px;background-position:-121.433px -33.192px}
+.res-icon{display:block;width:40px;height:40px;flex:none;object-fit:contain}
 .res-label{font-size:11px;color:var(--text-secondary);line-height:1.1;white-space:nowrap}
 .res-val{font:500 14px var(--font-title);line-height:1.3;white-space:nowrap;color:var(--text-primary)}
 .res-box[title="Token"] .res-val{color:var(--accent-text)!important}
@@ -687,19 +683,19 @@ button,select,input{font-family:inherit}
     </div>
     <div class="resources" id="resources">
       <div class="res-box" style="color:var(--res-metal)" title="Metal">
-        <span class="res-icon res-icon-metal" aria-hidden="true"></span>
+        <img class="res-icon" src="assets/recursos_01.png" alt="" aria-hidden="true">
         <div><div class="res-label">Metal</div><div class="res-val" style="color:var(--text-primary)" data-bind="res:metal"></div><div class="res-rate" data-bind="rate:metal"></div></div>
       </div>
       <div class="res-box" style="color:var(--res-crystal)" title="Cristal">
-        <span class="res-icon res-icon-crystal" aria-hidden="true"></span>
+        <img class="res-icon" src="assets/recursos_02.png" alt="" aria-hidden="true">
         <div><div class="res-label">Cristal</div><div class="res-val" style="color:var(--text-primary)" data-bind="res:crystal"></div><div class="res-rate" data-bind="rate:crystal"></div></div>
       </div>
       <div class="res-box" style="color:var(--res-deuterium)" title="Deuterio">
-        <span class="res-icon res-icon-deuterium" aria-hidden="true"></span>
+        <img class="res-icon" src="assets/recursos_03.png" alt="" aria-hidden="true">
         <div><div class="res-label">Deuterio</div><div class="res-val" style="color:var(--text-primary)" data-bind="res:deut"></div><div class="res-rate" data-bind="rate:deut"></div></div>
       </div>
       <div class="res-box" style="color:var(--res-energy)" title="Energía disponible / total">
-        <span class="res-icon res-icon-energy" aria-hidden="true"></span>
+        <img class="res-icon" src="assets/recursos_04.png" alt="" aria-hidden="true">
         <div><div class="res-label">Energía disp./total</div><div class="res-val" data-bind="energy" data-danger></div></div>
       </div>
       <div class="res-box" style="color:var(--res-token)" title="Token">
