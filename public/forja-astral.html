@@ -693,6 +693,13 @@ button,select,input{font-family:inherit}
 /* Iconos de recurso en reportes de espionaje */
 .rs-name{display:inline-flex;align-items:center;gap:8px}
 .res-mini{width:20px;height:20px;object-fit:contain;flex:none}
+/* Mercado: compra por cantidad */
+#book .mk-buy{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+#book .mk-qty{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+#book .mk-qty small,#book .mk-total small{font-size:11px;color:var(--text-secondary)}
+#book .mk-qty .qty{width:100%}
+#book .mk-total{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#book .mk-total span{font:600 14px var(--font-mono);color:var(--text-primary)}
 </style>
 </head>
 <body>
@@ -1366,18 +1373,46 @@ function publishOffer(){
   renderBook();
   refresh();
 }
+// Costo proporcional a la cantidad elegida de una oferta
+function offerCost(o, q){
+  return Math.max(1, Math.round(o.price * q / o.qty));
+}
+function offerQty(o){
+  const inp = document.querySelector('[data-mqty="' + o.id + '"]');
+  return Math.min(o.qty, Math.max(0, Math.floor(Number(inp && inp.value) || 0)));
+}
 function buyOffer(id){
   const o = state.market.rivals.find(x => x.id === id);
   if (!o) return;
-  if (state.res.token < o.price) return setStatus('Te faltan ' + fmt(o.price - state.res.token) + ' Tokens para esta compra.', true);
-  state.res.token -= o.price;
-  state.res[o.res] = Math.min(capOf(state.lvl[CAP_KEY[o.res]]), state.res[o.res] + o.qty);
-  state.market.rivals = state.market.rivals.filter(x => x.id !== id);
+  const q = offerQty(o);
+  if (!(q > 0)) return setStatus('Escribe una cantidad mayor que 0.', true);
+  const cost = offerCost(o, q);
+  if (state.res.token < cost) return setStatus('Te faltan ' + fmt(cost - state.res.token) + ' Tokens para esta compra.', true);
+  state.res.token -= cost;
+  if (o.kind === 'ship') {
+    const P = activePlanet();
+    P.fleet[o.res] = (P.fleet[o.res] || 0) + q;
+  } else {
+    state.res[o.res] = Math.min(capOf(state.lvl[CAP_KEY[o.res]]), state.res[o.res] + q);
+  }
+  o.qty -= q;
+  o.price -= cost;
+  if (o.qty <= 0) state.market.rivals = state.market.rivals.filter(x => x.id !== id);
   state.dirtyMarket = true;
-  setStatus('Compraste ' + fmt(o.qty) + ' de ' + RES_NAME[o.res] + '.');
+  setStatus('Compraste ' + fmt(q) + ' de ' + mktName(o) + ' por ' + fmt(cost) + ' Tokens.');
   renderBook();
   refresh();
 }
+// Actualiza el costo al cambiar la cantidad a comprar
+document.addEventListener('input', e => {
+  const inp = e.target.closest && e.target.closest('[data-mqty]');
+  if (!inp) return;
+  const o = state.market.rivals.find(x => x.id === inp.dataset.mqty);
+  const tot = document.querySelector('[data-mtotal="' + inp.dataset.mqty + '"]');
+  if (!o || !tot) return;
+  const q = Math.min(o.qty, Math.max(0, Math.floor(Number(inp.value) || 0)));
+  tot.textContent = q > 0 ? fmt(offerCost(o, q)) : '0';
+});
 function publishShip(){
   const P = activePlanet();
   const k = document.getElementById('ms-ship') ? document.getElementById('ms-ship').value : '';
@@ -4237,7 +4272,7 @@ function mktName(o){ return o.kind === 'ship' ? SHIPS[o.res].name : RES_NAME[o.r
 function mktCardHTML(o, mine){
   const isShip = o.kind === 'ship';
   const item = isShip ? SHIPS[o.res] : (ITEMS[MK_ITEM[o.res]] || {icon:'cube'});
-  const img = isShip ? `/assets/${o.res}.webp` : `/assets/res-${o.res}.webp`;
+  const img = isShip ? `assets/${o.res}.webp` : RES_MINI_IMG[o.res];
   const unit = o.qty ? o.price / o.qty : 0;
   return `<article class="mk-card${mine ? ' mine' : ''}">
     <div class="mk-media">
@@ -4253,7 +4288,12 @@ function mktCardHTML(o, mine){
         <div><small>Precio (Tokens)</small><span>${fmt(o.price)}</span></div>
         <div><small>Por unidad</small><span>${unit.toFixed(3)}</span></div>
       </div>
-      ${mine ? `<button class="btn inline secondary" data-cancel="${o.id}">Cancelar</button>` : `<button class="btn" data-buy="${o.id}">Comprar</button>`}
+      ${mine ? `<button class="btn inline secondary" data-cancel="${o.id}">Cancelar</button>` : `
+      <div class="mk-buy">
+        <label class="mk-qty"><small>Cantidad (máx. ${fmt(o.qty)})</small><input class="qty" type="number" min="1" max="${o.qty}" value="${o.qty}" data-mqty="${o.id}"></label>
+        <div class="mk-total"><small>Costo</small><span data-mtotal="${o.id}">${fmt(o.price)}</span></div>
+      </div>
+      <button class="btn" data-buy="${o.id}">Comprar</button>`}
     </div>
   </article>`;
 }
