@@ -634,6 +634,9 @@ button,select,input{font-family:inherit}
 
 /* Centro de mando: tabla de recursos sin hexágonos, solo degradado */
 .view-overview .panel:has(.td-res)::before,.view-overview .panel:has(.td-res)::after,.view-overview .panel:has(.td-res) th::before,.view-overview .panel:has(.td-res) th::after{display:none}
+
+/* Producción y almacenes: encabezado de la tabla sin hexágonos, solo degradado */
+.view-overview .panel:has([data-action="prod-all"]) th::before,.view-overview .panel:has([data-action="prod-all"]) th::after{display:none}
 </style>
 </head>
 <body>
@@ -4633,7 +4636,7 @@ function render(){
   renderUserMenu();
   renderNotifMenu();
   document.getElementById('view').innerHTML = VIEWS[state.tab]();
-  document.getElementById('view').classList.toggle('view-overview', state.tab === 'overview' || state.tab === 'alliances');
+  document.getElementById('view').classList.toggle('view-overview', ['overview','alliances','production'].includes(state.tab));
   afterRender();
   refresh();
 }
