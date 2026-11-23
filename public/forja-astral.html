@@ -658,6 +658,12 @@ button,select,input{font-family:inherit}
 
 /* Galaxia: paneles con degradado oscurecido, sin hexágonos */
 .view-dark-flat .panel{background:linear-gradient(90deg,#000 0%,#05040f 45%,#030a18 100%),var(--bg-panel)}
+
+/* Barra de recursos: ancho fijo para que los iconos no se muevan al cambiar las cifras */
+.res-box{width:150px;min-width:150px;max-width:150px;overflow:hidden}
+.res-box>div{min-width:0;flex:1}
+.res-val{font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1100px){.res-box{width:124px;min-width:124px;max-width:124px}}
 </style>
 </head>
 <body>
