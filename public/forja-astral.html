@@ -687,6 +687,9 @@ button,select,input{font-family:inherit}
 .card-res-icon{width:28px;height:28px;object-fit:contain;display:block}
 /* Miniatura de planeta en la tabla de galaxia */
 .planet-thumb{width:36px;height:36px;flex:none;display:block;border-radius:50%;box-shadow:0 0 8px rgba(120,160,255,.22)}
+/* Acciones de galaxia: planeta siempre alineado a la derecha */
+.gal-act{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gal-act .planet-thumb{margin-left:auto}
 </style>
 </head>
 <body>
@@ -2887,7 +2890,7 @@ function galaxyTable(g, s){
         <td>${p.occupied ? p.owner : '—'}</td>
         <td>${p.occupied && p.alli ? p.alli : '—'}</td>
         <td class="mono-cell">${debrisTxt}</td>
-        <td><div class="inline-form">${main}${recy}${scan}${planetSVG(p.id)}</div></td>
+        <td><div class="gal-act"><div class="inline-form">${main}${recy}${scan}</div>${planetSVG(p.id)}</div></td>
       </tr>`;
     }).join('')}
     </tbody>
