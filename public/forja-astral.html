@@ -109,7 +109,7 @@ button,select,input{font-family:inherit}
 .card>.cost~.btn,.card>.cost~.inline-form,.card>.cost~.bar{margin-top:0}
 .cc-next>.btn:last-child{margin-top:auto}
 /* Botón principal: metal cepillado gris; brillo azul marino al pasar el cursor o pulsar */
-.btn{height:36px;width:100%;border-radius:var(--r);border:1px solid var(--metal-edge);font:600 13px var(--font-sans);letter-spacing:.03em;color:var(--text-primary);cursor:pointer;
+.btn{height:36px;width:auto;border-radius:var(--r);border:1px solid var(--metal-edge);font:600 13px var(--font-sans);letter-spacing:.03em;color:var(--text-primary);cursor:pointer;
   background:linear-gradient(180deg,var(--metal-hi) 0%,var(--metal-mid) 52%,var(--metal-lo) 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 1px 2px rgba(0,0,0,.4);
   text-shadow:0 1px 0 rgba(0,0,0,.45);
@@ -268,7 +268,7 @@ button,select,input{font-family:inherit}
 .input:focus-visible,.qty:focus-visible{outline:none;border-color:var(--accent-primary)}
 .inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .inline-form .qty{width:96px;flex:none}
-.inline-form .btn{flex:1;width:auto}
+.inline-form .btn{flex:none;width:auto}
 .btn.inline{width:auto;height:30px;padding:0 12px;font-size:12px}
 .toolbar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r);padding:16px;margin-bottom:16px}
 .toolbar .page-sub{margin:0 0 0 auto}
@@ -413,7 +413,7 @@ button,select,input{font-family:inherit}
 .auth-tabs .btn.secondary{border-bottom-color:transparent;color:var(--text-secondary);font-weight:500}
 .auth-tabs .btn:hover:not(:disabled),.auth-tabs .btn:active:not(:disabled){background:transparent;box-shadow:none;color:var(--text-primary)}
 #auth-submit{height:40px;font-size:14px}
-.btn-quick{height:34px;width:100%;background:transparent;border:1px dashed var(--border-subtle);border-radius:var(--r);color:var(--text-secondary);font:500 12px var(--font-sans);letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-quick{height:34px;width:auto;background:transparent;border:1px dashed var(--border-subtle);border-radius:var(--r);color:var(--text-secondary);font:500 12px var(--font-sans);letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-quick:hover{border-color:var(--accent-primary);color:var(--accent-text);box-shadow:0 0 12px var(--accent-glow)}
 .btn-quick:focus-visible{outline:1px solid var(--accent-primary);outline-offset:2px}
 .start-foot{font-size:12px!important;color:var(--text-secondary);margin:0;padding-top:14px;border-top:1px solid var(--border-subtle)}
@@ -944,6 +944,7 @@ function handleFase2Click(e){
       case 'save': setStatus(saveGame() ? 'Partida guardada en este navegador.' : 'No se pudo guardar: el almacenamiento del navegador no está disponible.', false); return;
       case 'load': { const ok = loadGame(); render(); setStatus(ok ? 'Partida cargada.' : 'No hay partida guardada o no se pudo leer.', !ok); return; }
       case 'publish': publishOffer(); return;
+      case 'publish-ship': publishShip(); return;
       case 'mkt-sub': mktState().sub = act.dataset.sub; render(); return;
       case 'mkt-filter': mktState().filter = act.dataset.f; render(); return;
       case 'explore': exploreFromInputs(); return;
@@ -1139,7 +1140,7 @@ function renderBook(){
     : state.market.rivals.map(o => ({...o, mine:false}));
   if (M.filter !== 'all') list = list.filter(o => o.res === M.filter);
   const q = M.q.trim().toLowerCase();
-  if (q) list = list.filter(o => RES_NAME[o.res].toLowerCase().includes(q) || String(o.owner).toLowerCase().includes(q));
+  if (q) list = list.filter(o => mktName(o).toLowerCase().includes(q) || String(o.owner).toLowerCase().includes(q));
   if (M.sort === 'price') list = [...list].sort((a, b) => a.price - b.price);
   else if (M.sort === 'qty') list = [...list].sort((a, b) => b.qty - a.qty);
   else list = [...list].reverse();
@@ -1176,10 +1177,31 @@ function buyOffer(id){
   renderBook();
   refresh();
 }
+function publishShip(){
+  const P = activePlanet();
+  const k = document.getElementById('ms-ship') ? document.getElementById('ms-ship').value : '';
+  const qty = Math.floor(Number(document.getElementById('ms-qty').value));
+  const price = Math.floor(Number(document.getElementById('ms-price').value));
+  if (!SHIPS[k] || !MOVE_SHIPS.includes(k)) return setStatus('Elige una nave válida.', true);
+  if (!(qty > 0)) return setStatus('La cantidad debe ser mayor que 0.', true);
+  if (!(price > 0)) return setStatus('El precio debe ser mayor que 0 Tokens.', true);
+  if ((P.fleet[k] || 0) < qty) return setStatus('No tienes suficientes ' + SHIPS[k].name + ' en el hangar de este planeta.', true);
+  P.fleet[k] -= qty;
+  state.market.own.push({id:'own' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), owner:'Tú', kind:'ship', res:k, qty, price, pl:state.active});
+  state.dirtyMarket = true;
+  bumpMission('offer', 1);
+  render();
+  setStatus('Nave publicada en el mercado.');
+}
 function cancelOffer(id){
   const o = state.market.own.find(x => x.id === id);
   if (!o) return;
-  state.res[o.res] = Math.min(capOf(state.lvl[CAP_KEY[o.res]]), state.res[o.res] + o.qty);
+  if (o.kind === 'ship'){
+    const P = state.planets[o.pl] || activePlanet();
+    P.fleet[o.res] = (P.fleet[o.res] || 0) + o.qty;
+  } else {
+    state.res[o.res] = Math.min(capOf(state.lvl[CAP_KEY[o.res]]), state.res[o.res] + o.qty);
+  }
   state.market.own = state.market.own.filter(x => x.id !== id);
   state.dirtyMarket = true;
   setStatus('Oferta cancelada. Recursos devueltos al planeta.');
@@ -3748,18 +3770,21 @@ function mktState(){
   return state.mkt;
 }
 const MK_ITEM = {metal:'mm', crystal:'mc', deut:'ds'};
+function mktName(o){ return o.kind === 'ship' ? SHIPS[o.res].name : RES_NAME[o.res]; }
 function mktCardHTML(o, mine){
-  const item = ITEMS[MK_ITEM[o.res]] || {icon:'cube'};
+  const isShip = o.kind === 'ship';
+  const item = isShip ? SHIPS[o.res] : (ITEMS[MK_ITEM[o.res]] || {icon:'cube'});
+  const img = isShip ? `/assets/${o.res}.webp` : `/assets/res-${o.res}.webp`;
   const unit = o.qty ? o.price / o.qty : 0;
   return `<article class="mk-card${mine ? ' mine' : ''}">
     <div class="mk-media">
       ${icon(item.icon)}
-      <img class="mk-img" src="/assets/res-${o.res}.webp" alt="" loading="lazy" onerror="this.remove()">
-      <span class="mk-tag">Recurso</span>
+      <img class="mk-img" src="${img}" alt="" loading="lazy" onerror="this.remove()">
+      <span class="mk-tag">${isShip ? 'Nave' : 'Recurso'}</span>
       <span class="mk-mult">x${fmt(o.qty)}</span>
     </div>
     <div class="mk-body">
-      <b>${RES_NAME[o.res]}</b>
+      <b>${mktName(o)}</b>
       <span class="mk-seller">Vendedor: ${esc(o.owner)}</span>
       <div class="mk-price">
         <div><small>Precio (Tokens)</small><span>${fmt(o.price)}</span></div>
@@ -3769,9 +3794,24 @@ function mktCardHTML(o, mine){
     </div>
   </article>`;
 }
+function sellShips(){
+  const P = activePlanet();
+  const opts = MOVE_SHIPS.filter(k => (P.fleet[k] || 0) > 0)
+    .map(k => `<option value="${k}">${SHIPS[k].name} (${fmt(P.fleet[k])} disponibles)</option>`).join('');
+  return `
+    <section class="panel pad mk-sell">
+      <h2 class="section-title" style="margin-top:0">Publicar naves</h2>
+      ${opts ? `<div class="form-stack">
+        <label class="field">Nave a vender<select class="select full" id="ms-ship">${opts}</select></label>
+        <label class="field">Cantidad a vender<input class="input" id="ms-qty" type="number" min="1" value="1"></label>
+        <label class="field">Precio total (Tokens)<input class="input" id="ms-price" type="number" min="1" value="500"></label>
+        <button class="btn" data-action="publish-ship">Publicar naves</button>
+      </div>` : '<div class="empty">No tienes naves en el hangar de este planeta.</div>'}
+    </section>`;
+}
 function viewMarket(){
   const M = mktState();
-  const subs = [['explore','Explorar'],['sell','Vender'],['own','Mis listados']];
+  const subs = [['explore','Explorar'],['sell','Vender recursos'],['sellship','Vender naves'],['own','Mis listados']];
   const subBtns = subs.map(([id, l]) =>
     `<button class="btn inline${M.sub === id ? '' : ' secondary'}" data-action="mkt-sub" data-sub="${id}" ${M.sub === id ? 'disabled' : ''}>${l}</button>`).join('');
   const filters = [['all','Todos'],['metal','Metal'],['crystal','Cristal'],['deut','Deuterio']].map(([id, l]) =>
@@ -3802,7 +3842,7 @@ function viewMarket(){
     <p class="page-sub">Ofertas y compra de recursos entre jugadores. Tokens disponibles: <span class="mono" data-bind="res:token"></span></p>
     <p id="status" class="page-sub"></p>
     <div class="inline-form" style="margin-bottom:16px">${subBtns}</div>
-    ${M.sub === 'sell' ? sell : explore}`;
+    ${M.sub === 'sell' ? sell : M.sub === 'sellship' ? sellShips() : explore}`;
 }
 
 const VIEWS = {
