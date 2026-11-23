@@ -307,6 +307,10 @@ button,select,input{font-family:inherit}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 @media (max-width:767px){ .grid3{grid-template-columns:1fr} }
 /* Astillero: tarjetas de naves de 3 en 3 en escritorio */
+/* Flota y defensa: cuadrícula de defensas con columna lateral */
+.defense-layout{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:16px;align-items:start}
+.defense-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+@media (max-width:900px){ .defense-layout{grid-template-columns:1fr} }
 .ships-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:1100px){ .ships-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:767px){ .ships-grid{grid-template-columns:1fr} }
@@ -3438,6 +3442,61 @@ function shipCard(id){
     </div>
   </article>`;
 }
+/* ----- Flota y defensa: pestañas y defensas (estilo de referencia, sin imágenes) ----- */
+const FLEET_TABS = [['shipyard','Hangar'],['defenses','Defensas'],['fleet','Flotas'],['simulator','Simulador']];
+function reqChecklist(id){
+  const reqs = unitReqs(id);
+  return Object.keys(reqs).map(k => {
+    const ok = (state.lvl[k] || 0) >= reqs[k];
+    return `<div class="${ok ? 'tag-ok' : 'tag-bad'}">${ok ? '✓' : '✗'} ${nameOf(k)} Nivel ${reqs[k]}</div>`;
+  }).join('');
+}
+function defenseCard(id){
+  const s = SHIPS[id];
+  const reqs = unitReqs(id);
+  const locked = Object.keys(reqs).some(k => (state.lvl[k] || 0) < reqs[k]);
+  const stats = [['Ataque', s.a], ['Escudo', s.sh], ['Estructura', s.s]]
+    .map(([l, v]) => `<span>${l}: <b>${fmt(v)}</b></span>`).join(' · ');
+  const rows = RES.filter(r => s.cost[r]).map(r =>
+    `<div class="cost-row"><span>${RES_NAME[r]}</span><span>${fmt(s.cost[r])}</span></div>`).join('');
+  const action = locked
+    ? '<div class="stat-line tag-bad">Bloqueado — Completa los requisitos</div>'
+    : `<div class="inline-form">
+        <input class="qty" type="number" min="1" value="1" data-qty="${id}" aria-label="Cantidad a construir">
+        <button class="btn" data-ship="${id}">Construir</button>
+      </div>`;
+  return `
+  <article class="card">
+    <div class="card-head">
+      <div class="icon-box">${icon(s.icon)}</div>
+      <div class="card-title">${s.name}</div>
+      <span class="badge">Tienes ${fmt(state.fleet[id] || 0)}</span>
+    </div>
+    <div class="stat-line">${stats}</div>
+    <div class="cost">${reqChecklist(id)}</div>
+    <div class="cost">${rows}</div>
+    ${action}
+  </article>`;
+}
+function viewDefense(){
+  const sy = state.lvl.sy || 0;
+  const tabs = FLEET_TABS.map(([id, label]) =>
+    `<button class="btn inline${id === 'defenses' ? '' : ' secondary'}" data-action="go-tab" data-tab="${id}" ${id === 'defenses' ? 'disabled' : ''}>${label}</button>`).join('');
+  const side = sy < 1
+    ? `<section class="panel pad">
+        <div class="cc-row"><span>Astillero Naval</span><span class="tag-bad">Nivel 0</span></div>
+        <p class="page-sub" style="margin:12px 0 0">Se requiere Astillero Naval para desbloquear defensas. Constrúyelo en Instalaciones.</p>
+      </section>`
+    : `<section class="panel pad"><div class="cc-row"><span>Astillero Naval</span><span class="mono-cell">Nivel ${sy}</span></div></section>`;
+  return `
+    <h1 class="page-title">Flota y defensa</h1>
+    <p class="page-sub">Construcción de naves, defensas y movimientos.</p>
+    <div class="inline-form" style="margin-bottom:16px">${tabs}</div>
+    <div class="defense-layout">
+      <div class="defense-grid">${DEF_KEYS.map(defenseCard).join('')}</div>
+      <aside>${side}</aside>
+    </div>`;
+}
 function viewShipyard(){
   const tab = state.shipTab || 'hangar';
   const keys = tab === 'defense' ? DEF_KEYS : SHIP_KEYS;
@@ -3593,6 +3652,7 @@ const VIEWS = {
   research:   viewResearch,
   tree:       viewTree,
   shipyard:   viewShipyard,
+  defenses:   viewDefense,
   fleet:      viewFleet,
   galaxy:     viewGalaxy,
   market:     viewMarket,
@@ -3959,7 +4019,7 @@ TABS.forEach(t => { if (['inbox','wallet','profile','settings'].includes(t.id)) 
 const NAV_GROUPS = {
   planet:   {label:'Mi planeta', icon:'globe', children:[['resources','Edificios'],['production','Producción y almacenes']], extra:['storage','facilities']},
   tech:     {label:'Tecnología', icon:'atom', children:[['research','Investigación'],['tree','Árbol Tecnológico']], extra:[]},
-  fleetdef: {label:'Flota y defensa', icon:'rocket', children:[['shipyard','Astillero'],['fleet','Flota']], extra:[]}
+  fleetdef: {label:'Flota y defensa', icon:'rocket', children:[['shipyard','Astillero'],['defenses','Defensas'],['fleet','Flota']], extra:[]}
 };
 const NAV_ORDER = ['overview','planet','tech','fleetdef','galaxy','alliances','market','expeditions','ranking','simulator','empire'];
 function navItemHTML(t){
