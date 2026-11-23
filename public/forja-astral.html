@@ -449,6 +449,8 @@ button,select,input{font-family:inherit}
 .toast-stack{position:fixed;right:22px;bottom:22px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
 .toast{pointer-events:auto;display:flex;align-items:center;gap:10px;max-width:380px;padding:12px 18px;border-radius:16px;font-size:14px;line-height:1.35;color:#fff;background:linear-gradient(135deg,rgba(40,255,128,.28),rgba(40,255,128,.12));backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 0 10px 0 rgba(40,255,128,.25);animation:toastIn .35s ease-out both;transition:opacity .4s,transform .4s}
 .toast::before{content:"✓";flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(40,255,128,.35);color:#fff;font-weight:700;box-shadow:0 0 6px rgba(40,255,128,.4)}
+.toast.bad{background:linear-gradient(135deg,rgba(255,68,68,.28),rgba(255,68,68,.12));box-shadow:0 0 10px 0 rgba(255,68,68,.25)}
+.toast.bad::before{content:"!";background:rgba(255,68,68,.45);box-shadow:0 0 6px rgba(255,68,68,.4)}
 .toast.out{opacity:0;transform:translateX(24px)}
 @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
 .notif-btn{position:relative;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-primary);cursor:pointer;padding:0}
@@ -1477,13 +1479,14 @@ function marketTick(dt){
 
 /* ============ VISTAS FASE 2 ============ */
 function setStatus(msg, bad){
+  if (bad) return toast(msg, 'bad');
   const el = document.getElementById('status');
   if (!el) return;
   el.textContent = msg;
-  el.className = 'page-sub' + (bad ? ' danger' : '');
+  el.className = 'page-sub';
 }
 // Avisos flotantes abajo a la derecha (construcciones, investigaciones y naves terminadas)
-function toast(msg){
+function toast(msg, kind){
   let stack = document.getElementById('toast-stack');
   if (!stack){
     stack = document.createElement('div');
@@ -1492,7 +1495,7 @@ function toast(msg){
     document.body.appendChild(stack);
   }
   const t = document.createElement('div');
-  t.className = 'toast';
+  t.className = 'toast' + (kind === 'bad' ? ' bad' : '');
   t.textContent = msg;
   stack.appendChild(t);
   while (stack.children.length > 4) stack.firstElementChild.remove();
