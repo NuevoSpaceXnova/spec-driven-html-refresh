@@ -328,6 +328,13 @@ button,select,input{font-family:inherit}
 .fleet-nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
 .fleet-form{display:flex;flex-direction:column;gap:12px}
 .fleet-confirm{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+/* Asistente de Flota: botones y campos de tamaño natural, sin estirarse a todo el ancho */
+.fleet-panel .btn{width:auto;min-width:120px;padding:0 18px}
+.fleet-panel .btn.inline{min-width:0;padding:0 12px}
+.fleet-panel .inline-form .btn{flex:none}
+.fleet-panel .fleet-form .field{width:100%;max-width:420px}
+.fleet-panel .fleet-form .inline-form .input{width:auto}
+.fleet-panel .select.full{max-width:420px}
 
 @media (max-width:1100px){ .ships-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:767px){ .ships-grid{grid-template-columns:1fr} }
@@ -3620,9 +3627,9 @@ function viewFleet(){
       <label class="field">Destino propio (Transportar, Desplegar${hasJump ? ', Salto Cuántico' : ''})<select class="select full" id="f-own">${ownOpts}</select></label>
       <span class="field">Carga para Transportar</span>
       <div class="inline-form">
-        <input class="input" id="f-c-metal" type="number" min="0" value="${d.cargo.metal}" placeholder="Metal" style="flex:1">
-        <input class="input" id="f-c-crystal" type="number" min="0" value="${d.cargo.crystal}" placeholder="Cristal" style="flex:1">
-        <input class="input" id="f-c-deut" type="number" min="0" value="${d.cargo.deut}" placeholder="Deuterio" style="flex:1">
+        <input class="input" id="f-c-metal" type="number" min="0" value="${d.cargo.metal}" placeholder="Metal" style="width:160px">
+        <input class="input" id="f-c-crystal" type="number" min="0" value="${d.cargo.crystal}" placeholder="Cristal" style="width:160px">
+        <input class="input" id="f-c-deut" type="number" min="0" value="${d.cargo.deut}" placeholder="Deuterio" style="width:160px">
       </div>
     </div>
     <div class="fleet-nav">
@@ -3666,7 +3673,7 @@ function viewFleet(){
     <div class="fleet-top"><span class="badge">Flotas activas: ${activeFleets}/${maxFleets()}</span></div>
     <p id="status" class="page-sub"></p>
     ${stepper}
-    <section class="panel pad">
+    <section class="panel pad fleet-panel">
       ${step === 1 ? step1 : step === 2 ? step2 : step3}
     </section>
     <section class="panel pad" style="margin-top:16px">
