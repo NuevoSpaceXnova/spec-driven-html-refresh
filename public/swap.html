@@ -118,6 +118,8 @@ button,input,select{font-family:inherit}
 dialog.confirm{background:var(--bg-dark);color:inherit;border:1px solid var(--border-active);border-radius:var(--r);padding:16px;width:min(360px,90vw)}
 dialog.confirm::backdrop{background:rgba(0,0,0,.6)}
 .pos-card canvas{display:block;width:100%;height:60px;margin:4px 0}
+.pos-card .pc-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%}
+.pos-card .btn{white-space:nowrap;width:100%;padding:6px 8px;font-size:11px}
 .pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-items:start}
 .calc{display:flex;flex-direction:column;gap:10px}
 .calc .field{padding:8px 10px}
@@ -923,9 +925,9 @@ function renderPositions(d, demo){
         <div class="pc-row"><span>Desbloqueo: ${unlock}</span></div>
         <div class="pc-row"><span class="pc-btns">
           <button class="btn compact" data-unstake="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Retirar</button>
-          <button class="btn compact" data-compound="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Re-bloquear con interés</button>
-          <button class="btn compact ghost" data-early="${r.st.id}" type="button" ${early ? '' : 'disabled'}>Retiro anticipado (−${EARLY_PENALTY*100} %)</button>
-          <button class="btn compact ghost" data-day="${r.st.id}" type="button">+1 día demo</button>
+          <button class="btn compact" data-compound="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Re-bloquear</button>
+          <button class="btn compact ghost" data-early="${r.st.id}" type="button" ${early ? '' : 'disabled'}>Anticipado −${EARLY_PENALTY*100} %</button>
+          <button class="btn compact ghost" data-day="${r.st.id}" type="button">+1 día</button>
         </span></div>
       </div>`;
     }).join('');
@@ -1320,7 +1322,8 @@ document.getElementById('poolGrid').addEventListener('input', e => {
   if (e.target.matches('[data-amt]')) refreshAll();
 });
 document.getElementById('view-stake').addEventListener('click', e => {
-  const s = e.target.closest('[data-sub]'); if (s) return showSub(s.dataset.sub);
+  const s = e.target.closest('[data-sub]');
+  if (s){ showSub(s.dataset.sub); return refreshAll(); }
   const u = e.target.closest('[data-unstake]'); if (u) return unstake(u.dataset.unstake, 'withdraw');
   const cp = e.target.closest('[data-compound]'); if (cp) return unstake(cp.dataset.compound, 'compound');
   const ea = e.target.closest('[data-early]'); if (ea) return unstake(ea.dataset.early, 'early');
