@@ -100,18 +100,50 @@ button,input,select{font-family:inherit}
 .foot{margin-top:8px;font:500 10px var(--font-mono);color:var(--text-muted);letter-spacing:.04em;line-height:1.5}
 
 /* Vista Staking */
-.stwrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:14px;max-width:1440px;margin:0 auto}
-.pools-panel{grid-column:1;grid-row:1 / span 2;align-self:start}
-.form-panel{grid-column:2;grid-row:1}
-.pos-panel{grid-column:2;grid-row:2}
-.pool-row{cursor:pointer}
-.pool-row:hover td{background:rgba(36,80,197,.12)}
-.pool-row.sel td{background:var(--bg-surface)}
-.pool-row.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent-primary)}
-.minichart{margin-top:12px;background:var(--bg-dark);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px}
-.mc-head{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font:500 12px var(--font-mono);margin-bottom:6px}
-.mc-head .nm{font:600 13px var(--font-title);letter-spacing:.05em}
-#mcCv{display:block;width:100%;height:120px}
+.stwrap{padding:14px;max-width:1440px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.st-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.st-stat{padding:10px 12px;display:flex;flex-direction:column;gap:4px;background:var(--bg-dark)}
+.st-stat small{font:600 10px var(--font-sans);text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted)}
+.st-stat b{font:600 15px var(--font-title);color:var(--text-primary)}
+.subtabs{display:flex;gap:6px}
+.tab.sm{height:30px;padding:0 12px;font-size:11px}
+.st-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.pool-card{font:inherit;color:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;gap:3px;padding:12px;margin:0;align-self:stretch;min-height:96px;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-dark)}
+.pool-card:hover{border-color:var(--border-active)}
+.pool-card.sel{border-color:var(--border-active);box-shadow:0 0 0 1px var(--accent-glow)}
+.pc-name{font:600 12px var(--font-title);letter-spacing:.04em}
+.pc-apy{font:600 20px var(--font-title);color:var(--accent-text)}
+.pc-apy small{font:500 11px var(--font-mono);color:var(--text-muted)}
+.pc-meta{font:500 11px var(--font-mono);color:var(--text-muted)}
+.calc{display:flex;flex-direction:column;gap:10px}
+.calc .field{padding:8px 10px}
+.calc .row{gap:6px}
+.chips{display:flex;gap:4px}
+.chip{height:24px;padding:0 8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--r);color:var(--text-muted);font:500 11px var(--font-mono);cursor:pointer}
+.chip:hover{color:var(--text-primary);border-color:var(--border-active)}
+.kv{margin:0;display:flex;flex-direction:column;gap:4px;font:500 12px var(--font-mono)}
+.kv div{display:flex;justify-content:space-between;gap:8px;color:var(--text-muted)}
+.kv b{color:var(--text-primary);font-weight:500;text-align:right}
+.btn.compact{width:auto;height:32px;padding:0 16px;font-size:11px;align-self:flex-start}
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.pos-card{display:flex;flex-direction:column;gap:8px;padding:12px}
+.pc-top{display:flex;justify-content:space-between;align-items:center;font:600 12px var(--font-title);letter-spacing:.04em}
+.bar{height:6px;background:var(--bar-track);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--bar-fill)}
+.pc-row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font:500 11px var(--font-mono);color:var(--text-muted)}
+.pc-row b{color:var(--text-primary);font-weight:500}
+.pc-btns{display:flex;gap:6px}
+.minichart{background:var(--bg-dark);border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px}
+.mc-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font:500 11px var(--font-mono);margin-bottom:4px}
+.mc-head .nm{font:600 12px var(--font-title);letter-spacing:.04em}
+#mcCv{display:block;width:100%;height:110px}
+.toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50}
+.toast{background:var(--bg-dark);border:1px solid var(--border-subtle);border-left:3px solid var(--up);padding:8px 12px;border-radius:var(--r);font:500 12px var(--font-mono);color:var(--text-primary);box-shadow:0 8px 20px rgba(0,0,0,.5);max-width:300px}
+.toast.bad{border-left-color:var(--down)}
+@media (max-width:900px){
+  .st-split{grid-template-columns:minmax(0,1fr)}
+}
 
 /* Tablas */
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -250,38 +282,51 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 
 <!-- ============ VISTA STAKING ============ -->
 <div class="stwrap" id="view-stake" hidden>
-  <section class="panel pools-panel">
-    <h3>Pools de staking · TOKEN / X</h3>
-    <table>
-      <thead><tr><th>Pool</th><th class="r">APY anual</th><th class="r">Bloqueo</th></tr></thead>
-      <tbody id="poolTable"></tbody>
-    </table>
-    <div class="foot">Tasas ficticias de la demo. El interés es simple y se calcula por días completos. Reglas completas en docs/reglas-swap-y-staking.md.</div>
+  <div class="st-sum" id="stSum"></div>
+
+  <nav class="subtabs" aria-label="Secciones de staking">
+    <button class="tab sm active" data-sub="pools" type="button">Pools</button>
+    <button class="tab sm" data-sub="pos" type="button">Mis posiciones</button>
+    <button class="tab sm" data-sub="hist" type="button">Historial</button>
+  </nav>
+
+  <p class="msg" id="stMsg"></p>
+
+  <section data-sub-panel="pools">
+    <div class="st-split">
+      <div class="pool-grid" id="poolGrid"></div>
+      <aside class="panel calc">
+        <h3>Bloquear TOKEN</h3>
+        <div class="field">
+          <label for="stPool">Pool</label>
+          <div class="row"><select class="sel" id="stPool" style="min-width:0;flex:1"></select></div>
+        </div>
+        <div class="field">
+          <label for="stAmt">Cantidad</label>
+          <div class="row"><input class="amt" id="stAmt" type="number" min="0" step="1" placeholder="0"></div>
+          <div class="chips">
+            <button class="chip" data-pct="25" type="button">25 %</button>
+            <button class="chip" data-pct="50" type="button">50 %</button>
+            <button class="chip" data-pct="100" type="button">Máx</button>
+          </div>
+          <small id="stBal"></small>
+        </div>
+        <div class="minichart">
+          <div class="mc-head"><span class="nm" id="mcName"></span><span id="mcPrice"></span><span id="mcChg"></span></div>
+          <canvas id="mcCv"></canvas>
+        </div>
+        <dl class="kv" id="stQuote"></dl>
+        <button class="btn compact" id="doStake" type="button">Bloquear</button>
+      </aside>
+    </div>
   </section>
 
-  <section class="panel form-panel">
-    <h3>Bloquear TOKEN</h3>
-    <div class="field">
-      <label for="stPool">Pool (par contra TOKEN)</label>
-      <div class="row">
-        <select class="sel" id="stPool"></select>
-        <input class="amt" id="stAmt" type="number" min="0" step="1" placeholder="0">
-      </div>
-      <small id="stBal"></small>
-    </div>
-    <div class="rates" id="poolInfo"></div>
-    <div class="rates" id="stQuote"></div>
-    <button class="btn" id="doStake" type="button">Bloquear TOKEN</button>
-    <div class="minichart">
-      <div class="mc-head"><span class="nm" id="mcName"></span><span id="mcPrice"></span><span id="mcChg"></span></div>
-      <canvas id="mcCv"></canvas>
-    </div>
-    <p class="msg" id="stMsg"></p>
+  <section data-sub-panel="pos" hidden>
+    <div class="pos-grid" id="stakeList"></div>
   </section>
 
-  <section class="panel pos-panel">
-    <h3>Mis posiciones</h3>
-    <div id="stakeList"></div>
+  <section data-sub-panel="hist" hidden>
+    <div class="panel" id="stHist"></div>
   </section>
 </div>
 
@@ -381,7 +426,13 @@ setInterval(() => {
 
 /* ============ FORMATO ============ */
 function fmtPrice(v){ return v>=100 ? v.toLocaleString('es-ES',{maximumFractionDigits:2,minimumFractionDigits:2}) : v>=1 ? v.toFixed(3) : v.toFixed(v<0.01?6:4); }
-function fmtAmt(n){ const x = Number(n)||0; if (x===0) return '0'; return x>=1000 ? x.toLocaleString('es-ES',{maximumFractionDigits:2}) : x>=1 ? x.toLocaleString('es-ES',{maximumFractionDigits:4}) : x.toFixed(6); }
+function fmtAmt(n){
+  const x = Number(n)||0, a = Math.abs(x);
+  if (a===0) return '0';
+  if (a>=1000) return x.toLocaleString('es-ES',{maximumFractionDigits:2});
+  if (a>=1) return x.toLocaleString('es-ES',{maximumFractionDigits:4});
+  return x.toFixed(6);
+}
 function fmtClock(t){
   const s = Math.floor(t||0), day = Math.floor(s/86400)+1, hh = Math.floor((s%86400)/3600), mm = Math.floor((s%3600)/60);
   return 'Día ' + day + ' · ' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
@@ -720,19 +771,62 @@ function renderMini(pool){
    El TOKEN bloqueado sale del saldo de la partida del juego y se guarda en el libro demo.
    Al retirar, vuelve el capital más el interés pagado desde la reserva.
    Interés simple: monto × APY × días completos / 365. Tiempo = reloj del juego (simSec). */
+let subTab = 'pools';
+const notifiedUnlock = new Set();
+let unlockReady = false;
+
 function setStMsg(text, kind){
   const m = document.getElementById('stMsg');
   m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
 }
-function renderPools(pool){
-  document.getElementById('poolTable').innerHTML = Object.keys(STAKE.apy).map(s =>
-    `<tr class="pool-row${s===pool?' sel':''}" data-pool="${s}">
-      <td><b>TOKEN / ${s}</b></td>
-      <td class="r mono">${(STAKE.apy[s]*100).toFixed(1)} %</td>
-      <td class="r mono">${STAKE.lockDays} días</td>
-    </tr>`).join('');
+function toast(text, kind){
+  let box = document.getElementById('toasts');
+  if (!box){ box = document.createElement('div'); box.id = 'toasts'; box.className = 'toasts'; document.body.appendChild(box); }
+  const t = document.createElement('div');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = text;
+  box.appendChild(t);
+  setTimeout(() => t.remove(), 4200);
 }
-function renderStake(d, demo){
+function showSub(name){
+  subTab = name;
+  document.querySelectorAll('[data-sub-panel]').forEach(s => { s.hidden = s.dataset.subPanel !== name; });
+  document.querySelectorAll('[data-sub]').forEach(b => b.classList.toggle('active', b.dataset.sub === name));
+}
+function stakeRows(d, demo){
+  const now = d ? (d.simSec || 0) : null;
+  return demo.stakes.map(st => {
+    const days = now == null ? 0 : Math.max(0, Math.floor((now - st.start) / 86400));
+    return {st, days, interest: Math.floor(st.amount * st.apy * days / 365), ready: days >= STAKE.lockDays && !!d};
+  });
+}
+function renderSummary(d, demo){
+  const rows = stakeRows(d, demo);
+  const locked = rows.reduce((a, r) => a + r.st.amount, 0);
+  const accrued = rows.reduce((a, r) => a + r.interest, 0);
+  const best = Math.max(...Object.values(STAKE.apy));
+  const cards = [
+    ['TOKEN bloqueado', fmtAmt(locked)],
+    ['Interés acumulado', fmtAmt(accrued)],
+    ['APY más alto', (best*100).toFixed(1) + ' %'],
+    ['Posiciones', String(rows.length)],
+    ['Reserva demo', fmtAmt(demo.reserve)]
+  ];
+  document.getElementById('stSum').innerHTML = cards.map(([l, v]) =>
+    `<div class="panel st-stat"><small>${l}</small><b>${v}</b></div>`).join('');
+}
+function renderPoolGrid(pool, demo){
+  document.getElementById('poolGrid').innerHTML = Object.keys(STAKE.apy).map(s => {
+    const mine = demo.stakes.filter(x => x.pool === s).reduce((a, x) => a + x.amount, 0);
+    return `<button class="pool-card${s===pool?' sel':''}" data-pool="${s}" type="button">
+      <span class="pc-name">TOKEN / ${s}</span>
+      <span class="pc-apy">${(STAKE.apy[s]*100).toFixed(1)}<small> % APY</small></span>
+      <span class="pc-meta">Bloqueo ${STAKE.lockDays} días</span>
+      <span class="pc-meta">Tu posición: ${fmtAmt(mine)}</span>
+    </button>`;
+  }).join('');
+}
+function renderCalc(d, demo){
   const sel = document.getElementById('stPool');
   if (!sel.options.length){
     sel.innerHTML = Object.keys(STAKE.apy).map(s => `<option value="${s}">TOKEN / ${s}</option>`).join('');
@@ -741,30 +835,66 @@ function renderStake(d, demo){
   const amt = Math.floor(Number(document.getElementById('stAmt').value) || 0);
   const P = planetOf(d);
   document.getElementById('stBal').textContent = 'Disponible: ' + fmtAmt(P ? P.res.token : 0) + ' TOKEN';
-  document.getElementById('poolInfo').innerHTML =
-    `<span>APY del pool: <b>${(STAKE.apy[pool]*100).toFixed(1)} %</b> anual · Bloqueo <b>${STAKE.lockDays} días</b></span>
-     <span>Reserva de intereses (demo): <b>${fmtAmt(demo.reserve)}</b> TOKEN</span>`;
-  const est = Math.floor(amt * STAKE.apy[pool] * STAKE.lockDays / 365);
-  document.getElementById('stQuote').innerHTML = `<span>Interés estimado a ${STAKE.lockDays} días: <b>${fmtAmt(est)}</b> TOKEN</span>`;
-  document.getElementById('doStake').disabled = !d;
-  renderPools(pool);
-
+  const apy = STAKE.apy[pool];
+  const interest = Math.floor(amt * apy * STAKE.lockDays / 365);
   const now = d ? (d.simSec || 0) : null;
+  const unlock = now == null ? '—' : fmtClock(now + STAKE.lockDays * 86400);
+  document.getElementById('stQuote').innerHTML =
+    `<div><span>APY</span><b>${(apy*100).toFixed(1)} %</b></div>
+     <div><span>Interés a ${STAKE.lockDays} días</span><b>${fmtAmt(interest)} TOKEN</b></div>
+     <div><span>Desbloqueo</span><b>${unlock}</b></div>
+     <div><span>Reserva demo</span><b>${fmtAmt(demo.reserve)} TOKEN</b></div>`;
+  document.getElementById('doStake').disabled = !d;
+}
+function renderPositions(d, demo){
+  const rows = stakeRows(d, demo);
   const list = document.getElementById('stakeList');
-  if (!demo.stakes.length){ list.innerHTML = '<p class="empty" style="padding:0">Sin TOKEN en staking.</p>'; return; }
-  list.innerHTML = demo.stakes.map(st => {
-    const days = now == null ? 0 : Math.max(0, Math.floor((now - st.start) / 86400));
-    const interest = Math.floor(st.amount * st.apy * days / 365);
-    const ready = days >= STAKE.lockDays && !!d;
-    return `<div class="srow">
-      <span>TOKEN / ${st.pool} · <b>${fmtAmt(st.amount)}</b> TOKEN · APY ${(st.apy*100).toFixed(1)} %</span>
-      <span>Día ${Math.min(days, STAKE.lockDays)} de ${STAKE.lockDays} · Interés acumulado <b>${fmtAmt(interest)}</b></span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn small" data-unstake="${st.id}" type="button" ${ready ? '' : 'disabled'}>Retirar</button>
-        <button class="btn small ghost" data-day="${st.id}" type="button">+1 día (demo)</button>
-      </span>
-    </div>`;
-  }).join('');
+  if (!rows.length){
+    list.innerHTML = '<p class="empty" style="padding:0">Aún no tienes TOKEN bloqueado. Elige un pool en la pestaña Pools.</p>';
+  } else {
+    list.innerHTML = rows.map(r => {
+      const pct = Math.min(100, Math.round(r.days / STAKE.lockDays * 100));
+      const unlock = d ? fmtClock(r.st.start + STAKE.lockDays * 86400) : '—';
+      return `<div class="panel pos-card">
+        <div class="pc-top"><span>TOKEN / ${r.st.pool}</span><span>APY ${(r.st.apy*100).toFixed(1)} %</span></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="pc-row"><span>Día ${Math.min(r.days, STAKE.lockDays)} de ${STAKE.lockDays}</span><span>Capital <b>${fmtAmt(r.st.amount)}</b></span><span>Interés <b>${fmtAmt(r.interest)}</b></span></div>
+        <div class="pc-row"><span>Desbloqueo: ${unlock}</span>
+          <span class="pc-btns">
+            <button class="btn compact" data-unstake="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Retirar</button>
+            <button class="btn compact ghost" data-day="${r.st.id}" type="button">+1 día demo</button>
+          </span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // Aviso una sola vez cuando una posición se desbloquea
+  if (!unlockReady){
+    rows.forEach(r => { if (r.ready) notifiedUnlock.add(r.st.id); });
+    unlockReady = true;
+  } else {
+    rows.forEach(r => {
+      if (r.ready && !notifiedUnlock.has(r.st.id)){
+        notifiedUnlock.add(r.st.id);
+        toast('Posición desbloqueada: TOKEN / ' + r.st.pool + '. Ya puedes retirar.', 'ok');
+      }
+    });
+  }
+}
+function renderStakeHist(d){
+  const box = document.getElementById('stHist');
+  const rows = ((d && d.txs) || []).filter(t => /^(Staking|Retiro staking)/.test(String(t.type||'')));
+  if (!rows.length){ box.innerHTML = '<p class="empty" style="padding:0">Aún no hay movimientos de staking.</p>'; return; }
+  box.innerHTML = `<table><thead><tr><th>Hora</th><th>Operación</th><th class="r">Monto</th><th>Estado</th></tr></thead><tbody>
+    ${rows.slice(0,30).map(t => `<tr><td class="mono">${fmtClock(t.t)}</td><td>${t.type}</td><td class="r mono">${t.amount>0?'+':''}${fmtAmt(t.amount)} TOKEN</td><td>${t.status||''}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+function renderStake(d, demo){
+  renderCalc(d, demo);
+  renderSummary(d, demo);
+  renderPoolGrid(document.getElementById('stPool').value || 'USDT', demo);
+  renderPositions(d, demo);
+  renderStakeHist(d);
 }
 function doStake(){
   const d = readSave(), demo = readDemo();
@@ -813,6 +943,12 @@ function addDemoDay(id){
   const st = demo.stakes.find(s => s.id === id); if (!st) return;
   st.start -= 86400;   // solo demo: adelanta un día el inicio del bloqueo
   writeDemo(demo);
+  refreshAll();
+}
+function setPct(p){
+  const P = planetOf(readSave());
+  if (!P) return;
+  document.getElementById('stAmt').value = Math.floor((P.res.token || 0) * p / 100);
   refreshAll();
 }
 
@@ -893,7 +1029,7 @@ function showView(v){
   view = v === 'stake' ? 'stake' : 'swap';
   document.getElementById('view-swap').hidden = view !== 'swap';
   document.getElementById('view-stake').hidden = view !== 'stake';
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  document.querySelectorAll('.tab[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === view));
   if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
   refreshAll();
 }
@@ -913,7 +1049,7 @@ function refreshAll(){
 }
 
 /* ============ EVENTOS ============ */
-document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
+document.querySelectorAll('.tab[data-view]').forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
 document.getElementById('pairList').addEventListener('click', e => {
   const b = e.target.closest('[data-pair]'); if (!b) return;
   cur = b.dataset.pair; hover = null; chartView.offset = 0; refreshAll();
@@ -998,17 +1134,16 @@ document.getElementById('doSwap').addEventListener('click', doSwap);
 document.getElementById('doStake').addEventListener('click', doStake);
 document.getElementById('stPool').addEventListener('change', refreshAll);
 document.getElementById('stAmt').addEventListener('input', refreshAll);
-document.getElementById('poolTable').addEventListener('click', e => {
+document.getElementById('poolGrid').addEventListener('click', e => {
   const r = e.target.closest('[data-pool]'); if (!r) return;
   document.getElementById('stPool').value = r.dataset.pool; refreshAll();
 });
-document.getElementById('stakeList').addEventListener('click', e => {
-  const u = e.target.closest('[data-unstake]');
-  if (u) return unstake(u.dataset.unstake);
-  const dd = e.target.closest('[data-day]');
-  if (dd) addDemoDay(dd.dataset.day);
+document.getElementById('view-stake').addEventListener('click', e => {
+  const s = e.target.closest('[data-sub]'); if (s) return showSub(s.dataset.sub);
+  const c = e.target.closest('[data-pct]'); if (c) return setPct(Number(c.dataset.pct));
+  const u = e.target.closest('[data-unstake]'); if (u) return unstake(u.dataset.unstake);
+  const dd = e.target.closest('[data-day]'); if (dd) addDemoDay(dd.dataset.day);
 });
-
 const wbtn = document.getElementById('walletBtn'), wmenu = document.getElementById('walletMenu');
 wbtn.addEventListener('click', e => { e.stopPropagation(); wmenu.hidden = !wmenu.hidden; renderWallet(); });
 wmenu.addEventListener('click', e => {
@@ -1021,6 +1156,7 @@ document.addEventListener('click', e => {
 
 renderTfs();
 showView(location.hash === '#stake' ? 'stake' : 'swap');
+showSub('pools');
 </script>
 </body>
 </html>
