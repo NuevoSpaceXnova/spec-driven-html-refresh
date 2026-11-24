@@ -3,45 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forja Astral · Swap</title>
+<title>Forja Astral · Swap y Staking</title>
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-/* Swap · mismo lenguaje visual que Forja Astral (consola táctica) */
+/* Swap y Staking · mismo lenguaje visual que Forja Astral */
 :root{
   --bg-app:#0B0D10; --bg-panel:#0E1220; --bg-surface:#151C2B;
   --border-subtle:#1E2A44; --border-active:#2F63D1;
   --text-primary:#FFFFFF; --text-secondary:#D4DCED; --text-muted:#A8B5D1;
-  --accent-primary:#2450C5; --accent-hover:#3266E0; --accent-text:#8FB4FF;
+  --accent-primary:#2450C5; --accent-hover:#3266E0; --accent-text:#8FB4FF; --accent-glow:rgba(36,80,197,.45);
   --up:#3DF08F; --down:#FF4444;
   --font-sans:'Rajdhani',sans-serif; --font-title:'Orbitron',sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --r:4px;
 }
+[hidden]{display:none!important}
 *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--border-subtle) transparent}
 html,body{margin:0;min-height:100%}
-body{background:radial-gradient(ellipse at top,#131a33 0%,var(--bg-app) 60%);color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.4}
+body{
+  background:linear-gradient(rgba(11,13,16,.6),rgba(11,13,16,.7)),url('assets/space-bg.jpg') center/cover no-repeat fixed,var(--bg-app);
+  color:var(--text-primary);font-family:var(--font-sans);font-size:14px;line-height:1.4
+}
 button,input,select{font-family:inherit}
 
 /* Cabecera */
-.top{position:sticky;top:0;z-index:5;min-height:56px;display:flex;align-items:center;gap:18px;padding:8px 20px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle);flex-wrap:wrap}
+.top{position:sticky;top:0;z-index:20;min-height:56px;display:flex;align-items:center;gap:18px;padding:8px 20px;background:var(--bg-panel);border-bottom:1px solid var(--border-subtle);flex-wrap:wrap}
 .top a.back{color:var(--accent-text);text-decoration:none;font:600 12px var(--font-title);letter-spacing:.08em}
 .top a.back:hover{color:var(--text-primary)}
 .top h1{margin:0;font:600 15px var(--font-title);letter-spacing:.1em}
+.tag{font:500 10px var(--font-mono);color:var(--text-muted);border:1px solid var(--border-subtle);border-radius:2px;padding:2px 6px;text-transform:uppercase;letter-spacing:.1em}
 .bal{margin-left:auto;display:flex;gap:14px;font:500 12px var(--font-mono);color:var(--text-secondary);flex-wrap:wrap}
 .bal b{color:var(--text-primary);font-weight:600}
-.tag{font:500 10px var(--font-mono);color:var(--text-muted);border:1px solid var(--border-subtle);border-radius:2px;padding:2px 6px;text-transform:uppercase;letter-spacing:.1em}
 
-/* Rejilla */
-.wrap{display:grid;grid-template-columns:230px minmax(0,1fr) 320px;gap:14px;padding:14px;max-width:1440px;margin:0 auto}
-.panel{background:linear-gradient(rgba(6,8,12,.5),rgba(6,8,12,.6)),var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r);padding:14px;min-width:0}
+/* Botón de billetera y menú */
+.wwrap{position:relative;flex:none}
+.wbtn-top{height:36px;padding:0 14px;background:linear-gradient(180deg,#2450C5,#1B3A99);border:1px solid var(--accent-primary);border-radius:var(--r);color:#fff;font:600 12px var(--font-title);letter-spacing:.06em;cursor:pointer;white-space:nowrap}
+.wbtn-top:hover{background:var(--accent-hover)}
+.wbtn-top.on{background:var(--bg-surface);border-color:var(--status-success,#3DF08F);color:var(--up)}
+.wmenu{position:absolute;right:0;top:44px;width:320px;background:var(--bg-panel);border:1px solid var(--border-subtle);border-top:2px solid var(--accent-primary);border-radius:var(--r);padding:12px;box-shadow:0 20px 40px rgba(0,0,0,.5);z-index:30}
+.wlist{display:flex;flex-direction:column;gap:6px}
+.wopt{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px 10px;color:var(--text-primary);cursor:pointer;font:600 13px var(--font-sans)}
+.wopt:hover:not(:disabled){border-color:var(--border-active)}
+.wopt small{font:500 10px var(--font-mono);color:var(--text-muted)}
+.wconn{font:500 12px var(--font-mono);color:var(--text-secondary);word-break:break-all;margin-bottom:8px}
+.wconn b{color:var(--up);font-weight:600}
+.wnote{font:500 10px var(--font-mono);color:var(--text-muted);margin:10px 0 0;line-height:1.5}
+
+/* Pestañas */
+.tabs{display:flex;gap:6px;padding:12px 20px 0;max-width:1440px;margin:0 auto}
+.tab{background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-muted);border-radius:var(--r);height:36px;padding:0 18px;font:600 12px var(--font-title);letter-spacing:.08em;cursor:pointer;text-transform:uppercase}
+.tab:hover{color:var(--text-primary)}
+.tab.active{color:var(--text-primary);border-color:var(--border-active);background:linear-gradient(180deg,#1E3F9E,#2450C5)}
+
+/* Paneles con el mismo fondo de las tarjetas del juego */
+.panel{background:linear-gradient(rgba(6,8,12,.5),rgba(6,8,12,.6)),url('assets/header-bg.png') center/cover no-repeat,var(--bg-panel);border:1px solid var(--border-subtle);border-radius:var(--r);padding:14px;min-width:0}
 .panel h3{margin:0 0 10px;font:600 11px var(--font-title);letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary)}
-.pairs{grid-column:1;grid-row:1 / span 2;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+
+/* Vista Swap */
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr) 320px;gap:14px;padding:14px;max-width:1440px;margin:0 auto}
+.pairs{grid-column:1;grid-row:1 / span 2;align-self:start;max-height:calc(100vh - 150px);overflow:auto}
 .chart{grid-column:2;grid-row:1}
 .hist{grid-column:2;grid-row:2}
-.side{grid-column:3;grid-row:1 / span 2;align-self:start;display:flex;flex-direction:column;gap:14px}
+.side{grid-column:3;grid-row:1 / span 2;align-self:start}
 
 /* Mercados */
 .pair{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r);padding:7px 9px;color:var(--text-primary);cursor:pointer;text-align:left}
@@ -66,7 +92,17 @@ button,input,select{font-family:inherit}
 #cv{display:block;width:100%;height:380px;cursor:crosshair;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-app)}
 .foot{margin-top:8px;font:500 10px var(--font-mono);color:var(--text-muted);letter-spacing:.04em;line-height:1.5}
 
-/* Historial */
+/* Vista Staking */
+.stwrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:14px;max-width:1440px;margin:0 auto}
+.pools-panel{grid-column:1;grid-row:1 / span 2;align-self:start}
+.form-panel{grid-column:2;grid-row:1}
+.pos-panel{grid-column:2;grid-row:2}
+.pool-row{cursor:pointer}
+.pool-row:hover td{background:rgba(36,80,197,.12)}
+.pool-row.sel td{background:var(--bg-surface)}
+.pool-row.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent-primary)}
+
+/* Tablas */
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{font:600 10px var(--font-sans);text-transform:uppercase;letter-spacing:.12em;color:var(--text-secondary);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface)}
 td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
@@ -74,17 +110,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 .r{text-align:right}
 .empty{color:var(--text-muted);padding:12px 10px}
 
-/* Billeteras */
-.wlist{display:flex;flex-direction:column;gap:6px}
-.wbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px 10px;color:var(--text-primary);cursor:pointer;font:600 13px var(--font-sans)}
-.wbtn:hover:not(:disabled){border-color:var(--border-active)}
-.wbtn small{font:500 10px var(--font-mono);color:var(--text-muted)}
-.wbtn:disabled{cursor:not-allowed;opacity:.6}
-.wconn{font:500 12px var(--font-mono);color:var(--text-secondary);word-break:break-all;margin-bottom:8px}
-.wconn b{color:var(--up);font-weight:600}
-.link{background:none;border:0;color:var(--accent-text);font:500 12px var(--font-mono);cursor:pointer;padding:0;text-decoration:underline}
-
-/* Swap */
+/* Formularios */
 .field{background:var(--bg-app);border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .field label{font:600 10px var(--font-sans);text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
 .field .row{display:flex;gap:8px;align-items:center}
@@ -101,11 +127,12 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 .btn{width:100%;height:42px;background:linear-gradient(180deg,#2450C5,#1B3A99);border:1px solid var(--accent-primary);color:#fff;border-radius:var(--r);font:600 13px var(--font-title);letter-spacing:.08em;cursor:pointer;text-transform:uppercase}
 .btn:hover:not(:disabled){background:var(--accent-hover)}
 .btn:disabled{background:var(--bg-surface);border-color:var(--border-subtle);color:var(--text-muted);cursor:not-allowed}
+.btn.small{height:30px;font-size:11px;width:auto;padding:0 12px}
+.btn.ghost{background:var(--bg-surface);border-color:var(--border-subtle)}
 .msg{min-height:18px;margin:10px 0 0;font:500 12px var(--font-mono);color:var(--text-secondary)}
 .msg.bad{color:var(--down)}
 .msg.ok{color:var(--up)}
-.srow{border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px 10px;margin-top:8px;background:var(--bg-app);font:500 12px var(--font-mono);display:flex;flex-direction:column;gap:6px}
-.srow .btn{height:30px;font-size:11px}
+.srow{border:1px solid var(--border-subtle);border-radius:var(--r);padding:10px;margin-top:8px;background:var(--bg-app);font:500 12px var(--font-mono);display:flex;flex-direction:column;gap:6px}
 
 @media (max-width:1100px){
   .wrap{grid-template-columns:minmax(0,1fr) 320px}
@@ -114,13 +141,17 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
   .chart{grid-column:1;grid-row:auto}
   .side{grid-column:2;grid-row:auto}
   .hist{grid-column:1 / -1;grid-row:auto}
+  .stwrap{grid-template-columns:minmax(0,1fr)}
+  .pools-panel,.form-panel,.pos-panel{grid-column:1;grid-row:auto}
 }
 @media (max-width:720px){
   .wrap{grid-template-columns:minmax(0,1fr);padding:10px}
   .chart,.side,.hist{grid-column:1}
+  .side{order:-1}
   #cv{height:300px}
   .bal{margin-left:0;width:100%}
   .tfs{margin-left:0}
+  .wmenu{width:min(320px,90vw)}
 }
 </style>
 </head>
@@ -130,9 +161,19 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
   <h1>SWAP</h1>
   <span class="tag">Datos ficticios · demo</span>
   <div class="bal" id="bal"></div>
+  <div class="wwrap" id="wwrap">
+    <button class="wbtn-top" id="walletBtn" type="button" aria-haspopup="true" aria-expanded="false">Conectar wallet</button>
+    <div class="wmenu" id="walletMenu" hidden></div>
+  </div>
 </header>
 
-<div class="wrap">
+<nav class="tabs" aria-label="Secciones">
+  <button class="tab active" data-view="swap" type="button">Swap</button>
+  <button class="tab" data-view="stake" type="button">Staking</button>
+</nav>
+
+<!-- ============ VISTA SWAP ============ -->
+<div class="wrap" id="view-swap">
   <aside class="panel pairs">
     <h3>Mercados · BNB Chain</h3>
     <div id="pairList"></div>
@@ -151,11 +192,6 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
   </section>
 
   <div class="side">
-    <section class="panel">
-      <h3>Billetera</h3>
-      <div id="walletBox"></div>
-    </section>
-
     <section class="panel">
       <h3>Intercambio</h3>
       <div class="field">
@@ -179,24 +215,6 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
       <button class="btn" id="doSwap" type="button">Intercambiar</button>
       <p class="msg" id="msg"></p>
     </section>
-
-    <section class="panel">
-      <h3>Staking</h3>
-      <div class="field">
-        <label for="stPool">Pool (par contra TOKEN)</label>
-        <div class="row">
-          <select class="sel" id="stPool"></select>
-          <input class="amt" id="stAmt" type="number" min="0" step="1" placeholder="0">
-        </div>
-        <small id="stBal"></small>
-      </div>
-      <div class="rates" id="poolInfo"></div>
-      <div class="rates" id="stQuote"></div>
-      <button class="btn" id="doStake" type="button">Bloquear TOKEN</button>
-      <p class="msg" id="stMsg"></p>
-      <div id="stakeList"></div>
-      <p class="foot" style="margin-top:10px">El interés es simple y se calcula por días completos. El “+1 día (demo)” solo existe en la demo.</p>
-    </section>
   </div>
 
   <section class="panel hist">
@@ -205,13 +223,44 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
   </section>
 </div>
 
+<!-- ============ VISTA STAKING ============ -->
+<div class="stwrap" id="view-stake" hidden>
+  <section class="panel pools-panel">
+    <h3>Pools de staking · TOKEN / X</h3>
+    <table>
+      <thead><tr><th>Pool</th><th class="r">APY anual</th><th class="r">Bloqueo</th></tr></thead>
+      <tbody id="poolTable"></tbody>
+    </table>
+    <div class="foot">Tasas ficticias de la demo. El interés es simple y se calcula por días completos. Reglas completas en docs/reglas-swap-y-staking.md.</div>
+  </section>
+
+  <section class="panel form-panel">
+    <h3>Bloquear TOKEN</h3>
+    <div class="field">
+      <label for="stPool">Pool (par contra TOKEN)</label>
+      <div class="row">
+        <select class="sel" id="stPool"></select>
+        <input class="amt" id="stAmt" type="number" min="0" step="1" placeholder="0">
+      </div>
+      <small id="stBal"></small>
+    </div>
+    <div class="rates" id="poolInfo"></div>
+    <div class="rates" id="stQuote"></div>
+    <button class="btn" id="doStake" type="button">Bloquear TOKEN</button>
+    <p class="msg" id="stMsg"></p>
+  </section>
+
+  <section class="panel pos-panel">
+    <h3>Mis posiciones</h3>
+    <div id="stakeList"></div>
+  </section>
+</div>
+
 <script>
 /* ==========================================================================
    CONFIGURACIÓN PARA LA INTEGRACIÓN OFICIAL
-   - contract: dirección del token en BNB Smart Chain. Pendiente: completar
-     desde BscScan o la fuente oficial cuando el token se liste.
-   - Las direcciones de las criptos también quedan en null hasta verificarlas
-     en una fuente oficial. No se inventan aquí.
+   - contract: dirección del token/cripto en BNB Smart Chain. Quedan en null
+     hasta verificarlas en una fuente oficial. No se inventan aquí.
    ========================================================================== */
 const CHAIN = {
   name:'BNB Smart Chain', chainId:56, hex:'0x38',
@@ -241,14 +290,13 @@ const N_MIN = 43200;                            // 30 días de velas de 1 minuto
 const TF = {'1m':{size:1,show:120,label:'1m'}, '1h':{size:60,show:120,label:'1H'}, '1d':{size:1440,show:30,label:'1D'}};
 const ALL = [TOKEN, ...CRYPTOS];                // todos los activos del swap
 const PAIRS = ALL.filter(a => a.sym !== 'USDT');// mercados graficados contra USDT
-const BY = Object.fromEntries(ALL.map(a => [a.sym, a]));
 
 /* STAKING: el APY depende del par contra el que se hace el pool (TOKEN/X).
    Valores ficticios para la demo; ajustar aquí cuando se defina la economía real. */
 const STAKE = {
   lockDays: 15,                 // bloqueo fijo en días
   reserveStart: 100000,         // reserva ficticia de TOKEN para pagar intereses (demo)
-  apy: {                        // tasa anual por pool
+  apy: {
     USDT:0.12, USDC:0.12, BNB:0.09, BTCB:0.06, ETH:0.07, CAKE:0.10,
     XRP:0.08, ADA:0.08, DOGE:0.08, LINK:0.08, DOT:0.08, LTC:0.08, TRX:0.08, UNI:0.08, MATIC:0.08
   }
@@ -315,13 +363,13 @@ function fmtTime(t, frame){
 }
 function short(a){ return a ? a.slice(0,6) + '…' + a.slice(-4) : ''; }
 
-/* ============ PARTIDA DEL JUEGO Y SALDOS DEMO ============ */
+/* ============ PARTIDA DEL JUEGO Y LIBRO DEMO ============ */
 function userSuffix(){ try { return localStorage.getItem('forja-astral-session') || ''; } catch(e){ return ''; } }
 function sessionKey(){ const u = userSuffix(); return u ? 'forja-astral-save-v2:' + u : 'forja-astral-save-v2'; }
 function demoKey(){ const u = userSuffix(); return 'forja-astral-swap-demo' + (u ? ':' + u : ''); }
 function readSave(){ try { const raw = localStorage.getItem(sessionKey()); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
 function planetOf(d){ return d ? ((d.planets||[])[d.active||0] || (d.planets||[])[0] || null) : null; }
-// Saldos demo de criptos (no tocan la partida del juego). Empiezan con 500 USDT ficticios.
+// Libro demo: saldos de criptos, historial, reserva y posiciones de staking. No toca la partida del juego.
 function readDemo(){
   let x = null;
   try { const raw = localStorage.getItem(demoKey()); if (raw) x = JSON.parse(raw); } catch(e){}
@@ -331,15 +379,13 @@ function readDemo(){
   return x;
 }
 function writeDemo(x){ localStorage.setItem(demoKey(), JSON.stringify(x)); }
-
 function balanceOf(sym, d, demo){
   if (sym==='TOKEN'){ const P = planetOf(d); return P ? (P.res.token||0) : 0; }
   return (demo.bal[sym]||0);
 }
 
-/* ============ BILLETERAS (preparadas para integración) ============
-   EVM (MetaMask, Ronin, Trust, etc.): EIP-6963 para detectar cada extensión por separado.
-   Solana (Solflare, Phantom): proveedores inyectados. Ronin también expone window.ronin.
+/* ============ BILLETERAS ============
+   EVM (MetaMask y otras extensiones): EIP-6963. Ronin: window.ronin. Solana: Solflare y Phantom.
    Aquí solo se conecta y se cambia la red. Las transacciones on-chain quedan pendientes. */
 const evmProviders = new Map();
 window.addEventListener('eip6963:announceProvider', e => { evmProviders.set(e.detail.info.uuid, e.detail); renderWallet(); });
@@ -351,9 +397,9 @@ function detectWallets(){
   const list = [];
   evmProviders.forEach(d => list.push({id:'evm:'+d.info.uuid, kind:'evm', name:d.info.name, provider:d.provider, note:'EVM · BNB Chain'}));
   if (!evmProviders.size && window.ethereum) list.push({id:'evm:injected', kind:'evm', name:'Wallet inyectada', provider:window.ethereum, note:'EVM · BNB Chain'});
-  if (window.ronin && window.ronin.provider) list.push({id:'evm:ronin', kind:'evm', name:'Ronin Wallet', provider:window.ronin.provider, note:'EVM · Red Ronin (cambiar a BNB)'});
-  if (window.solflare && window.solflare.isSolflare) list.push({id:'sol:solflare', kind:'sol', name:'Solflare', provider:window.solflare, note:'Solana · no es BNB Chain'});
-  if (window.phantom && window.phantom.solana) list.push({id:'sol:phantom', kind:'sol', name:'Phantom', provider:window.phantom.solana, note:'Solana · no es BNB Chain'});
+  if (window.ronin && window.ronin.provider) list.push({id:'evm:ronin', kind:'evm', name:'Ronin Wallet', provider:window.ronin.provider, note:'Red Ronin (no BNB)'});
+  if (window.solflare && window.solflare.isSolflare) list.push({id:'sol:solflare', kind:'sol', name:'Solflare', provider:window.solflare, note:'Solana (no BNB)'});
+  if (window.phantom && window.phantom.solana) list.push({id:'sol:phantom', kind:'sol', name:'Phantom', provider:window.phantom.solana, note:'Solana (no BNB)'});
   return list;
 }
 async function ensureBsc(p){
@@ -375,13 +421,14 @@ async function connectWallet(id){
     if (w.kind === 'evm'){
       const acc = await w.provider.request({method:'eth_requestAccounts'});
       if (!acc || !acc[0]) throw new Error('Sin cuenta');
-      if (!w.note.includes('Ronin')) await ensureBsc(w.provider);
+      if (w.id !== 'evm:ronin') await ensureBsc(w.provider);
       wallet = {kind:'evm', name:w.name, address:acc[0], provider:w.provider};
     } else {
       const res = await w.provider.connect();
       wallet = {kind:'sol', name:w.name, address:res.publicKey.toString(), provider:w.provider};
     }
     setMsg('Conectado con ' + wallet.name + '.', 'ok');
+    document.getElementById('walletMenu').hidden = true;
   } catch (err){
     setMsg('No se pudo conectar: ' + ((err && err.message) || 'cancelado'), 'bad');
   }
@@ -389,7 +436,27 @@ async function connectWallet(id){
 }
 function disconnectWallet(){ wallet = null; setMsg('Billetera desconectada.'); renderWallet(); }
 
-/* ============ ESTADO Y RENDER ============ */
+function renderWallet(){
+  const btn = document.getElementById('walletBtn');
+  const menu = document.getElementById('walletMenu');
+  btn.textContent = wallet ? (wallet.name + ' · ' + short(wallet.address)) : 'Conectar wallet';
+  btn.classList.toggle('on', !!wallet);
+  btn.setAttribute('aria-expanded', String(!menu.hidden));
+  if (wallet){
+    menu.innerHTML = `<div class="wconn">Conectado · ${wallet.name}<br><b>${wallet.address}</b></div>
+      <button class="btn small ghost" id="wDisc" type="button">Desconectar</button>`;
+    document.getElementById('wDisc').onclick = disconnectWallet;
+    return;
+  }
+  const list = detectWallets();
+  const body = list.length
+    ? `<div class="wlist">${list.map(w => `<button class="wopt" type="button" data-wallet="${w.id}"><span>${w.name}</span><small>${w.note}</small></button>`).join('')}</div>`
+    : '<p class="empty" style="padding:0">No se detectó ninguna billetera. Instala MetaMask, Solflare, Phantom o Ronin Wallet y recarga la página.</p>';
+  menu.innerHTML = body + '<p class="wnote">Conexión preparada. Las transacciones on-chain del token se activarán con la integración oficial.</p>';
+}
+
+/* ============ ESTADO Y RENDER COMÚN ============ */
+let view = 'swap';
 let cur = 'TOKEN';
 let tf = '1m';
 let hover = null;
@@ -484,21 +551,6 @@ function renderBalances(d, demo){
   const aviso = d ? '' : '<span>Sin partida guardada: abre el juego e inicia sesión para usar TOKEN.</span>';
   document.getElementById('bal').innerHTML = aviso + items.map(x => `<span>${x.sym} <b>${fmtAmt(x.v)}</b></span>`).join('');
 }
-function renderWallet(){
-  const box = document.getElementById('walletBox');
-  if (wallet){
-    box.innerHTML = `<div class="wconn">Conectado · ${wallet.name}<br><b>${short(wallet.address)}</b></div>
-      <button class="btn" type="button" id="wDisc" style="height:34px;font-size:11px">Desconectar</button>`;
-    document.getElementById('wDisc').onclick = disconnectWallet;
-    return;
-  }
-  const list = detectWallets();
-  const body = list.length
-    ? list.map(w => `<button class="wbtn" type="button" data-wallet="${w.id}"><span>${w.name}</span><small>${w.note}</small></button>`).join('')
-    : '<p class="empty" style="padding:0">No se detectó ninguna billetera. Instala MetaMask, Solflare, Phantom o Ronin Wallet y recarga la página.</p>';
-  box.innerHTML = `<div class="wlist">${body}</div>
-    <p class="foot" style="margin-top:10px">Conexión preparada. Las transacciones on-chain del token se activarán con la integración oficial.</p>`;
-}
 
 function quote(from, to, amt){ return amt * usdt(from) / usdt(to) * (1-FEE); }
 function renderSwapForm(d, demo){
@@ -530,19 +582,21 @@ function renderHistory(d, demo){
   </tbody></table>`;
 }
 
-function refreshAll(){
-  const d = readSave(), demo = readDemo();
-  renderPairs(); renderHeader(); drawChart();
-  renderBalances(d, demo); renderSwapForm(d, demo); renderStake(d, demo); renderHistory(d, demo);
-}
-
 /* ============ STAKING ============
-   El TOKEN bloqueado sale del saldo de la partida del juego y se guarda en el
-   libro demo. Al retirar, vuelve el capital más el interés pagado desde la reserva.
+   El TOKEN bloqueado sale del saldo de la partida del juego y se guarda en el libro demo.
+   Al retirar, vuelve el capital más el interés pagado desde la reserva.
    Interés simple: monto × APY × días completos / 365. Tiempo = reloj del juego (simSec). */
 function setStMsg(text, kind){
   const m = document.getElementById('stMsg');
   m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
+}
+function renderPools(pool){
+  document.getElementById('poolTable').innerHTML = Object.keys(STAKE.apy).map(s =>
+    `<tr class="pool-row${s===pool?' sel':''}" data-pool="${s}">
+      <td><b>TOKEN / ${s}</b></td>
+      <td class="r mono">${(STAKE.apy[s]*100).toFixed(1)} %</td>
+      <td class="r mono">${STAKE.lockDays} días</td>
+    </tr>`).join('');
 }
 function renderStake(d, demo){
   const sel = document.getElementById('stPool');
@@ -559,6 +613,7 @@ function renderStake(d, demo){
   const est = Math.floor(amt * STAKE.apy[pool] * STAKE.lockDays / 365);
   document.getElementById('stQuote').innerHTML = `<span>Interés estimado a ${STAKE.lockDays} días: <b>${fmtAmt(est)}</b> TOKEN</span>`;
   document.getElementById('doStake').disabled = !d;
+  renderPools(pool);
 
   const now = d ? (d.simSec || 0) : null;
   const list = document.getElementById('stakeList');
@@ -568,11 +623,11 @@ function renderStake(d, demo){
     const interest = Math.floor(st.amount * st.apy * days / 365);
     const ready = days >= STAKE.lockDays && !!d;
     return `<div class="srow">
-      <span>TOKEN / ${st.pool} · <b>${fmtAmt(st.amount)}</b> TOKEN</span>
+      <span>TOKEN / ${st.pool} · <b>${fmtAmt(st.amount)}</b> TOKEN · APY ${(st.apy*100).toFixed(1)} %</span>
       <span>Día ${Math.min(days, STAKE.lockDays)} de ${STAKE.lockDays} · Interés acumulado <b>${fmtAmt(interest)}</b></span>
-      <span style="display:flex;gap:6px">
-        <button class="btn" data-unstake="${st.id}" type="button" ${ready ? '' : 'disabled'}>Retirar</button>
-        <button class="btn" data-day="${st.id}" type="button" style="background:var(--bg-surface);border-color:var(--border-subtle)">+1 día (demo)</button>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn small" data-unstake="${st.id}" type="button" ${ready ? '' : 'disabled'}>Retirar</button>
+        <button class="btn small ghost" data-day="${st.id}" type="button">+1 día (demo)</button>
       </span>
     </div>`;
   }).join('');
@@ -627,7 +682,7 @@ function addDemoDay(id){
   refreshAll();
 }
 
-/* ============ SWAP (saldos del juego para TOKEN, saldos demo para criptos) ============ */
+/* ============ SWAP ============ */
 function setMsg(text, kind){
   const m = document.getElementById('msg');
   m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
@@ -646,10 +701,8 @@ function doSwap(){
   const get = to==='TOKEN' ? Math.floor(out) : Number(out.toFixed(6));
   if (get<=0) return setMsg('La cantidad es muy pequeña para ese intercambio.', 'bad');
 
-  // Descontar origen
   if (from==='TOKEN'){ planetOf(d).res.token -= amt; }
   else { demo.bal[from] = Number((have - amt).toFixed(6)); }
-  // Acreditar destino
   if (to==='TOKEN'){ planetOf(d).res.token = (planetOf(d).res.token||0) + get; }
   else { demo.bal[to] = Number(((demo.bal[to]||0) + get).toFixed(6)); }
 
@@ -668,7 +721,27 @@ function doSwap(){
   refreshAll();
 }
 
+/* ============ PESTAÑAS ============ */
+function showView(v){
+  view = v === 'stake' ? 'stake' : 'swap';
+  document.getElementById('view-swap').hidden = view !== 'swap';
+  document.getElementById('view-stake').hidden = view !== 'stake';
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
+  refreshAll();
+}
+
+/* ============ REFRESCO GENERAL ============ */
+function refreshAll(){
+  const d = readSave(), demo = readDemo();
+  if (view === 'swap'){ renderPairs(); renderHeader(); drawChart(); renderSwapForm(d, demo); renderHistory(d, demo); }
+  renderBalances(d, demo);
+  renderStake(d, demo);
+  renderWallet();
+}
+
 /* ============ EVENTOS ============ */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
 document.getElementById('pairList').addEventListener('click', e => {
   const b = e.target.closest('[data-pair]'); if (!b) return;
   cur = b.dataset.pair; hover = null; refreshAll();
@@ -676,10 +749,6 @@ document.getElementById('pairList').addEventListener('click', e => {
 document.getElementById('tfs').addEventListener('click', e => {
   const b = e.target.closest('[data-tf]'); if (!b) return;
   tf = b.dataset.tf; hover = null; renderTfs(); refreshAll();
-});
-document.getElementById('walletBox').addEventListener('click', e => {
-  const b = e.target.closest('[data-wallet]'); if (!b) return;
-  connectWallet(b.dataset.wallet);
 });
 const cv = document.getElementById('cv');
 cv.addEventListener('mousemove', e => {
@@ -701,9 +770,14 @@ document.getElementById('flip').addEventListener('click', () => {
   const tmp = f.value; f.value = t.value; t.value = tmp; refreshAll();
 });
 document.getElementById('doSwap').addEventListener('click', doSwap);
+
 document.getElementById('doStake').addEventListener('click', doStake);
 document.getElementById('stPool').addEventListener('change', refreshAll);
 document.getElementById('stAmt').addEventListener('input', refreshAll);
+document.getElementById('poolTable').addEventListener('click', e => {
+  const r = e.target.closest('[data-pool]'); if (!r) return;
+  document.getElementById('stPool').value = r.dataset.pool; refreshAll();
+});
 document.getElementById('stakeList').addEventListener('click', e => {
   const u = e.target.closest('[data-unstake]');
   if (u) return unstake(u.dataset.unstake);
@@ -711,9 +785,18 @@ document.getElementById('stakeList').addEventListener('click', e => {
   if (dd) addDemoDay(dd.dataset.day);
 });
 
+const wbtn = document.getElementById('walletBtn'), wmenu = document.getElementById('walletMenu');
+wbtn.addEventListener('click', e => { e.stopPropagation(); wmenu.hidden = !wmenu.hidden; renderWallet(); });
+wmenu.addEventListener('click', e => {
+  const b = e.target.closest('[data-wallet]'); if (!b) return;
+  connectWallet(b.dataset.wallet);
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('wwrap').contains(e.target)){ wmenu.hidden = true; renderWallet(); }
+});
+
 renderTfs();
-renderWallet();
-refreshAll();
+showView(location.hash === '#stake' ? 'stake' : 'swap');
 </script>
 </body>
 </html>
