@@ -31,6 +31,9 @@ estas reglas son el punto de partida. Los valores que cambian están marcados en
 - **Cantidades de TOKEN:** siempre enteras. Cualquier fracción se redondea hacia abajo.
 - **Redondeo de la salida:** TOKEN como salida se redondea hacia abajo. Las criptos conservan hasta 6 decimales.
 - **Mínimo:** la salida debe ser mayor que cero. Si no, la operación se rechaza.
+- **Confirmación:** antes de ejecutar, la página muestra un resumen (pagas, recibes, mínimo, comisión e impacto) y el jugador confirma.
+- **Tolerancia de precio:** el jugador elige 0,5 %, 1 % o 2 %. Si al confirmar la salida queda por debajo del mínimo calculado con esa tolerancia, la operación no se ejecuta.
+- **Impacto estimado:** `impacto = monto × precio(origen) / liquidez ficticia de 250.000 USDT`. Solo es un aviso (más de 1 % muestra advertencia); la demo no mueve el precio.
 - **Saldos:**
   - TOKEN: sale de la partida guardada del juego.
   - Criptos: en la demo, saldos ficticios (500 USDT al inicio). En la economía real, saldos de la billetera conectada.
@@ -59,8 +62,9 @@ estas reglas son el punto de partida. Los valores que cambian están marcados en
 
 ### 4.3 Bloqueo
 - El bloqueo es de **15 días**.
-- Durante el bloqueo el TOKEN no se puede usar en swap ni retirar.
-- El retiro se habilita al completar 15 días.
+- Durante el bloqueo el TOKEN no se puede usar en swap.
+- El retiro normal y el re-bloqueo se habilitan al completar 15 días.
+- **Retiro anticipado:** antes de los 15 días se puede retirar el capital menos una penalización del **5 %**. Se pierde el interés. La penalización pasa a la reserva.
 
 ### 4.4 Cálculo del interés
 - Interés **simple**, calculado por **días completos**:
@@ -73,6 +77,7 @@ estas reglas son el punto de partida. Los valores que cambian están marcados en
 - El capital siempre sale de la operación.
 - El interés sale de la **reserva de intereses**.
 - Si la reserva no alcanza, se paga lo disponible y el juego informa el monto pagado.
+- **Re-bloquear con interés:** al cumplir los 15 días, el capital más el interés vuelven a bloquearse otros 15 días en el mismo pool y con el mismo APY. El interés sale de la reserva igual que en el retiro.
 
 ### 4.6 Reserva de intereses
 - **Demo:** reserva ficticia de 100.000 TOKEN.
@@ -110,4 +115,4 @@ estas reglas son el punto de partida. Los valores que cambian están marcados en
 5. **Staking real:** contrato de staking con los mismos parámetros de la sección 4.
 6. **Reserva de intereses:** definir de dónde sale el dinero y cómo se controla su límite.
 7. **Revisión de seguridad:** auditoría de contratos antes de activar dinero real.
-8. **Parámetros:** `FEE`, `STAKE.lockDays`, `STAKE.apy` y `STAKE.reserveStart` se cambian en `public/swap.html`.
+8. **Parámetros:** `FEE`, `LIQ_USD`, `EARLY_PENALTY`, `STAKE.lockDays`, `STAKE.apy` y `STAKE.reserveStart` se cambian en `public/swap.html`.

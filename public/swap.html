@@ -108,6 +108,16 @@ button,input,select{font-family:inherit}
 .subtabs{display:flex;gap:6px}
 .tab.sm{height:30px;padding:0 12px;font-size:11px}
 .st-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}
+.pstats{display:flex;gap:18px;flex-wrap:wrap;padding:6px 14px;font:500 11px var(--font-mono);color:var(--text-muted)}
+.pstats b{color:var(--text-primary);font-weight:500}
+.slip{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font:500 11px var(--font-mono);color:var(--text-muted);margin:4px 0}
+.slip .chip.active{border-color:var(--border-active);color:var(--text-primary)}
+.warn{color:#FFB020}
+.fav{cursor:pointer;color:var(--text-muted);padding:0 4px}
+.fav.on{color:#FFB020}
+dialog.confirm{background:var(--bg-dark);color:inherit;border:1px solid var(--border-active);border-radius:var(--r);padding:16px;width:min(360px,90vw)}
+dialog.confirm::backdrop{background:rgba(0,0,0,.6)}
+.pos-card canvas{display:block;width:100%;height:60px;margin:4px 0}
 .pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-items:start}
 .calc{display:flex;flex-direction:column;gap:10px}
 .calc .field{padding:8px 10px}
@@ -236,6 +246,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
       <span class="sep"></span>
       <button class="tool" data-act="full" type="button" title="Pantalla completa">Pantalla completa</button>
     </div>
+    <div class="pstats" id="pStats"></div>
     <div class="ohlc" id="ohlc"></div>
     <canvas id="cv"></canvas>
     <div class="foot">Precios generados en el navegador para la demo. Los dibujos se guardan solo mientras la página está abierta. Esc cancela un dibujo en curso.</div>
@@ -262,8 +273,17 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
         <small id="toBal"></small>
       </div>
       <div class="rates" id="rates"></div>
+      <div class="slip" id="slip"><span>Tolerancia</span><button class="chip" data-slip="0.5" type="button">0,5 %</button><button class="chip active" data-slip="1" type="button">1 %</button><button class="chip" data-slip="2" type="button">2 %</button></div>
       <button class="btn" id="doSwap" type="button">Intercambiar</button>
       <p class="msg" id="msg"></p>
+    </section>
+    <section class="panel">
+      <h3>Ficha del token</h3>
+      <div class="kv" id="infoWrap"></div>
+    </section>
+    <section class="panel">
+      <h3>Operaciones del mercado</h3>
+      <div id="tradesWrap"></div>
     </section>
   </div>
 
@@ -272,6 +292,15 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
     <div id="histWrap"></div>
   </section>
 </div>
+
+<dialog id="swapDlg" class="confirm">
+  <h3>Confirmar intercambio</h3>
+  <div class="kv" id="swapDlgBody"></div>
+  <div class="pc-btns" style="justify-content:flex-end;margin-top:12px">
+    <button class="btn compact ghost" id="swapCancel" type="button">Cancelar</button>
+    <button class="btn compact" id="swapOk" type="button">Confirmar</button>
+  </div>
+</dialog>
 
 <!-- ============ VISTA STAKING ============ -->
 <div class="stwrap" id="view-stake" hidden>
@@ -287,10 +316,16 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 
   <section data-sub-panel="pools">
     <div class="pool-grid" id="poolGrid"></div>
+    <section class="panel proj" style="margin-top:12px">
+      <h3>Proyección de interés en TOKEN (simple)</h3>
+      <div class="field"><label for="prAmt">Monto a proyectar (TOKEN)</label><div class="row"><input class="amt" id="prAmt" type="number" min="0" step="1" value="10000"></div></div>
+      <div id="prWrap"></div>
+    </section>
   </section>
 
   <section data-sub-panel="pos" hidden>
     <div class="pos-grid" id="stakeList"></div>
+    <div class="panel" id="lbWrap" style="margin-top:12px"></div>
   </section>
 
   <section data-sub-panel="hist" hidden>
@@ -328,6 +363,7 @@ const CRYPTOS = [
   {sym:'MATIC', name:'Polygon',       start:0.55,   vol:0.0018,  contract:null}
 ];
 const FEE = 0.003;                              // comisión del swap (0,3 %)
+const LIQ_USD = 250000;                         // liquidez ficticia por par, para estimar el impacto del precio
 const N_MIN = 43200;                            // 30 días de velas de 1 minuto (ficticias)
 const TF = {'1m':{size:1,show:120,label:'1m',sec:60}, '1h':{size:60,show:120,label:'1H',sec:3600}, '1d':{size:1440,show:30,label:'1D',sec:86400}};
 const ALL = [TOKEN, ...CRYPTOS];                // todos los activos del swap
@@ -504,6 +540,14 @@ function renderWallet(){
 }
 
 /* ============ ESTADO ============ */
+let slip = 1;                       // tolerancia de precio del swap, en %
+let pendingSwap = null;             // operación esperando confirmación
+let favs = (() => { try { return JSON.parse(localStorage.getItem('forja-astral-favs')) || []; } catch(e){ return []; } })();
+function toggleFav(sym){
+  favs = favs.includes(sym) ? favs.filter(x => x !== sym) : [...favs, sym];
+  try { localStorage.setItem('forja-astral-favs', JSON.stringify(favs)); } catch(e){}
+  renderPairs();
+}
 let view = 'swap';
 let cur = 'TOKEN';
 let tf = '1m';
@@ -520,11 +564,13 @@ function drawList(){ return drawings[drawKey()] || (drawings[drawKey()] = []); }
 
 /* ============ RENDER COMÚN ============ */
 function renderPairs(){
-  document.getElementById('pairList').innerHTML = PAIRS.map(a => {
-    const ch = changeFor(a.sym);
+  const list = [...PAIRS].sort((a, b) => (favs.includes(b.sym) ? 1 : 0) - (favs.includes(a.sym) ? 1 : 0));
+  document.getElementById('pairList').innerHTML = list.map(a => {
+    const ch = changeFor(a.sym), fav = favs.includes(a.sym);
     return `<button class="pair${a.sym===cur?' active':''}" data-pair="${a.sym}" type="button">
       <span><span class="nm">${a.sym} / USDT</span><br><span class="sub">${a.inGame ? 'Token del juego' : a.name}</span></span>
       <span><span class="px">${fmtPrice(usdt(a.sym))}</span><br><span class="chg ${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)}%</span></span>
+      <span class="fav${fav?' on':''}" data-fav="${a.sym}" role="button" title="Marcar como favorito">★</span>
     </button>`;
   }).join('');
 }
@@ -734,6 +780,7 @@ function drawSpark(cv, sym){
    El TOKEN bloqueado sale del saldo de la partida del juego y se guarda en el libro demo.
    Al retirar, vuelve el capital más el interés pagado desde la reserva.
    Interés simple: monto × APY × días completos / 365. Tiempo = reloj del juego (simSec). */
+const EARLY_PENALTY = 0.05;         // retiro antes de tiempo: se pierde el interés y se cobra esta penalización sobre el capital
 let subTab = 'pools';
 const notifiedUnlock = new Set();
 let unlockReady = false;
@@ -832,6 +879,32 @@ function renderPoolGrid(d, demo){
     drawSpark(card.querySelector('canvas'), s);
   });
 }
+/* Gráfico del interés de una posición: sólido hasta hoy, punteado lo que falta para el desbloqueo */
+function drawInterest(cv, r){
+  if (!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const N = STAKE.lockDays, pts = [];
+  for (let k = 0; k <= N; k++) pts.push(Math.floor(r.st.amount * r.st.apy * k / 365));
+  const max = Math.max(1, pts[N]);
+  const X = k => 4 + k / N * (W - 8);
+  const Y = v => H - 6 - v / max * (H - 12);
+  const dd = Math.min(r.days, N);
+  ctx.strokeStyle = '#1CFF8A'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  for (let k = 0; k <= dd; k++){ if (k) ctx.lineTo(X(k), Y(pts[k])); else ctx.moveTo(X(k), Y(pts[k])); }
+  ctx.stroke();
+  ctx.setLineDash([3,3]); ctx.strokeStyle = 'rgba(255,255,255,.35)';
+  ctx.beginPath();
+  for (let k = dd; k <= N; k++){ if (k > dd) ctx.lineTo(X(k), Y(pts[k])); else ctx.moveTo(X(k), Y(pts[k])); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
 function renderPositions(d, demo){
   const rows = stakeRows(d, demo);
   const list = document.getElementById('stakeList');
@@ -841,18 +914,22 @@ function renderPositions(d, demo){
     list.innerHTML = rows.map(r => {
       const pct = Math.min(100, Math.round(r.days / STAKE.lockDays * 100));
       const unlock = d ? fmtClock(r.st.start + STAKE.lockDays * 86400) : '—';
+      const early = !!d && !r.ready;
       return `<div class="panel pos-card">
         <div class="pc-top"><span>TOKEN / ${r.st.pool}</span><span>APY ${(r.st.apy*100).toFixed(1)} %</span></div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         <div class="pc-row"><span>Día ${Math.min(r.days, STAKE.lockDays)} de ${STAKE.lockDays}</span><span>Capital <b>${fmtAmt(r.st.amount)}</b></span><span>Interés <b>${fmtAmt(r.interest)}</b></span></div>
-        <div class="pc-row"><span>Desbloqueo: ${unlock}</span>
-          <span class="pc-btns">
-            <button class="btn compact" data-unstake="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Retirar</button>
-            <button class="btn compact ghost" data-day="${r.st.id}" type="button">+1 día demo</button>
-          </span>
-        </div>
+        <canvas data-int-cv="${r.st.id}"></canvas>
+        <div class="pc-row"><span>Desbloqueo: ${unlock}</span></div>
+        <div class="pc-row"><span class="pc-btns">
+          <button class="btn compact" data-unstake="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Retirar</button>
+          <button class="btn compact" data-compound="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Re-bloquear con interés</button>
+          <button class="btn compact ghost" data-early="${r.st.id}" type="button" ${early ? '' : 'disabled'}>Retiro anticipado (−${EARLY_PENALTY*100} %)</button>
+          <button class="btn compact ghost" data-day="${r.st.id}" type="button">+1 día demo</button>
+        </span></div>
       </div>`;
     }).join('');
+    rows.forEach(r => drawInterest(list.querySelector('[data-int-cv="' + r.st.id + '"]'), r));
   }
   // Aviso una sola vez cuando una posición se desbloquea
   if (!unlockReady){
@@ -867,6 +944,26 @@ function renderPositions(d, demo){
     });
   }
 }
+/* Proyección simple: monto × APY × días / 365, en TOKEN, con el precio actual del par */
+function renderProjection(){
+  const amt = Math.floor(Number(document.getElementById('prAmt').value) || 0);
+  const H = [30, 90, 180, 365];
+  document.getElementById('prWrap').innerHTML = `<table><thead><tr><th>Pool</th><th class="r">APY</th><th class="r">Precio 4 h</th><th class="r">1 mes</th><th class="r">3 meses</th><th class="r">6 meses</th><th class="r">12 meses</th></tr></thead><tbody>${Object.keys(STAKE.apy).map(s => {
+    const sr = ratioSeries(s), ch = sr[sr.length-1].p / sr[0].p - 1;
+    return `<tr><td>TOKEN / ${s}</td><td class="r mono">${(STAKE.apy[s]*100).toFixed(1)} %</td><td class="r mono ${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)} %</td>${H.map(days => `<td class="r mono">${fmtAmt(Math.floor(amt * STAKE.apy[s] * days / 365))}</td>`).join('')}</tr>`;
+  }).join('')}</tbody></table>`;
+}
+/* Ranking ficticio: jugadores de relleno (fijos por semilla) más la posición real del jugador */
+function renderLeaderboard(d, demo){
+  const rows = Array.from({length:7}, (_, i) => ({
+    name: 'Jugador_' + (1000 + hashStr('lb' + i) % 9000),
+    amt: 2000 + hashStr('amt' + i) % 60000, me: false
+  }));
+  const mine = demo.stakes.reduce((a, x) => a + x.amount, 0);
+  if (mine > 0) rows.push({name:'Tú', amt:mine, me:true});
+  rows.sort((a, b) => b.amt - a.amt);
+  document.getElementById('lbWrap').innerHTML = `<h3>Ranking de stakers (ficticio)</h3><table><thead><tr><th>#</th><th>Jugador</th><th class="r">TOKEN bloqueado</th></tr></thead><tbody>${rows.map((r, i) => `<tr><td class="mono">${i+1}</td><td>${r.name}</td><td class="r mono">${fmtAmt(r.amt)}</td></tr>`).join('')}</tbody></table>`;
+}
 function renderStakeHist(d){
   const box = document.getElementById('stHist');
   const rows = ((d && d.txs) || []).filter(t => /^(Staking|Retiro staking)/.test(String(t.type||'')));
@@ -880,6 +977,8 @@ function renderStake(d, demo){
   renderPoolGrid(d, demo);
   renderPositions(d, demo);
   renderStakeHist(d);
+  renderProjection();
+  renderLeaderboard(d, demo);
 }
 function doStake(pool){
   const d = readSave(), demo = readDemo();
@@ -900,27 +999,48 @@ function doStake(pool){
   setStMsg('Bloqueaste ' + fmtAmt(amt) + ' TOKEN en el pool ' + pool + '.', 'ok');
   refreshAll();
 }
-function unstake(id){
+function unstake(id, mode){   // 'withdraw' | 'compound' | 'early'
   const d = readSave(), demo = readDemo();
   if (!d) return setStMsg('Abre el juego para retirar.', 'bad');
   const i = demo.stakes.findIndex(s => s.id === id); if (i < 0) return;
   const st = demo.stakes[i];
   const days = Math.floor(((d.simSec || 0) - st.start) / 86400);
+  const P = planetOf(d);
+  d.txs = d.txs || [];
+  if (mode === 'early'){
+    if (days >= STAKE.lockDays) return setStMsg('Ya está desbloqueada: usa Retirar.', 'bad');
+    const penalty = Math.floor(st.amount * EARLY_PENALTY);
+    const back = st.amount - penalty;
+    P.res.token = (P.res.token || 0) + back;
+    demo.reserve += penalty;
+    demo.stakes.splice(i, 1);
+    d.txs.unshift({t:d.simSec || 0, type:'Retiro anticipado TOKEN/' + st.pool, amount:back, status:'Penalización ' + fmtAmt(penalty)});
+    if (d.txs.length > 100) d.txs.length = 100;
+    localStorage.setItem(sessionKey(), JSON.stringify(d));
+    writeDemo(demo);
+    setStMsg('Retiro anticipado: recibiste ' + fmtAmt(back) + ' TOKEN, sin interés. La penalización de ' + fmtAmt(penalty) + ' TOKEN fue a la reserva.', 'ok');
+    return refreshAll();
+  }
   if (days < STAKE.lockDays) return setStMsg('Faltan ' + (STAKE.lockDays - days) + ' días para retirar.', 'bad');
   const interest = Math.floor(st.amount * st.apy * days / 365);
   const paid = Math.min(interest, demo.reserve);
-  const P = planetOf(d);
-  P.res.token = (P.res.token || 0) + st.amount + paid;
   demo.reserve -= paid;
   demo.stakes.splice(i, 1);
-  d.txs = d.txs || [];
-  d.txs.unshift({t:d.simSec || 0, type:'Retiro staking TOKEN/' + st.pool, amount:st.amount + paid, status:'Completado'});
+  if (mode === 'compound'){
+    const newAmt = st.amount + paid;
+    demo.stakes.push({id:Date.now().toString(36), pool:st.pool, amount:newAmt, start:d.simSec || 0, apy:st.apy});
+    d.txs.unshift({t:d.simSec || 0, type:'Re-bloqueo TOKEN/' + st.pool, amount:paid, status:'Bloqueado ' + STAKE.lockDays + ' días'});
+    setStMsg('Re-bloqueaste ' + fmtAmt(newAmt) + ' TOKEN (capital + ' + fmtAmt(paid) + ' de interés).', 'ok');
+  } else {
+    P.res.token = (P.res.token || 0) + st.amount + paid;
+    d.txs.unshift({t:d.simSec || 0, type:'Retiro staking TOKEN/' + st.pool, amount:st.amount + paid, status:'Completado'});
+    setStMsg(paid < interest
+      ? 'Retiro completo. La reserva cubrió ' + fmtAmt(paid) + ' de ' + fmtAmt(interest) + ' TOKEN de interés.'
+      : 'Retiro completo: ' + fmtAmt(st.amount) + ' TOKEN + ' + fmtAmt(paid) + ' de interés.', 'ok');
+  }
   if (d.txs.length > 100) d.txs.length = 100;
   localStorage.setItem(sessionKey(), JSON.stringify(d));
   writeDemo(demo);
-  setStMsg(paid < interest
-    ? 'Retiro completo. La reserva cubrió ' + fmtAmt(paid) + ' de ' + fmtAmt(interest) + ' TOKEN de interés.'
-    : 'Retiro completo: ' + fmtAmt(st.amount) + ' TOKEN + ' + fmtAmt(paid) + ' de interés.', 'ok');
   refreshAll();
 }
 function addDemoDay(id){
@@ -961,6 +1081,12 @@ function renderSwapForm(d, demo){
   document.getElementById('rates').innerHTML = from===to
     ? '<span>Elige dos activos distintos.</span>'
     : `<span>1 ${from} ≈ <b>${fmtAmt(rate)}</b> ${to}</span><span>Comisión: <b>${(FEE*100).toFixed(1)} %</b> · Precio de referencia en USDT</span>`;
+  const si = swapInfo(from, to, amt);
+  if (from !== to && amt > 0){
+    document.getElementById('rates').insertAdjacentHTML('beforeend',
+      `<span>Impacto estimado: <b class="${si.impact>0.01?'warn':''}">${(si.impact*100).toFixed(2)} %</b>${si.impact>0.01?' · Operación grande: el precio se moverá':''}</span><span>Mínimo recibido (tolerancia ${slip} %): <b>${fmtAmt(si.min)}</b> ${to}</span>`);
+  }
+  document.querySelectorAll('[data-slip]').forEach(b => b.classList.toggle('active', Number(b.dataset.slip) === slip));
   document.getElementById('doSwap').disabled = !(from!==to);
 }
 function renderHistory(d, demo){
@@ -975,38 +1101,98 @@ function setMsg(text, kind){
   const m = document.getElementById('msg');
   m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
 }
-function doSwap(){
+/* ============ CONFIRMACIÓN, IMPACTO Y TOLERANCIA ============ */
+function swapInfo(from, to, amt){
+  const out = amt > 0 && from !== to ? quote(from, to, amt) : 0;
+  const impact = amt > 0 ? Math.min(1, amt * usdt(from) / LIQ_USD) : 0;
+  return {out, impact, min: out * (1 - slip / 100)};
+}
+// Valida la operación del formulario y la deja en pendingSwap. Devuelve el mensaje de error o null.
+function swapCheck(){
   const from = document.getElementById('fromA').value, to = document.getElementById('toA').value;
-  if (from===to) return setMsg('Elige dos activos distintos.', 'bad');
+  if (from === to) return 'Elige dos activos distintos.';
   let amt = Number(document.getElementById('fromAmt').value) || 0;
-  if (from==='TOKEN') amt = Math.floor(amt);
-  if (amt<=0) return setMsg('Ingresa una cantidad válida.', 'bad');
+  if (from === 'TOKEN') amt = Math.floor(amt);
+  if (amt <= 0) return 'Ingresa una cantidad válida.';
   const d = readSave(), demo = readDemo();
-  if ((from==='TOKEN' || to==='TOKEN') && !d) return setMsg('Para usar TOKEN necesitas una partida guardada. Abre el juego primero.', 'bad');
+  if ((from === 'TOKEN' || to === 'TOKEN') && !d) return 'Para usar TOKEN necesitas una partida guardada. Abre el juego primero.';
+  if (balanceOf(from, d, demo) < amt) return 'Saldo insuficiente de ' + from + '.';
+  const si = swapInfo(from, to, amt);
+  const get = to === 'TOKEN' ? Math.floor(si.out) : Number(si.out.toFixed(6));
+  if (get <= 0) return 'La cantidad es muy pequeña para ese intercambio.';
+  pendingSwap = {from, to, amt, get, min: si.min, impact: si.impact};
+  return null;
+}
+function openSwapConfirm(){
+  const err = swapCheck();
+  if (err){ pendingSwap = null; return setMsg(err, 'bad'); }
+  const p = pendingSwap;
+  document.getElementById('swapDlgBody').innerHTML = `
+    <div><span>Pagas</span><b>${fmtAmt(p.amt)} ${p.from}</b></div>
+    <div><span>Recibes (estimado)</span><b>${fmtAmt(p.get)} ${p.to}</b></div>
+    <div><span>Mínimo recibido (tolerancia ${slip} %)</span><b>${fmtAmt(p.min)} ${p.to}</b></div>
+    <div><span>Comisión</span><b>${(FEE*100).toFixed(1)} %</b></div>
+    <div><span>Impacto estimado</span><b>${(p.impact*100).toFixed(2)} %</b></div>`;
+  document.getElementById('swapDlg').showModal();
+}
+function doSwap(){
+  const prev = pendingSwap;
+  const dlg = document.getElementById('swapDlg');
+  if (dlg.open) dlg.close();
+  const err = swapCheck();
+  if (err){ pendingSwap = null; return setMsg(err, 'bad'); }
+  // Si el precio bajó por debajo de la tolerancia desde que se abrió la confirmación, no se ejecuta
+  if (!prev || pendingSwap.get < prev.min){
+    pendingSwap = null;
+    return setMsg('El precio cambió y ya no cumple tu tolerancia. Revisa la operación de nuevo.', 'bad');
+  }
+  const {from, to, amt, get} = pendingSwap;
+  pendingSwap = null;
+  const d = readSave(), demo = readDemo();
   const have = balanceOf(from, d, demo);
-  if (have < amt) return setMsg('Saldo insuficiente de ' + from + '.', 'bad');
-  const out = quote(from, to, amt);
-  const get = to==='TOKEN' ? Math.floor(out) : Number(out.toFixed(6));
-  if (get<=0) return setMsg('La cantidad es muy pequeña para ese intercambio.', 'bad');
-
-  if (from==='TOKEN'){ planetOf(d).res.token -= amt; }
+  if (from === 'TOKEN'){ planetOf(d).res.token -= amt; }
   else { demo.bal[from] = Number((have - amt).toFixed(6)); }
-  if (to==='TOKEN'){ planetOf(d).res.token = (planetOf(d).res.token||0) + get; }
-  else { demo.bal[to] = Number(((demo.bal[to]||0) + get).toFixed(6)); }
-
+  if (to === 'TOKEN'){ planetOf(d).res.token = (planetOf(d).res.token || 0) + get; }
+  else { demo.bal[to] = Number(((demo.bal[to] || 0) + get).toFixed(6)); }
   demo.hist = demo.hist || [];
   demo.hist.unshift({t:(d && d.simSec) || 0, pay:from, get:to, out:get});
-  if (demo.hist.length>100) demo.hist.length = 100;
+  if (demo.hist.length > 100) demo.hist.length = 100;
   writeDemo(demo);
   if (d){
     d.txs = d.txs || [];
-    d.txs.unshift({t:d.simSec||0, type:'Swap ' + from + ' → ' + to, amount:get, status:'Completado'});
-    if (d.txs.length>100) d.txs.length = 100;
-    if (from==='TOKEN' || to==='TOKEN') localStorage.setItem(sessionKey(), JSON.stringify(d));
+    d.txs.unshift({t:d.simSec || 0, type:'Swap ' + from + ' → ' + to, amount:get, status:'Completado'});
+    if (d.txs.length > 100) d.txs.length = 100;
+    if (from === 'TOKEN' || to === 'TOKEN') localStorage.setItem(sessionKey(), JSON.stringify(d));
   }
   setMsg('Recibiste ' + fmtAmt(get) + ' ' + to + '.', 'ok');
   document.getElementById('fromAmt').value = '';
   refreshAll();
+}
+
+/* ============ DATOS DEL MERCADO ============ */
+function renderPStats(){
+  const day = paths[cur].slice(-1440);
+  let hi = -Infinity, lo = Infinity, vol = 0;
+  day.forEach(c => { if (c.h > hi) hi = c.h; if (c.l < lo) lo = c.l; vol += c.v; });
+  const ch = changeFor(cur);
+  document.getElementById('pStats').innerHTML =
+    `<span>Máx 24 h <b>${fmtPrice(hi)}</b></span><span>Mín 24 h <b>${fmtPrice(lo)}</b></span><span>Volumen 24 h <b>${fmtAmt(vol)}</b></span><span>Variación <b class="${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)} %</b></span>`;
+}
+function renderTrades(){
+  const p = paths[cur].slice(-14).reverse();
+  document.getElementById('tradesWrap').innerHTML = `<table><thead><tr><th>Hora</th><th>Lado</th><th class="r">Precio</th><th class="r">Monto</th></tr></thead><tbody>${p.map(c => {
+    const buy = c.c >= c.o;
+    return `<tr><td class="mono">${fmtTime(c.t, '1m')}</td><td class="${buy?'up':'down'}">${buy?'Compra':'Venta'}</td><td class="r mono">${fmtPrice(c.c)}</td><td class="r mono">${fmtAmt(c.v)}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+function renderInfo(){
+  const a = ALL.find(x => x.sym === cur), ch = changeFor(cur);
+  document.getElementById('infoWrap').innerHTML = `
+    <div><span>Nombre</span><b>${a.name}</b></div>
+    <div><span>Red</span><b>BNB Chain</b></div>
+    <div><span>Contrato</span><b>${a.contract || 'Pendiente de verificar'}</b></div>
+    <div><span>Precio</span><b>${fmtPrice(usdt(cur))} USDT</b></div>
+    <div><span>Variación 24 h</span><b class="${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)} %</b></div>`;
 }
 
 /* ============ PESTAÑAS ============ */
@@ -1023,7 +1209,7 @@ function showView(v){
 function refreshAll(){
   const d = readSave(), demo = readDemo();
   if (view === 'swap'){
-    renderPairs(); renderHeader(); renderTools(); drawChart();
+    renderPairs(); renderHeader(); renderTools(); renderPStats(); renderTrades(); renderInfo(); drawChart();
     renderSwapForm(d, demo); renderHistory(d, demo);
   }
   renderBalances(d, demo);
@@ -1034,9 +1220,12 @@ function refreshAll(){
 /* ============ EVENTOS ============ */
 document.querySelectorAll('.tab[data-view]').forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
 document.getElementById('pairList').addEventListener('click', e => {
+  const f = e.target.closest('[data-fav]');
+  if (f) return toggleFav(f.dataset.fav);
   const b = e.target.closest('[data-pair]'); if (!b) return;
   cur = b.dataset.pair; hover = null; chartView.offset = 0; refreshAll();
 });
+
 document.getElementById('tfs').addEventListener('click', e => {
   const b = e.target.closest('[data-tf]'); if (!b) return;
   tf = b.dataset.tf; hover = null; pending = null; chartView.n = null; chartView.offset = 0; renderTfs(); refreshAll();
@@ -1112,7 +1301,14 @@ document.getElementById('flip').addEventListener('click', () => {
   const f = document.getElementById('fromA'), t = document.getElementById('toA');
   const tmp = f.value; f.value = t.value; t.value = tmp; refreshAll();
 });
-document.getElementById('doSwap').addEventListener('click', doSwap);
+document.getElementById('doSwap').addEventListener('click', openSwapConfirm);
+document.getElementById('swapCancel').addEventListener('click', () => document.getElementById('swapDlg').close());
+document.getElementById('swapOk').addEventListener('click', doSwap);
+document.getElementById('slip').addEventListener('click', e => {
+  const b = e.target.closest('[data-slip]'); if (!b) return;
+  slip = Number(b.dataset.slip); refreshAll();
+});
+document.getElementById('prAmt').addEventListener('input', renderProjection);
 
 document.getElementById('poolGrid').addEventListener('click', e => {
   const card = e.target.closest('.pool-card'); if (!card) return;
@@ -1125,7 +1321,9 @@ document.getElementById('poolGrid').addEventListener('input', e => {
 });
 document.getElementById('view-stake').addEventListener('click', e => {
   const s = e.target.closest('[data-sub]'); if (s) return showSub(s.dataset.sub);
-  const u = e.target.closest('[data-unstake]'); if (u) return unstake(u.dataset.unstake);
+  const u = e.target.closest('[data-unstake]'); if (u) return unstake(u.dataset.unstake, 'withdraw');
+  const cp = e.target.closest('[data-compound]'); if (cp) return unstake(cp.dataset.compound, 'compound');
+  const ea = e.target.closest('[data-early]'); if (ea) return unstake(ea.dataset.early, 'early');
   const dd = e.target.closest('[data-day]'); if (dd) addDemoDay(dd.dataset.day);
 });
 const wbtn = document.getElementById('walletBtn'), wmenu = document.getElementById('walletMenu');
