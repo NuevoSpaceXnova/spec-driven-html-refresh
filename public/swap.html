@@ -108,14 +108,7 @@ button,input,select{font-family:inherit}
 .subtabs{display:flex;gap:6px}
 .tab.sm{height:30px;padding:0 12px;font-size:11px}
 .st-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}
-.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
-.pool-card{font:inherit;color:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;gap:3px;padding:12px;margin:0;align-self:stretch;min-height:96px;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-dark)}
-.pool-card:hover{border-color:var(--border-active)}
-.pool-card.sel{border-color:var(--border-active);box-shadow:0 0 0 1px var(--accent-glow)}
-.pc-name{font:600 12px var(--font-title);letter-spacing:.04em}
-.pc-apy{font:600 20px var(--font-title);color:var(--accent-text)}
-.pc-apy small{font:500 11px var(--font-mono);color:var(--text-muted)}
-.pc-meta{font:500 11px var(--font-mono);color:var(--text-muted)}
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-items:start}
 .calc{display:flex;flex-direction:column;gap:10px}
 .calc .field{padding:8px 10px}
 .calc .row{gap:6px}
@@ -137,7 +130,7 @@ button,input,select{font-family:inherit}
 .minichart{background:var(--bg-dark);border:1px solid var(--border-subtle);border-radius:var(--r);padding:8px}
 .mc-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font:500 11px var(--font-mono);margin-bottom:4px}
 .mc-head .nm{font:600 12px var(--font-title);letter-spacing:.04em}
-#mcCv{display:block;width:100%;height:110px}
+.minichart canvas{display:block;width:100%;height:110px}
 .toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50}
 .toast{background:var(--bg-dark);border:1px solid var(--border-subtle);border-left:3px solid var(--up);padding:8px 12px;border-radius:var(--r);font:500 12px var(--font-mono);color:var(--text-primary);box-shadow:0 8px 20px rgba(0,0,0,.5);max-width:300px}
 .toast.bad{border-left-color:var(--down)}
@@ -293,32 +286,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
   <p class="msg" id="stMsg"></p>
 
   <section data-sub-panel="pools">
-    <div class="st-split">
-      <div class="pool-grid" id="poolGrid"></div>
-      <aside class="panel calc">
-        <h3>Bloquear TOKEN</h3>
-        <div class="field">
-          <label for="stPool">Pool</label>
-          <div class="row"><select class="sel" id="stPool" style="min-width:0;flex:1"></select></div>
-        </div>
-        <div class="field">
-          <label for="stAmt">Cantidad</label>
-          <div class="row"><input class="amt" id="stAmt" type="number" min="0" step="1" placeholder="0"></div>
-          <div class="chips">
-            <button class="chip" data-pct="25" type="button">25 %</button>
-            <button class="chip" data-pct="50" type="button">50 %</button>
-            <button class="chip" data-pct="100" type="button">Máx</button>
-          </div>
-          <small id="stBal"></small>
-        </div>
-        <div class="minichart">
-          <div class="mc-head"><span class="nm" id="mcName"></span><span id="mcPrice"></span><span id="mcChg"></span></div>
-          <canvas id="mcCv"></canvas>
-        </div>
-        <dl class="kv" id="stQuote"></dl>
-        <button class="btn compact" id="doStake" type="button">Bloquear</button>
-      </aside>
-    </div>
+    <div class="pool-grid" id="poolGrid"></div>
   </section>
 
   <section data-sub-panel="pos" hidden>
@@ -736,22 +704,17 @@ function ratioSeries(sym){
   for (let i = N_MIN-n; i < N_MIN; i++) out.push({t:A[i].t, p: A[i].c / B[i].c});
   return out;
 }
-function renderMini(pool){
-  const cv = document.getElementById('mcCv');
+function drawSpark(cv, sym){
+  if (!cv) return;
   const dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight;
-  const s = ratioSeries(pool);
-  const last = s[s.length-1].p, first = s[0].p, ch = last/first - 1;
-  document.getElementById('mcName').textContent = 'TOKEN / ' + pool;
-  document.getElementById('mcPrice').textContent = fmtPrice(last);
-  const mc = document.getElementById('mcChg');
-  mc.textContent = (ch>=0?'+':'') + (ch*100).toFixed(2) + '% (4 h)';
-  mc.className = ch>=0 ? 'up' : 'down';
   if (!W || !H) return;
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   const ctx = cv.getContext('2d');
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,W,H);
+  const s = ratioSeries(sym);
+  const ch = s[s.length-1].p / s[0].p - 1;
   let lo = Math.min(...s.map(x=>x.p)), hi = Math.max(...s.map(x=>x.p));
   const m = (hi-lo)*0.1 || hi*0.01; lo -= m; hi += m;
   const X = i => (i/(s.length-1))*(W-8)+4;
@@ -815,36 +778,59 @@ function renderSummary(d, demo){
   document.getElementById('stSum').innerHTML = cards.map(([l, v]) =>
     `<div class="panel st-stat"><small>${l}</small><b>${v}</b></div>`).join('');
 }
-function renderPoolGrid(pool, demo){
-  document.getElementById('poolGrid').innerHTML = Object.keys(STAKE.apy).map(s => {
-    const mine = demo.stakes.filter(x => x.pool === s).reduce((a, x) => a + x.amount, 0);
-    return `<button class="pool-card${s===pool?' sel':''}" data-pool="${s}" type="button">
-      <span class="pc-name">TOKEN / ${s}</span>
-      <span class="pc-apy">${(STAKE.apy[s]*100).toFixed(1)}<small> % APY</small></span>
-      <span class="pc-meta">Bloqueo ${STAKE.lockDays} días</span>
-      <span class="pc-meta">Tu posición: ${fmtAmt(mine)}</span>
-    </button>`;
-  }).join('');
+function amtInput(pool){ return document.querySelector('[data-amt="' + pool + '"]'); }
+function cardInterest(pool){
+  const amt = Math.floor(Number(amtInput(pool).value) || 0);
+  return Math.floor(amt * STAKE.apy[pool] * STAKE.lockDays / 365);
 }
-function renderCalc(d, demo){
-  const sel = document.getElementById('stPool');
-  if (!sel.options.length){
-    sel.innerHTML = Object.keys(STAKE.apy).map(s => `<option value="${s}">TOKEN / ${s}</option>`).join('');
-  }
-  const pool = sel.value;
-  const amt = Math.floor(Number(document.getElementById('stAmt').value) || 0);
+/* Cada tarjeta es una copia del bloque "Bloquear TOKEN": par, cantidad, gráfico, datos y botón. */
+function buildPoolGrid(){
+  document.getElementById('poolGrid').innerHTML = Object.keys(STAKE.apy).map(s => `
+    <div class="panel calc pool-card" data-pool="${s}">
+      <h3>${s}/TOKEN</h3>
+      <div class="field">
+        <label for="amt-${s}">Cantidad</label>
+        <div class="row"><input class="amt" id="amt-${s}" data-amt="${s}" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="chips">
+          <button class="chip" data-pct="25" type="button">25 %</button>
+          <button class="chip" data-pct="50" type="button">50 %</button>
+          <button class="chip" data-pct="100" type="button">Máx</button>
+        </div>
+        <small data-bal></small>
+      </div>
+      <div class="minichart">
+        <div class="mc-head"><span class="nm">TOKEN / ${s}</span><span data-price></span><span data-chg></span></div>
+        <canvas data-spark="${s}"></canvas>
+      </div>
+      <dl class="kv">
+        <div><span>APY</span><b data-apy></b></div>
+        <div><span>Interés a ${STAKE.lockDays} días</span><b data-int></b></div>
+        <div><span>Desbloqueo</span><b data-unlock></b></div>
+        <div><span>Reserva demo</span><b data-res></b></div>
+      </dl>
+      <button class="btn compact" data-stake="${s}" type="button">Bloquear</button>
+    </div>`).join('');
+}
+function renderPoolGrid(d, demo){
+  if (!document.querySelector('.pool-card')) buildPoolGrid();
   const P = planetOf(d);
-  document.getElementById('stBal').textContent = 'Disponible: ' + fmtAmt(P ? P.res.token : 0) + ' TOKEN';
-  const apy = STAKE.apy[pool];
-  const interest = Math.floor(amt * apy * STAKE.lockDays / 365);
   const now = d ? (d.simSec || 0) : null;
   const unlock = now == null ? '—' : fmtClock(now + STAKE.lockDays * 86400);
-  document.getElementById('stQuote').innerHTML =
-    `<div><span>APY</span><b>${(apy*100).toFixed(1)} %</b></div>
-     <div><span>Interés a ${STAKE.lockDays} días</span><b>${fmtAmt(interest)} TOKEN</b></div>
-     <div><span>Desbloqueo</span><b>${unlock}</b></div>
-     <div><span>Reserva demo</span><b>${fmtAmt(demo.reserve)} TOKEN</b></div>`;
-  document.getElementById('doStake').disabled = !d;
+  document.querySelectorAll('.pool-card').forEach(card => {
+    const s = card.dataset.pool;
+    const sr = ratioSeries(s), last = sr[sr.length-1].p, ch = last/sr[0].p - 1;
+    card.querySelector('[data-bal]').textContent = 'Disponible: ' + fmtAmt(P ? P.res.token : 0) + ' TOKEN';
+    card.querySelector('[data-price]').textContent = fmtPrice(last);
+    const chg = card.querySelector('[data-chg]');
+    chg.textContent = (ch>=0?'+':'') + (ch*100).toFixed(2) + '% (4 h)';
+    chg.className = ch>=0 ? 'up' : 'down';
+    card.querySelector('[data-apy]').textContent = (STAKE.apy[s]*100).toFixed(1) + ' %';
+    card.querySelector('[data-int]').textContent = fmtAmt(cardInterest(s)) + ' TOKEN';
+    card.querySelector('[data-unlock]').textContent = unlock;
+    card.querySelector('[data-res]').textContent = fmtAmt(demo.reserve) + ' TOKEN';
+    card.querySelector('[data-stake]').disabled = !d;
+    drawSpark(card.querySelector('canvas'), s);
+  });
 }
 function renderPositions(d, demo){
   const rows = stakeRows(d, demo);
@@ -890,17 +876,16 @@ function renderStakeHist(d){
   </tbody></table>`;
 }
 function renderStake(d, demo){
-  renderCalc(d, demo);
   renderSummary(d, demo);
-  renderPoolGrid(document.getElementById('stPool').value || 'USDT', demo);
+  renderPoolGrid(d, demo);
   renderPositions(d, demo);
   renderStakeHist(d);
 }
-function doStake(){
+function doStake(pool){
   const d = readSave(), demo = readDemo();
   if (!d) return setStMsg('Necesitas una partida guardada para usar TOKEN. Abre el juego primero.', 'bad');
-  const pool = document.getElementById('stPool').value;
-  const amt = Math.floor(Number(document.getElementById('stAmt').value) || 0);
+  const inp = amtInput(pool);
+  const amt = Math.floor(Number(inp.value) || 0);
   if (amt <= 0) return setStMsg('Ingresa una cantidad válida.', 'bad');
   const P = planetOf(d);
   if ((P.res.token || 0) < amt) return setStMsg('Saldo insuficiente de TOKEN.', 'bad');
@@ -911,7 +896,7 @@ function doStake(){
   if (d.txs.length > 100) d.txs.length = 100;
   localStorage.setItem(sessionKey(), JSON.stringify(d));
   writeDemo(demo);
-  document.getElementById('stAmt').value = '';
+  inp.value = '';
   setStMsg('Bloqueaste ' + fmtAmt(amt) + ' TOKEN en el pool ' + pool + '.', 'ok');
   refreshAll();
 }
@@ -945,10 +930,10 @@ function addDemoDay(id){
   writeDemo(demo);
   refreshAll();
 }
-function setPct(p){
+function setPct(pool, p){
   const P = planetOf(readSave());
   if (!P) return;
-  document.getElementById('stAmt').value = Math.floor((P.res.token || 0) * p / 100);
+  amtInput(pool).value = Math.floor((P.res.token || 0) * p / 100);
   refreshAll();
 }
 
@@ -1040,8 +1025,6 @@ function refreshAll(){
   if (view === 'swap'){
     renderPairs(); renderHeader(); renderTools(); drawChart();
     renderSwapForm(d, demo); renderHistory(d, demo);
-  } else {
-    renderMini(document.getElementById('stPool').value || 'USDT');
   }
   renderBalances(d, demo);
   renderStake(d, demo);
@@ -1119,7 +1102,7 @@ cv.addEventListener('mouseleave', () => { if (!drag && !pending){ hover = null; 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && pending){ pending = null; drawChart(); }
 });
-window.addEventListener('resize', () => { drawChart(); renderMini(document.getElementById('stPool').value || 'USDT'); });
+window.addEventListener('resize', () => { drawChart(); if (view !== 'swap') renderPoolGrid(readSave(), readDemo()); });
 window.addEventListener('storage', e => { if (e.key===sessionKey() || e.key===demoKey()) refreshAll(); });
 
 ['fromA','toA','fromAmt'].forEach(id => document.getElementById(id).addEventListener('input', refreshAll));
@@ -1131,16 +1114,17 @@ document.getElementById('flip').addEventListener('click', () => {
 });
 document.getElementById('doSwap').addEventListener('click', doSwap);
 
-document.getElementById('doStake').addEventListener('click', doStake);
-document.getElementById('stPool').addEventListener('change', refreshAll);
-document.getElementById('stAmt').addEventListener('input', refreshAll);
 document.getElementById('poolGrid').addEventListener('click', e => {
-  const r = e.target.closest('[data-pool]'); if (!r) return;
-  document.getElementById('stPool').value = r.dataset.pool; refreshAll();
+  const card = e.target.closest('.pool-card'); if (!card) return;
+  const pool = card.dataset.pool;
+  const c = e.target.closest('[data-pct]'); if (c) return setPct(pool, Number(c.dataset.pct));
+  if (e.target.closest('[data-stake]')) doStake(pool);
+});
+document.getElementById('poolGrid').addEventListener('input', e => {
+  if (e.target.matches('[data-amt]')) refreshAll();
 });
 document.getElementById('view-stake').addEventListener('click', e => {
   const s = e.target.closest('[data-sub]'); if (s) return showSub(s.dataset.sub);
-  const c = e.target.closest('[data-pct]'); if (c) return setPct(Number(c.dataset.pct));
   const u = e.target.closest('[data-unstake]'); if (u) return unstake(u.dataset.unstake);
   const dd = e.target.closest('[data-day]'); if (dd) addDemoDay(dd.dataset.day);
 });
