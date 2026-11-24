@@ -1,4 +1,4 @@
-# Reglas del Swap y del Staking · Forja Astral
+# Reglas del Swap y del Staking · XnovaEvolution
 
 Este documento describe cómo funcionan el swap y el staking de la página `public/swap.html`.
 Hoy todo corre en **modo demo** con datos ficticios. Cuando se configure la economía real,

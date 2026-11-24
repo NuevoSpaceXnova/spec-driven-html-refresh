@@ -3,15 +3,15 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Forja Astral — Estrategia espacial" },
+      { title: "XnovaEvolution — Estrategia espacial" },
       {
         name: "description",
-        content: "Conquista el universo y construye tu imperio en Forja Astral, juego de estrategia espacial en el navegador.",
+        content: "Conquista el universo y construye tu imperio en XnovaEvolution, juego de estrategia espacial en el navegador.",
       },
-      { property: "og:title", content: "Forja Astral — Estrategia espacial" },
+      { property: "og:title", content: "XnovaEvolution — Estrategia espacial" },
       {
         property: "og:description",
-        content: "Conquista el universo y construye tu imperio en Forja Astral.",
+        content: "Conquista el universo y construye tu imperio en XnovaEvolution.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -24,7 +24,7 @@ function Index() {
   return (
     <iframe
       src="/forja-astral.html"
-      title="Forja Astral"
+      title="XnovaEvolution"
       className="fixed inset-0 h-screen w-screen border-0 bg-background"
     />
   );
