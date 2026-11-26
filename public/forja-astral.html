@@ -2406,7 +2406,22 @@ function viewLevel(){
     </section>
     <section class="panel pad" style="margin-top:12px">
       <h2 class="section-title" style="margin-top:0">Cómo ganar puntos</h2>
-      <p class="muted">Ganas ${POINTS_WIN} puntos al ganar un ataque o una defensa. Pierdes el ${POINTS_LOSS_ATTACK} % de tus puntos si pierdes un ataque, y el ${POINTS_LOSS_DEFENSE} % si pierde tu defensa. Tus defensas (láseres, lanzamisiles, etc.) hacen menos probable perder. La guerra de alianzas está pendiente.</p>
+      <p class="muted" style="font-size:12px;margin:0 0 12px">Los porcentajes se calculan sobre tu total de puntos. Tus defensas (láseres, lanzamisiles, etc.) hacen menos probable perder.</p>
+      <div style="overflow-x:auto"><table class="table">
+        <thead><tr><th>Ataque recibido</th><th>Tú</th><th>El atacante</th></tr></thead>
+        <tbody>
+          <tr><td>Tu defensa gana</td><td>+${POINTS_WIN} puntos</td><td>−${POINTS_LOSS_ATTACK} %, puede bajar de nivel</td></tr>
+          <tr><td>Tu defensa pierde</td><td>−${POINTS_LOSS_DEFENSE} %, puedes bajar de nivel</td><td>+${POINTS_WIN} puntos</td></tr>
+        </tbody>
+      </table></div>
+      <div style="overflow-x:auto;margin-top:12px"><table class="table">
+        <thead><tr><th>Ataque enviado</th><th>Tú</th><th>El defensor</th></tr></thead>
+        <tbody>
+          <tr><td>Ganas el ataque</td><td>+${POINTS_WIN} puntos</td><td>−${POINTS_LOSS_DEFENSE} %, puede bajar de nivel</td></tr>
+          <tr><td>Pierdes el ataque</td><td>−${POINTS_LOSS_ATTACK} %, puedes bajar de nivel</td><td>+${POINTS_WIN} puntos</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted" style="font-size:12px;margin:12px 0 0">Para subir de nivel debes esperar 3 días en el nivel actual. Bajar de nivel no tiene espera. La guerra de alianzas está pendiente.</p>
     </section>`;
 }
 function toggleTestMode(){
