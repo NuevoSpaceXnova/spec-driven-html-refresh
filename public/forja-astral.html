@@ -2311,33 +2311,44 @@ function setAccountLevel(n){
   state.seasonMax = Math.max(state.seasonMax, n);
   state.levelSince = Date.now();
 }
-function addLevelPoints(n){
-  state.levelPts += n;
-  checkLevelUp();
-}
-// Puntos totales de la temporada = todos los niveles completados + progreso actual.
+// Puntos totales de una cuenta = niveles completados + progreso actual. Sirve para el jugador y para los rivales.
 function accumulatedAt(L){ let a = 0; for (let i = 0; i < L; i++) a += LEVEL_POINTS[i]; return a; }
-function totalPoints(){ return accumulatedAt(state.accountLevel) + state.levelPts; }
-// Recalcula nivel y barra a partir de un total de puntos (puede bajar de nivel). Nunca baja de Aspirante.
-function setTotalPoints(t){
+function totalOf(h){ return accumulatedAt(h.accountLevel) + h.levelPts; }
+function checkLevelUpOf(h){
+  if (h.accountLevel >= ACCOUNT_LEVELS.length - 1) return;
+  if (Date.now() - h.levelSince < MIN_LEVEL_MS) return;
+  const need = LEVEL_POINTS[h.accountLevel];
+  if (h.levelPts < need) return;
+  h.levelPts -= need;
+  h.accountLevel++;
+  h.seasonMax = Math.max(h.seasonMax || 0, h.accountLevel);
+  h.levelSince = Date.now();
+  checkLevelUpOf(h);
+}
+function addPointsTo(h, n){ h.levelPts += n; checkLevelUpOf(h); }
+// Recalcula nivel y barra a partir de un total (puede bajar de nivel). Nunca baja de Aspirante.
+function setTotalOf(h, t){
   t = Math.max(0, t);
   let L = 0;
   while (L < ACCOUNT_LEVELS.length - 1 && t >= accumulatedAt(L + 1)) L++;
-  if (L < state.accountLevel){ state.accountLevel = L; state.levelSince = Date.now(); }
-  state.levelPts = t - accumulatedAt(L);
+  if (L < h.accountLevel){ h.accountLevel = L; h.levelSince = Date.now(); }
+  h.levelPts = t - accumulatedAt(L);
 }
-function losePointsPct(pct){
-  const total = totalPoints();
-  setTotalPoints(total - Math.floor(total * pct / 100));
+function losePctOf(h, pct){ const total = totalOf(h); setTotalOf(h, total - Math.floor(total * pct / 100)); }
+// Jugador
+function addLevelPoints(n){ addPointsTo(state, n); }
+function totalPoints(){ return totalOf(state); }
+function losePointsPct(pct){ losePctOf(state, pct); }
+function checkLevelUp(){ checkLevelUpOf(state); }
+// Rivales (jugadores simulados de la demo). Tienen su propio nivel y progreso.
+function rivalNamed(name){ return ((state.ranking && state.ranking.rivals) || []).find(r => r.name === name); }
+function ensureRival(r){
+  if (r.accountLevel === undefined){ r.accountLevel = 0; r.levelPts = 0; r.levelSince = Date.now(); r.seasonMax = 0; }
+  return r;
 }
-function checkLevelUp(){
-  if (state.accountLevel >= ACCOUNT_LEVELS.length - 1) return;
-  if (Date.now() - state.levelSince < MIN_LEVEL_MS) return;
-  const need = LEVEL_POINTS[state.accountLevel];
-  if (state.levelPts < need) return;
-  state.levelPts -= need;
-  setAccountLevel(state.accountLevel + 1);
-  checkLevelUp();
+function rivalPick(){
+  const l = (state.ranking && state.ranking.rivals) || [];
+  return l.length ? l[Math.floor(Math.random() * l.length)].name : null;
 }
 function checkSeason(){
   if (Date.now() - state.seasonStart < SEASON_MS) return;
@@ -2951,6 +2962,9 @@ function resolveAttack(T, att){
   Object.keys(r.dStart).forEach(k => { const lost = (r.dStart[k] || 0) - (r.dEnd[k] || 0); if (lost > 0) rec[k] = (rec[k] || 0) + lost; });
   if (r.debris.metal + r.debris.crystal > 0) addDebris(T.id, r.debris);
   if (r.winner === 'attacker') addLevelPoints(POINTS_WIN); else losePointsPct(POINTS_LOSS_ATTACK);
+  // Lado del rival dueño del planeta atacado
+  const rvT = rivalNamed(T.owner);
+  if (rvT){ ensureRival(rvT); if (r.winner === 'attacker') losePctOf(rvT, POINTS_LOSS_DEFENSE); else addPointsTo(rvT, POINTS_WIN); }
   const loot = {metal:0, crystal:0, deut:0};
   if (r.winner === 'attacker'){
     let cap = cargoOf(r.aEnd);
@@ -3002,6 +3016,9 @@ function resolveHostile(m){
                            {def:{a:gen, sh:gen}});
   if (r.winner === 'defender') state.stats.wins++;
   if (r.winner === 'defender') addLevelPoints(POINTS_WIN); else losePointsPct(POINTS_LOSS_DEFENSE);
+  // Lado del rival que envió la flota hostil
+  const rvM = rivalNamed(m.rival);
+  if (rvM){ ensureRival(rvM); if (r.winner === 'defender') losePctOf(rvM, POINTS_LOSS_ATTACK); else addPointsTo(rvM, POINTS_WIN); }
   Object.keys(def).forEach(k => { if (r.dEnd[k] !== undefined) P.fleet[k] = r.dEnd[k]; });
   const loot = {metal:0, crystal:0, deut:0};
   if (r.winner === 'attacker'){
@@ -3166,7 +3183,7 @@ function simulateIncoming(){
   if (state.moves.some(m => m.owner === 'enemy')) return setStatus('Ya hay una flota hostil en camino.', true);
   const now = Date.now();
   const fleet = {nc:3 + Math.floor(Math.random() * 5), cz:10 + Math.floor(Math.random() * 16), cr:2 + Math.floor(Math.random() * 5), sp:0, co:0};
-  addMove({id:moveId(), owner:'enemy', label:'Flota hostil → Planeta Principal', planet:0, startAt:now, endAt:now + 45000, fleet});
+  addMove({id:moveId(), owner:'enemy', rival:rivalPick(), label:'Flota hostil → Planeta Principal', planet:0, startAt:now, endAt:now + 45000, fleet});
   setStatus('Alerta: flota hostil detectada. Llega en 45 s.', true);
   refresh();
 }
