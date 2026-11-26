@@ -106,6 +106,7 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 - **Dentro del juego solo se comercia y se gana TOKEN.** USDT y BNB solo sirven para depositar y para retirar.
 - La comisión del **swap es variable**, entre un **mínimo de 3 %** y un **máximo de 12 %**. El valor vigente depende de la presión de compras y ventas (sección 11).
+- **Destino de la comisión del swap:** 100 % a la reserva de los jugadores.
 - El valor vigente de la comisión se muestra al jugador en el resumen antes de confirmar cada operación.
 - Antes de cada swap, el jugador debe marcar un **check verde ✅** que acepta los términos y condiciones. Sin ese check, el swap no se ejecuta. Se pide en cada operación.
 - El **retiro a wallet** tiene una comisión de **70 %** para el nivel inicial (sección 2).
@@ -121,29 +122,30 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 ### 7.1 Reglas decididas
 
-- **Comisión free: 15 %.** Se paga en TOKEN al publicar el aviso de venta. El comprador no paga comisión.
-- **Destino de la comisión free:**
+- El comprador **no paga comisión**. El vendedor la paga en TOKEN al publicar el aviso de venta.
+- **Comisión free: 15 %**, repartida así:
   - 7,5 % para la **reserva de los jugadores**.
-  - 7,5 % para el **dueño del juego**, que lo retira a Binance y lo coloca en staking externo para hacerlo crecer.
-- **Comisión VIP: 5 %**, con el mismo sistema de cobro.
+  - 7,5 % para el **dueño del juego**.
+- **Comisión VIP: 5 %**, repartida así:
+  - 2,5 % para la **reserva de los jugadores**.
+  - 2,5 % para el **dueño del juego**.
+- La parte del dueño se acumula en TOKEN en el saldo de retiro de la administración (sección 12.1).
 
 ### 7.2 Pendiente
 
-- Destino de la comisión VIP de 5 % (sección 7.1). No está definido.
-- Base de la comisión P2P: precio total o cantidad, y momento de cobro (`docs/flujo-token-mercado-retiros.md`, sección 2.1).
+- Base de la comisión P2P: precio total o cantidad de recursos, y momento de cobro (`docs/flujo-token-mercado-retiros.md`, sección 2.1).
 
 ## 8. Interés de los jugadores: eliminado
 
 - **Se elimina el staking interno del juego.** No habrá pools, bloqueos, penalizaciones por retiro anticipado ni interés pagado en TOKEN a los jugadores.
 - La motivación es reducir complejidad y no prometer rendimientos que dependan de ingresos variables.
-- El rendimiento que genere el 7,5 % invertido en Binance es del dueño del juego. No entra al juego como interés para los jugadores.
 
 ## 9. Inconsistencias con documentos existentes
 
 - `docs/reglas-swap-y-staking.md` describe pools, bloqueos e interés del staking. Esa sección queda sin efecto con la decisión de la sección 8 y debe actualizarse.
+- `docs/flujo-token-mercado-retiros.md` (sección 3.2) y `docs/progresion-lenta-y-vip.md` (sección 4) todavía no reflejan la nueva distribución de comisiones de las secciones 6.1 y 7.1.
 - `public/swap.html` todavía tiene el código del staking demo. Se quitará en la fase de limpieza, junto con los cambios de precio demo y `FEE` que ya están pendientes.
 - `public/swap.html` usa un precio inicial de **0,80** para el TOKEN en la demo. Debe cambiarse al valor inicial decidido de **0,000152 USD** (sección 11).
-- El documento de swap describe un reloj de juego y saldos demo en el navegador. Esto sigue vigente mientras el proyecto esté en modo prueba.
 
 ## 10. Verificación de cuentas
 
@@ -193,20 +195,31 @@ Propuesta de alcance: la antigüedad aplica a los **retiros** y al **comercio** 
 - **Monto del piso de precio** y cuánta reserva se destina a sostenerlo.
 - **Regla de reserva mínima:** qué pasa cuando la reserva se acerca a cero.
 
-## 12. Otros ingresos y destinos
+## 12. Destinos de ingresos
 
-| Ingreso | Destino |
-|---|---|
-| Pase VIP | 40 % dueño, 40 % reserva de jugadores, 10 % pool free, 10 % respaldo (sección 5.1) |
-| Comisión P2P free (15 %) | 7,5 % reserva de jugadores, 7,5 % dueño para staking externo (sección 7.1) |
-| Comisión P2P VIP (5 %) | Pendiente (sección 7.2) |
-| Comisión del swap (3 % a 12 %) | Pendiente (sección 12.1) |
-| Venta de artículos y naves de temporada | Pendiente (sección 12.1) |
+### 12.1 Acumulación en la administración
 
-### 12.1 Pendiente
+- Toda la parte del dueño se acumula en **TOKEN** en un **saldo de retiro de la administración**.
+- Ese saldo incluye:
+  - 50 % de las comisiones del mercado P2P (la mitad del 15 % free y la mitad del 5 % VIP, es decir 7,5 % y 2,5 %).
+  - 40 % del pase VIP.
+- Desde ese saldo, el dueño decide en su wallet cuánto se destina a staking externo y cuánto se queda para él.
+- **Solo esa mitad de las comisiones del mercado y el 40 % del VIP son retirables por el dueño.**
 
-- Destino de la comisión del swap, de la comisión VIP de P2P y de la venta de artículos y naves de temporada.
-- Tasa del 7,5 % del dueño y su proceso de conversión, si se requiere un registro interno de esos montos.
+### 12.2 Tabla de destinos
+
+| Ingreso | Reserva de jugadores | Dueño (saldo de retiro) | Otro |
+|---|---|---|---|
+| Pase VIP (15 USD) | 40 % | 40 % | 10 % pool free, 10 % respaldo |
+| Comisión P2P free (15 %) | 7,5 % | 7,5 % | — |
+| Comisión P2P VIP (5 %) | 2,5 % | 2,5 % | — |
+| Comisión del swap (3 % a 12 %) | 100 % | — | — |
+| Venta de artículos y naves de temporada | Pendiente | Pendiente | Pendiente |
+
+### 12.3 Pendiente
+
+- Destino de la venta de artículos y naves de temporada (sección 12.2).
+- Si el 10 % de respaldo del VIP tiene un tope o una regla de uso (`docs/flujo-token-mercado-retiros.md`, sección 3.3).
 
 ## 13. Decisiones pendientes (resumen)
 
@@ -220,7 +233,7 @@ Propuesta de alcance: la antigüedad aplica a los **retiros** y al **comercio** 
 8. Qué pasa con los días restantes al renovar el VIP (sección 5.2).
 9. Si la comisión de retiro aplica al swap.
 10. Detalles del saldo de respaldo (guarda wallet).
-11. Destinos de la comisión del swap, la comisión VIP de P2P y los artículos de temporada (sección 12.1).
+11. Destino de la venta de artículos y naves de temporada (sección 12.3).
 12. Antigüedad mínima de cuenta: 7 o 15 días (sección 10).
 13. Tratamiento de IP compartidas (sección 3.2).
 14. Mecanismo de la comisión variable del swap (sección 11.2).
