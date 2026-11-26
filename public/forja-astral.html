@@ -2301,7 +2301,10 @@ const ACCOUNT_LEVELS = [
 const TENIENTE_LEVEL = 4;
 const SEASON_MS = 30 * 24 * 3600 * 1000;
 /* Puntos para subir de cada nivel (propuesta aprobada). Índice i = puntos para pasar del nivel i+1 al i+2. */
-const LEVEL_POINTS = [100, 200, 500, 1000, 2500, 6000];
+const LEVEL_POINTS = [1000, 2000, 5000, 10000, 25000, 60000];
+const POINTS_WIN = 50;          // puntos por ganar un ataque o una defensa
+const POINTS_LOSS_ATTACK = 30;  // % de tus puntos que pierdes si pierdes un ataque
+const POINTS_LOSS_DEFENSE = 20; // % de tus puntos que pierdes si pierde tu defensa
 const MIN_LEVEL_MS = 3 * 24 * 3600 * 1000;   // tiempo mínimo en cada nivel antes de poder subir
 function setAccountLevel(n){
   state.accountLevel = n;
@@ -2309,9 +2312,23 @@ function setAccountLevel(n){
   state.levelSince = Date.now();
 }
 function addLevelPoints(n){
-  if (state.accountLevel >= ACCOUNT_LEVELS.length - 1) return;
   state.levelPts += n;
   checkLevelUp();
+}
+// Puntos totales de la temporada = todos los niveles completados + progreso actual.
+function accumulatedAt(L){ let a = 0; for (let i = 0; i < L; i++) a += LEVEL_POINTS[i]; return a; }
+function totalPoints(){ return accumulatedAt(state.accountLevel) + state.levelPts; }
+// Recalcula nivel y barra a partir de un total de puntos (puede bajar de nivel). Nunca baja de Aspirante.
+function setTotalPoints(t){
+  t = Math.max(0, t);
+  let L = 0;
+  while (L < ACCOUNT_LEVELS.length - 1 && t >= accumulatedAt(L + 1)) L++;
+  if (L < state.accountLevel){ state.accountLevel = L; state.levelSince = Date.now(); }
+  state.levelPts = t - accumulatedAt(L);
+}
+function losePointsPct(pct){
+  const total = totalPoints();
+  setTotalPoints(total - Math.floor(total * pct / 100));
 }
 function checkLevelUp(){
   if (state.accountLevel >= ACCOUNT_LEVELS.length - 1) return;
@@ -2376,7 +2393,7 @@ function viewLevel(){
     </section>
     <section class="panel pad" style="margin-top:12px">
       <h2 class="section-title" style="margin-top:0">Cómo ganar puntos</h2>
-      <p class="muted">Pendiente de definir.</p>
+      <p class="muted">Ganas ${POINTS_WIN} puntos al ganar un ataque o una defensa. Pierdes el ${POINTS_LOSS_ATTACK} % de tus puntos si pierdes un ataque, y el ${POINTS_LOSS_DEFENSE} % si pierde tu defensa. Tus defensas (láseres, lanzamisiles, etc.) hacen menos probable perder. La guerra de alianzas está pendiente.</p>
     </section>`;
 }
 function toggleTestMode(){
@@ -2933,6 +2950,7 @@ function resolveAttack(T, att){
   const rec = dmg[T.id] = dmg[T.id] || {};
   Object.keys(r.dStart).forEach(k => { const lost = (r.dStart[k] || 0) - (r.dEnd[k] || 0); if (lost > 0) rec[k] = (rec[k] || 0) + lost; });
   if (r.debris.metal + r.debris.crystal > 0) addDebris(T.id, r.debris);
+  if (r.winner === 'attacker') addLevelPoints(POINTS_WIN); else losePointsPct(POINTS_LOSS_ATTACK);
   const loot = {metal:0, crystal:0, deut:0};
   if (r.winner === 'attacker'){
     let cap = cargoOf(r.aEnd);
@@ -2983,6 +3001,7 @@ function resolveHostile(m){
                            {armas:L.cp || 0, escudos:L.bl || 0, blindaje:0, lz:L.lz || 0, io:L.io || 0, pl:L.pl || 0},
                            {def:{a:gen, sh:gen}});
   if (r.winner === 'defender') state.stats.wins++;
+  if (r.winner === 'defender') addLevelPoints(POINTS_WIN); else losePointsPct(POINTS_LOSS_DEFENSE);
   Object.keys(def).forEach(k => { if (r.dEnd[k] !== undefined) P.fleet[k] = r.dEnd[k]; });
   const loot = {metal:0, crystal:0, deut:0};
   if (r.winner === 'attacker'){

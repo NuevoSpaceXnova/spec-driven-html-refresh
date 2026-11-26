@@ -53,12 +53,12 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 | De nivel | A nivel | Puntos para subir | Puntos acumulados |
 |---|---|---|---|
-| Aspirante | Cadete | 100 | 100 |
-| Cadete | Marinero | 200 | 300 |
-| Marinero | Cabo | 500 | 800 |
-| Cabo | Teniente | 1.000 | 1.800 |
-| Teniente | Capitán | 2.500 | 4.300 |
-| Capitán | Almirante | 6.000 | 10.300 |
+| Aspirante | Cadete | 1.000 | 1.000 |
+| Cadete | Marinero | 2.000 | 3.000 |
+| Marinero | Cabo | 5.000 | 8.000 |
+| Cabo | Teniente | 10.000 | 18.000 |
+| Teniente | Capitán | 25.000 | 43.000 |
+| Capitán | Almirante | 60.000 | 103.000 |
 
 - La barra de progreso de Perfil, pestaña "Nivel y temporada", muestra los puntos del nivel actual. Al subir de nivel, la barra vuelve a 0 % y la comisión cambia.
 - Al terminar la temporada, los puntos vuelven a 0. Si el jugador conserva su nivel (Teniente o superior), la barra empieza en 0 % en ese nivel.
@@ -95,12 +95,18 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 - Si el ataque vence, ocurre lo contrario: el atacante gana puntos y el defensor pierde.
 - La pérdida de puntos es un **porcentaje**, no un monto fijo.
 
-### 4.2 Pendiente
+### 4.2 Valores aplicados (fase 3)
 
-- Porcentaje de puntos que se pierde en cada derrota.
-- Cantidad de puntos que se gana en cada victoria o defensa exitosa.
-- Fórmula exacta para decidir quién gana la batalla.
-- Si existe un mínimo de puntos para no caer por debajo de cero.
+- Ganar un ataque o una defensa exitosa: **+50 puntos**.
+- Perder un ataque: **−30 %** de tus puntos.
+- Perder una defensa (tu defensa pierde contra un ataque): **−20 %** de tus puntos.
+- Quién gana la batalla lo decide la simulación de combate que ya existía en el juego, según las defensas de la cuenta (láseres, lanzamisiles, etc.).
+- Si los puntos bajan del mínimo de un nivel, el jugador **baja de nivel**. Nadie baja de Aspirante ni cae por debajo de cero.
+
+### 4.3 Pendiente
+
+- Guerra de alianzas: cómo funciona y cuántos puntos da (tema pendiente).
+- Efecto del pase VIP en estas cifras (sección 5.2).
 
 ## 5. Pase VIP
 
@@ -262,10 +268,10 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 5. Significado exacto del margen 1:3 (sección 3.2).
 6. Definición de "jugador nuevo" (sección 3.2).
 7. Tratamiento de IP compartidas (sección 3.2).
-8. Porcentaje de puntos que se pierde en cada derrota (sección 4.2).
-9. Puntos ganados en cada victoria o defensa exitosa (sección 4.2).
-10. Fórmula para decidir quién gana la batalla (sección 4.2).
-11. Mínimo de puntos para no caer por debajo de cero (sección 4.2).
+8. Resuelto en fase 3: pérdida de 30 % (ataque) y 20 % (defensa) (sección 4.2).
+9. Resuelto en fase 3: +50 puntos por victoria o defensa exitosa (sección 4.2).
+10. Resuelto en fase 3: la simulación de combate existente decide (sección 4.2).
+11. Resuelto en fase 3: no se baja de Aspirante ni de cero (sección 4.2).
 
 ### 13.2 Pase VIP
 12. Porcentaje exacto de reducción de pérdida y aumento de ganancia de puntos (sección 5.2).
