@@ -16,7 +16,7 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 1. **Sistema de niveles de cuenta** (primero).
 2. **Sistema de puntos**: cuántos puntos se ganan y pierden, con los valores de cada acción.
-3. **Verificación de cuentas y antigüedad** (sección 10).
+3. **Verificación de cuentas y antigüedad** (sección 10). **Decisión: se hace al final de todo**, cuando empiece la base de datos real, porque el bot de Telegram y las IP aún no están listos.
 4. **Control del precio del TOKEN y comisión variable del swap** (sección 11).
 5. **Token interno, swap y retiros** en su versión real.
 6. **Pase VIP, pool interna y resto de ingresos** (sección 12).
