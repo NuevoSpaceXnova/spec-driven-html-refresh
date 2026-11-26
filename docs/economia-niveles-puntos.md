@@ -79,9 +79,11 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 ### 5.1 Reglas decididas
 
-- **Precio:** 15 USD.
+- **Precio:** 15 USD, fijo en USD.
+- **Forma de pago:** el jugador paga en TOKEN. La cantidad de TOKEN es el equivalente de 15 USD al precio vigente del TOKEN en el momento de la compra. Si el precio del TOKEN sube, la cantidad a pagar cambia.
+- **Compra previa:** el jugador primero compra TOKEN en el swap y después activa el VIP dentro del juego.
 - **Duración:** 30 días.
-- **Forma de activarlo:** el jugador primero compra TOKEN en el swap y después activa el VIP dentro del juego pagando con ese TOKEN.
+- **Renovación:** manual. El jugador debe renovar el VIP cuando venza.
 - **Reparto del pago:**
   - 40 % para el dueño del juego.
   - 40 % para la reserva de los jugadores.
@@ -94,10 +96,9 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 ### 5.2 Pendiente
 
-- Si el precio de 15 USD se mantiene fijo en USD o se convierte a TOKEN según el precio vigente. Con el precio inicial del TOKEN (sección 11), 15 USD equivalen a unos 98.684 TOKEN.
-- Qué pasa al vencer el pase: renovación manual, automática o solo bajo aviso.
 - Porcentaje exacto de reducción de pérdida y de aumento de ganancia de puntos.
 - Si el pase VIP cambia la comisión de retiro o solo afecta los puntos y los beneficios de la sección 3 de `docs/progresion-lenta-y-vip.md`.
+- Qué pasa con los días restantes si el jugador renueva antes de vencer.
 
 ## 6. Token interno, swap y comisiones
 
@@ -126,8 +127,8 @@ Su distribución está en `docs/flujo-token-mercado-retiros.md`, sección 3.2.
 
 ## 8. Inconsistencias con documentos existentes
 
-- `public/swap.html` usa un precio inicial de **0,80** para el TOKEN en la demo. El precio inicial decidido es **0,000152 USD** (sección 11). Hay que cambiarlo en la fase real.
-- `public/swap.html` tiene la constante `FEE` en `0.003` (0,3 %). Debe cambiarse a `0.03`, que es el mínimo de la comisión variable decidida.
+- `public/swap.html` usa un precio inicial de **0,80** para el TOKEN en la demo. Debe cambiarse al valor inicial decidido de **0,000152 USD** (sección 11).
+- `public/swap.html` tiene la constante `FEE` en `0.003`. Debe cambiarse a `0.03`, que es el mínimo de la comisión variable decidida.
 - El documento de swap describe un reloj de juego y saldos demo en el navegador. Esto sigue vigente mientras el proyecto esté en modo prueba.
 
 ## 9. Decisiones pendientes (resumen)
@@ -138,15 +139,15 @@ Su distribución está en `docs/flujo-token-mercado-retiros.md`, sección 3.2.
 4. Definición de "jugador nuevo".
 5. Porcentajes y montos de puntos ganados y perdidos en batalla.
 6. Fórmula de resolución de batallas.
-7. Precio del VIP en USD fijo o en TOKEN, y renovación al vencer (sección 5.2).
-8. Porcentajes exactos de ventaja VIP en puntos.
+7. Porcentajes exactos de ventaja VIP en puntos, y efecto sobre la comisión de retiro (sección 5.2).
+8. Qué pasa con los días restantes al renovar el VIP (sección 5.2).
 9. Si la comisión de retiro aplica al swap.
 10. Detalles del saldo de respaldo (guarda wallet).
 11. Ingresos adicionales: naves y artículos de temporada.
 12. Antigüedad mínima de cuenta: 7 o 15 días (sección 10).
 13. Tratamiento de IP compartidas (sección 3.2).
-14. Mecanismo de la comisión variable del swap y de la moderación del precio (sección 11.2).
-15. Parámetros de control de precio (sección 11.2).
+14. Mecanismo de la comisión variable del swap (sección 11.2).
+15. Criterios internos de la administración para mover el precio del TOKEN (sección 11.2).
 16. Texto final de los términos y condiciones del swap (sección 6.2).
 
 ## 10. Verificación de cuentas
@@ -182,7 +183,7 @@ Propuesta de alcance: la antigüedad aplica a los **retiros** y al **comercio** 
 ### 11.1 Reglas decididas
 
 - **Valor inicial del TOKEN: 0,000152 USD.**
-- **Moderación del precio:** el precio sube y baja desde la administración, que modera su evolución.
+- **Moderación del precio a mano:** el precio sube y baja por decisión de la administración. No se usa una curva automática, porque una curva predecible puede ser manipulada por los jugadores.
 - **Comisión variable del swap** entre 3 % (mínimo) y 12 % (máximo), que sube y baja según la presión de compras y ventas.
 - **Límites por cuenta y por temporada:** máximo de TOKEN que se puede comprar o vender por día, por temporada o por nivel.
 - **Liberación gradual de liquidez:** lo que compra un jugador grande no se puede retirar de inmediato, sino que se libera en tramos.
@@ -190,9 +191,8 @@ Propuesta de alcance: la antigüedad aplica a los **retiros** y al **comercio** 
 
 ### 11.2 Pendiente
 
-- **Mecanismo de moderación del precio:** si la administración lo mueve manualmente cada vez, o si lo hace una regla con límites. Esta decisión cambia la regla de curva de precio que se había propuesto antes, por lo que hay que confirmarla.
+- **Criterios internos de la administración** para mover el precio: qué señales usa, con qué frecuencia y con qué límite por movimiento.
 - **Mecanismo de la comisión variable:** qué mide la presión de compras y ventas, cada cuánto se recalcula y cómo se pasa del 3 % al 12 %.
-- **Parámetros de la curva o regla de precio:** cuánto puede subir o bajar el precio por día, por operación o por temporada.
 - **Límites exactos** por día, temporada y nivel.
 - **Duración y tramos** de la liberación gradual.
 - **Monto del piso de precio** y cuánta reserva se destina a sostenerlo.
