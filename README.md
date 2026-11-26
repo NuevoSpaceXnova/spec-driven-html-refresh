@@ -16,9 +16,9 @@ Antes de cambiar cualquier cosa, lee estos documentos en este orden:
 **Reglas de trabajo:**
 
 - Implementa solo lo que está marcado como **decidido**. Lo que dice **Pendiente** o **Propuesta** no se implementa hasta que el dueño del proyecto lo apruebe.
-- Si algo no está claro o falta una decisión, **no la tomes**. Haz una propuesta escrita y espera la aprobación.
+- Si algo no está claro o falta una decisión, **no la tomes**. Haz una propuesta escrita y pregunta al dueño del proyecto.
 - No tomes decisiones legales ni redactes términos y condiciones. Eso lo revisa el abogado del cliente.
-- No ocultes al jugador información sobre su dinero, como el estado de sus retiros o si el pago es manual.
+- **No decidas qué mensajes ve el jugador.** Si necesitas un mensaje nuevo, o dudas si uno existente se mantiene o se quita, pregunta antes al dueño del proyecto y espera su respuesta.
 - No reescribas archivos grandes completos (`public/forja-astral.html` y `public/swap.html`) para cambiar una línea. Usa cambios puntuales.
 - Mantén los documentos de `docs/` alineados con el código. Si cambias una regla, actualiza el documento correspondiente en el mismo cambio.
 
