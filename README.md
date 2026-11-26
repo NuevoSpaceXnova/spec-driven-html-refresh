@@ -28,7 +28,7 @@ Antes de cualquier acción, lee esta sección completa y los documentos de la se
 
 1. Todo se trabaja directamente en la rama `main`. No se usan ramas de prueba.
 2. Cada fase o actualización terminada se guarda con un commit y se sube con push a `main`. Al final se informa el nombre del commit.
-3. Cada vez que se complete una fase o una actualización, se actualiza la información de este README y de `AGENTS.md` (estado de las fases y decisiones) para mantener el orden.
+3. Cada vez que se complete una fase o se actualice el juego, se actualizan las reglas y la información de este README, de `AGENTS.md` y de los documentos de `docs/` que correspondan (estado de las fases y decisiones), para mantener el orden.
 
 ### Primer paso
 

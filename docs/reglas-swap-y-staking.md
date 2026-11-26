@@ -2,7 +2,7 @@
 
 Este documento describe cómo funciona el swap de TOKEN por USDT y BNB en `public/swap.html`.
 
-**Cambio de diseño:** el staking interno del juego fue eliminado (ver `docs/economia-niveles-puntos.md`, sección 8). Las reglas de pools, bloqueos, penalización por retiro anticipado e interés que existían en versiones anteriores de este documento ya no aplican. El código demo del staking todavía existe en `public/swap.html` y se quitará en la fase de limpieza.
+**Cambio de diseño:** el staking interno del juego fue eliminado (ver `docs/economia-niveles-puntos.md`, sección 8). Las reglas de pools, bloqueos, penalización por retiro anticipado e interés que existían en versiones anteriores de este documento ya no aplican. El código demo del staking fue quitado de `public/swap.html` en la fase 0 (commit `d64ae00`).
 
 Hoy todo corre en **modo demo** con datos ficticios. Cuando se configure la economía real, estas reglas son el punto de partida. Los valores que cambian están marcados en la sección 6.
 
@@ -49,25 +49,24 @@ Hoy todo corre en **modo demo** con datos ficticios. Cuando se configure la econ
 ## 4. Staking: eliminado
 
 - Se eliminan los pools TOKEN/X, el bloqueo de 15 días, el interés simple, la penalización por retiro anticipado y la reserva de intereses.
-- El código demo del staking (en `public/swap.html`) se quitará en la fase de limpieza.
+- El código demo del staking fue quitado de `public/swap.html` en la fase 0.
 - La decisión y su motivo están en `docs/economia-niveles-puntos.md`, sección 8.
 
 ## 5. Datos de la demo
 
-| Dato | Valor demo | Valor decidido | Dónde está |
+| Dato | Valor actual en la demo | Valor decidido | Dónde está |
 |---|---|---|---|
-| Precio inicial del TOKEN | 0,80 | **0,000152 USD** | `swap.html`, constante `TOKEN` (`start`) |
-| Comisión del swap | 0,3 % | **3 % a 12 %** (mínimo 3 %) | `swap.html`, constante `FEE` (`0.003`) |
+| Precio inicial del TOKEN | **0,000152 USD** (aplicado) | **0,000152 USD** | `swap.html`, constante `TOKEN` (`start`) |
+| Comisión del swap | **3 %** (aplicado, mínimo) | **3 % a 12 %** (mínimo 3 %) | `swap.html`, constante `FEE` (`0.03`) |
 | Precios de criptos | Ficticios, generados en el navegador | — | `swap.html`, función `genPath` |
 | Saldos de criptos | 500 USDT iniciales | — | Libro demo en el navegador |
-| Check de términos | No existe | **Obligatorio en cada swap** | Pendiente de implementar en `swap.html` |
+| Check de términos | **Aplicado**, con texto provisional pendiente del abogado | **Obligatorio en cada swap** | `swap.html`, diálogo de confirmación (`termsChk`) |
 
 ## 6. Limitaciones conocidas de la demo
 
 - Los almacenes del juego no limitan el swap.
 - Los saldos demo de criptos se guardan por navegador, no por cuenta del servidor.
 - No hay contratos inteligentes ni transacciones reales.
-- El código del staking todavía está en `swap.html` aunque el diseño lo elimina.
 
 ## 7. Qué cambiar al pasar a economía real
 

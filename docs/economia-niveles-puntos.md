@@ -142,11 +142,13 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 - **Se elimina el staking interno del juego.** No habrá pools, bloqueos, penalizaciones por retiro anticipado ni interés pagado en TOKEN a los jugadores.
 - La motivación es reducir complejidad y no prometer rendimientos que dependan de ingresos variables.
 
-## 9. Inconsistencias con documentos existentes
+## 9. Cambios aplicados al swap demo (fase 0)
 
-- `public/swap.html` todavía tiene el código del staking demo. Se quitará en la fase de limpieza.
-- `public/swap.html` usa un precio inicial de **0,80** para el TOKEN en la demo. Debe cambiarse al valor inicial decidido de **0,000152 USD** (sección 11).
-- `public/swap.html` tiene la constante `FEE` en `0.003`. Debe cambiarse a `0.03` (mínimo de la comisión variable decidida).
+- Se quitó el código del staking demo de `public/swap.html`.
+- El precio inicial del TOKEN en la demo es **0,000152 USD** (sección 11).
+- La comisión `FEE` en la demo es **0,03** (mínimo de la comisión variable decidida).
+- El check de términos antes de cada swap está aplicado, con texto provisional pendiente del abogado.
+- Commit: `d64ae00`.
 
 ## 10. Verificación de cuentas
 
