@@ -173,7 +173,7 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 ### 7.2 Pendiente
 
-- Base de la comisión P2P: precio total o cantidad de recursos, y momento de cobro (`docs/flujo-token-mercado-retiros.md`, sección 2.1).
+- Comisión P2P de recursos: **aplicada** sobre el precio total de la venta, cobrada en TOKEN al publicar el aviso (free 15 %, VIP 5 %). Pendiente: si la venta de naves también paga comisión.
 
 ## 8. Interés de los jugadores: eliminado
 

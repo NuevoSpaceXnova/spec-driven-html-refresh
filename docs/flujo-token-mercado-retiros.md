@@ -26,9 +26,12 @@ Las secciones marcadas como **Pendiente** no deben implementarse hasta confirmar
    - Para publicar, el vendedor debe **tener saldo de TOKEN suficiente para cubrir la comisión**. Esta regla también mitiga las multicuentas.
 5. **Retiro:** el jugador cambia su TOKEN a USDT o BNB en el swap y solicita el pago a su wallet (sección 5).
 
-### 2.1 Pendiente
+### 2.1 Aplicado
 
-- Si la comisión del 15 % o 5 % se calcula sobre el precio total de la venta o sobre la cantidad de recursos.
+- La comisión se calcula sobre el precio total de la venta y se cobra en TOKEN al publicar el aviso.
+
+### 2.2 Pendiente
+
 - Qué pasa si el vendedor cancela el aviso después de pagar la comisión.
 
 ## 3. Distribución de ingresos
