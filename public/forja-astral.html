@@ -2377,7 +2377,8 @@ function viewLevel(){
   const rows = ACCOUNT_LEVELS.map((l, i) => {
     if (i > 0) accum += LEVEL_POINTS[i - 1];
     const estado = i < L ? 'Alcanzado' : i === L ? 'Actual' : 'Bloqueado';
-    return `<tr class="${i === L ? 'row-own' : ''}"><td>${l.name}</td><td class="r mono-cell">${i === ACCOUNT_LEVELS.length - 1 ? '—' : fmt(LEVEL_POINTS[i])}</td><td class="r mono-cell">${fmt(accum)}</td><td class="r mono-cell">${l.fee} %</td><td>${estado}</td></tr>`;
+    const subir = i === ACCOUNT_LEVELS.length - 1 ? 'Nivel máximo' : fmt(LEVEL_POINTS[i]) + ' puntos';
+    return `<tr class="${i === L ? 'row-own' : ''}"><td>${l.name}</td><td class="r mono-cell">${l.fee} %</td><td class="r mono-cell">${fmt(accum)} puntos</td><td class="r mono-cell">${subir}</td><td>${estado}</td></tr>`;
   }).join('');
   return `
     <h1 class="page-title">Perfil y Referidos</h1>
@@ -2397,8 +2398,9 @@ function viewLevel(){
     </section>
     <section class="panel pad" style="margin-top:12px">
       <h2 class="section-title" style="margin-top:0">Niveles</h2>
+      <p class="muted" style="margin:0 0 12px;font-size:12px">"Total para llegar" son los puntos que necesitas para entrar a ese nivel. "Para subir al siguiente" son los puntos que faltan para pasar al nivel de la fila siguiente.</p>
       <div style="overflow-x:auto"><table class="table">
-        <thead><tr><th>Nivel</th><th class="r">Puntos para subir</th><th class="r">Puntos acumulados</th><th class="r">Comisión de retiro</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Nivel</th><th class="r">Comisión de retiro</th><th class="r">Total para llegar</th><th class="r">Para subir al siguiente</th><th>Estado</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </section>
