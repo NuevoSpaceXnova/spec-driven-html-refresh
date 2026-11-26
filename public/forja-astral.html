@@ -71,6 +71,8 @@ button,select,input{font-family:inherit}
 .res-box:last-child{border-right:1px solid var(--border-subtle)}
 .swap-open{height:34px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--accent-primary);border-radius:var(--r);background:linear-gradient(180deg,#2450C5,#1B3A99);color:#fff;font:600 12px var(--font-title);letter-spacing:.08em;text-decoration:none;flex:none}
 .swap-open:hover{background:var(--accent-hover)}
+.vip-badge{height:34px;display:inline-flex;align-items:center;padding:0 12px;margin-right:8px;border:1px solid var(--border-subtle);border-radius:var(--r);background:transparent;color:var(--text-secondary);font:700 11px var(--font-title);letter-spacing:.1em;cursor:pointer;flex:none}
+.vip-badge.is-vip{border-color:#D4A81F;color:#F5C84B;background:linear-gradient(180deg,#3a2c08,#211a05)}
 .swap-open:focus-visible{outline:1px solid var(--text-primary);outline-offset:2px}
 .res-box svg{flex:none;width:16px;height:16px}
 .res-icon{display:block;width:40px;height:40px;flex:none;object-fit:contain}
@@ -814,6 +816,7 @@ button,select,input{font-family:inherit}
         <div><div class="res-label">Token</div><div class="res-val" style="color:var(--text-primary)" data-bind="res:token"></div></div>
       </div>
     </div>
+    <button type="button" class="vip-badge" data-action="open-vip" data-bind="vipLabel" title="Estado del pase VIP"></button>
     <a class="swap-open" href="swap.html" target="_blank" rel="noopener" title="Abrir Swap en una página nueva">Swap</a>
     <div id="notif-menu" class="notif-menu"></div>
     <div id="user-menu" class="user-menu"></div>
@@ -1071,7 +1074,7 @@ const state = {
   tab:'overview',
   speed:1,
   testMode:false,
-  vip:false,
+  vipUntil:0,
   accountLevel:0,
   seasonMax:0,
   seasonStart:Date.now(),
@@ -1115,10 +1118,14 @@ const state = {
 };
 
 /* ============ GUARDADO ============ */
+const VIP_PRICE_USD = 15;                                   // precio fijo del pase VIP en USD
+const TOKEN_USD = 0.000152;                                 // precio vigente del TOKEN en USD
+const VIP_COST = Math.round(VIP_PRICE_USD / TOKEN_USD);    // 98.684 TOKEN al precio actual
+const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales desde la activación
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vip:state.vip, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1148,7 +1155,7 @@ function loadGame(override){
     if (d.galaxy) state.galaxy = {g:d.galaxy.g || 1, s:d.galaxy.s || 1, looted:d.galaxy.looted || {}, colonies:d.galaxy.colonies || {}, dmg:d.galaxy.dmg || {}};
     if (d.debris) state.debris = d.debris;
     state.testMode = !!d.testMode;
-    state.vip = !!d.vip;
+    state.vipUntil = typeof d.vipUntil === 'number' ? d.vipUntil : 0;
     if (d.speed && state.testMode) state.speed = d.speed;
     if (typeof d.accountLevel === 'number') state.accountLevel = d.accountLevel;
     if (typeof d.seasonMax === 'number') state.seasonMax = d.seasonMax;
@@ -1236,6 +1243,8 @@ function handleFase2Click(e){
       case 'toggle-vacation': toggleVacation(); return;
       case 'toggle-test-mode': toggleTestMode(); return;
       case 'toggle-vip-test': toggleVipTest(); return;
+      case 'open-vip': openVip(); return;
+      case 'buy-vip': buyVip(); return;
       case 'export-save': exportSave(); return;
       case 'copy-json': copyText(document.getElementById('cfg-json').value, 'JSON copiado al portapapeles.'); return;
       case 'import-save': importSave(); return;
@@ -1493,6 +1502,7 @@ function publishShip(){
   const qty = Math.floor(Number(document.getElementById('ms-qty').value));
   const price = Math.floor(Number(document.getElementById('ms-price').value));
   if (!SHIPS[k] || !MOVE_SHIPS.includes(k)) return setStatus('Elige una nave válida.', true);
+  if (!isVip()) return setStatus('Solo las cuentas VIP pueden vender naves en el mercado.', true);
   if (!(qty > 0)) return setStatus('La cantidad debe ser mayor que 0.', true);
   if (!(price > 0)) return setStatus('El precio debe ser mayor que 0 Tokens.', true);
   if ((P.fleet[k] || 0) < qty) return setStatus('No tienes suficientes ' + SHIPS[k].name + ' en el hangar de este planeta.', true);
@@ -2341,7 +2351,7 @@ function losePctOf(h, pct){ const total = totalOf(h); setTotalOf(h, total - Math
 // Jugador
 function addLevelPoints(n){ addPointsTo(state, n); }
 function totalPoints(){ return totalOf(state); }
-function losePointsPct(pct){ losePctOf(state, state.vip ? pct / 2 : pct); }   // VIP: la pérdida se reduce a la mitad
+function losePointsPct(pct){ losePctOf(state, isVip() ? pct / 2 : pct); }   // VIP: la pérdida se reduce a la mitad
 function checkLevelUp(){ checkLevelUpOf(state); }
 // Rivales (jugadores simulados de la demo). Tienen su propio nivel y progreso.
 function rivalNamed(name){ return ((state.ranking && state.ranking.rivals) || []).find(r => r.name === name); }
@@ -2437,8 +2447,36 @@ function viewLevel(){
       </div>
     </section>`;
 }
+function isVip(){ return state.vipUntil > Date.now(); }
+function vipMul(){ return isVip() ? 1.5 : 1; }   // VIP: +50 % producción y velocidad
 function toggleVipTest(){
-  state.vip = !state.vip;
+  state.vipUntil = isVip() ? 0 : Date.now() + VIP_DAYS_MS;
+  render();
+}
+function openVip(){
+  const active = isVip();
+  const missing = Math.max(0, VIP_COST - state.res.token);
+  const body = `
+    <p class="page-sub">Precio: ${VIP_PRICE_USD} USD, pagados en TOKEN: ${fmt(VIP_COST)} TOKEN al precio actual (0,000152 USD por TOKEN).</p>
+    <p class="page-sub">Duración: 30 días reales desde la activación.</p>
+    <p class="page-sub">${active ? 'VIP activo hasta ' + new Date(state.vipUntil).toLocaleString('es-ES') : 'Estado: FREE (sin VIP activo).'}</p>
+    <ul>
+      <li>Producción de recursos +50 %.</li>
+      <li>Construcciones e investigaciones +50 % más rápidas.</li>
+      <li>Comisión del mercado P2P de recursos: 5 % (free: 15 %).</li>
+      <li>Puede vender naves en el mercado P2P.</li>
+      <li>Pérdida de puntos de nivel reducida a la mitad.</li>
+    </ul>
+    <p class="page-sub">${missing > 0 ? 'Te faltan ' + fmt(missing) + ' TOKEN para comprarlo.' : 'Tienes Tokens suficientes.'}</p>
+    <button class="btn" data-action="buy-vip" ${active || missing > 0 ? 'disabled' : ''}>Comprar VIP</button>`;
+  openModal('Pase VIP', body);
+}
+function buyVip(){
+  if (isVip() || state.res.token < VIP_COST) return refresh();
+  state.res.token -= VIP_COST;
+  state.vipUntil = Date.now() + VIP_DAYS_MS;
+  addTx('Pase VIP', -VIP_COST, 'Completado (simulado)');
+  closeModal();
   render();
 }
 function toggleTestMode(){
@@ -2522,7 +2560,7 @@ function viewWallet(){
     <section class="panel pad">
       <div class="kpis" style="margin:0">
         <div class="kpi"><div class="kpi-label">Saldo disponible (Tokens)</div><div class="kpi-val" data-bind="res:token"></div></div>
-        <div class="kpi"><div class="kpi-label">Equivalente estimado (100 Tokens = 1 USDT)</div><div class="kpi-val" data-bind="usdt"></div></div>
+        <div class="kpi"><div class="kpi-label">Equivalente estimado (1 Token = 0,000152 USDT)</div><div class="kpi-val" data-bind="usdt"></div></div>
         <div class="kpi"><div class="kpi-label">Wallet vinculada (BSC · BEP-20)</div><div style="font:500 12px var(--font-mono);word-break:break-all">${w.address || 'Sin vincular'}</div></div>
       </div>
       <div class="inline-form" style="margin-top:12px">
@@ -2631,7 +2669,7 @@ function viewSettings(){
           <div class="rows"><div><span>Nivel de cuenta</span><span>${ACCOUNT_LEVELS[state.accountLevel].name}</span></div><div><span>Comisión de retiro</span><span>${ACCOUNT_LEVELS[state.accountLevel].fee} %</span></div><div><span>Fin de la temporada</span><span>${new Date(state.seasonStart + SEASON_MS).toLocaleDateString('es-ES')}</span></div></div>
           <div class="rows">${ACCOUNT_LEVELS.map(l => `<div><span>${l.name}</span><span>${l.fee} %</span></div>`).join('')}</div>
           <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
-          ${state.testMode ? `<button class="btn" data-action="toggle-vip-test">${state.vip ? 'Desactivar VIP (prueba)' : 'Activar VIP (prueba)'}</button>` : ''}
+          ${state.testMode ? `<button class="btn" data-action="toggle-vip-test">${isVip() ? 'Desactivar VIP (prueba)' : 'Activar VIP (prueba)'}</button>` : ''}
           ${state.testMode ? `<label class="field">Velocidad de simulación del universo
             <select class="select full" id="speed">${[1, 10, 100, 1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}</select>
           </label>` : ''}
@@ -2724,9 +2762,9 @@ function rates(){
   const P = activePlanet(), L = state.lvl, e = energy();
   if (P && P.moon) return {metal:0, crystal:0, deut:0, fusCons:0, e};
   return {
-    metal:   F.hourlyMetal(L.mm) * e.eff * (1 + allianceBonus()) * prodFactor('mm'),
-    crystal: F.hourlyCrystal(L.mc) * e.eff * (1 + allianceBonus()) * prodFactor('mc'),
-    deut:    F.hourlyDeut(L.ds) * (1 + 0.05 * L.cm) * e.eff * (1 + allianceBonus()) * prodFactor('ds'),
+    metal:   F.hourlyMetal(L.mm) * e.eff * (1 + allianceBonus()) * prodFactor('mm') * vipMul(),
+    crystal: F.hourlyCrystal(L.mc) * e.eff * (1 + allianceBonus()) * prodFactor('mc') * vipMul(),
+    deut:    F.hourlyDeut(L.ds) * (1 + 0.05 * L.cm) * e.eff * (1 + allianceBonus()) * prodFactor('ds') * vipMul(),
     fusCons: F.fusD(L.fus || 0),
     e
   };
@@ -2747,7 +2785,7 @@ function buildSeconds(id, N){
   const base = (c.metal + c.crystal) / (2500 * (1 + (state.lvl.rf || 0))) * 3600;
   const nan = Math.pow(0.5, state.lvl.nan || 0);
   const gv = 1 - 0.02 * (state.lvl.gv || 0);
-  return Math.max(5, Math.ceil(base * nan * gv));
+  return Math.max(5, Math.ceil(base * nan * gv / vipMul()));
 }
 
 /* ============ ACCIONES ============ */
@@ -4823,7 +4861,8 @@ function valueOf(key){
     case 'planet':  return P ? P.name : 'Ceres Prima';
     case 'unread':  return unreadCount() ? String(unreadCount()) : '';
     case 'notif':   return unreadCount() ? (unreadCount() > 9 ? '9+' : String(unreadCount())) : '';
-    case 'usdt':    return (state.res.token / 100).toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USDT';
+    case 'usdt':    return (state.res.token * TOKEN_USD).toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:6}) + ' USDT';
+    case 'vipLabel': return isVip() ? 'VIP' : 'FREE';
     case 'hangar':  return fmt(state.fleet[a] || 0);
     case 'rank':    return rankText(a);
     case 'power':   return fmt(Math.floor(state.spent / 1000));
@@ -4864,6 +4903,7 @@ function refresh(){
   refreshExtra();
   const e = energy();
   document.querySelectorAll('[data-bind]').forEach(el => { el.textContent = valueOf(el.dataset.bind); });
+  document.querySelectorAll('.vip-badge').forEach(el => el.classList.toggle('is-vip', isVip()));
   document.querySelectorAll('[data-pct]').forEach(el => {
     const r = el.dataset.pct;
     const cap = capOf(state.lvl[CAP_KEY[r]] || 0);

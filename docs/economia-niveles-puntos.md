@@ -121,7 +121,7 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 - **Precio:** 15 USD, fijo en USD.
 - **Forma de pago:** el jugador paga en TOKEN. La cantidad de TOKEN es el equivalente de 15 USD al precio vigente del TOKEN en el momento de la compra. Si el precio del TOKEN sube, la cantidad a pagar cambia.
 - **Compra previa:** el jugador primero compra TOKEN en el swap y después activa el VIP dentro del juego.
-- **Duración:** 30 días.
+- **Duración:** 30 días reales desde la activación. *Aplicado en el juego (modo prueba): compra en ventana con 98.684 TOKEN al precio actual.*
 - **Renovación:** manual. El jugador debe renovar el VIP cuando venza.
 - **Reparto del pago:**
   - 40 % para el dueño del juego.

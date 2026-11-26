@@ -52,7 +52,12 @@ El pase VIP da ventajas de velocidad y de mercado. Lo que se decide aquí:
 - **Naves en P2P:** solo cuentas VIP pueden publicar naves a la venta en el mercado.
 - **Destino de la comisión P2P:** la comisión se reparte entre la reserva de jugadores y el dueño según `docs/economia-niveles-puntos.md`, sección 7.
 
-### 3.2 Pendiente
+### 3.2 Estado de aplicación (modo prueba)
+
+- Aplicado: producción +50 %, construcción e investigación +50 %, venta de naves en P2P solo para VIP, insignia VIP/FREE y compra del pase.
+- Pendiente: la comisión P2P VIP del 5 % (base y momento del cobro, `docs/economia-niveles-puntos.md`, sección 7.2).
+
+### 3.3 Pendiente
 
 - Precio del pase VIP y duración: **decidido** en `docs/economia-niveles-puntos.md`, sección 5. Queda pendiente el porcentaje exacto de ventaja en puntos.
 - Si el beneficio de velocidad aplica también a la cola de naves.
