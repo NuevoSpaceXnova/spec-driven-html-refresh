@@ -6,16 +6,18 @@ Este documento registra las decisiones tomadas hasta hoy sobre la economía y la
 
 ## 0. Estado del proyecto
 
-- El juego corre sin base de datos. Todo (partida, saldos demo) se guarda en el navegador para probarlo.
-- La base de datos real se incorpora cuando el juego esté listo, o al menos al 90 %. Desde ese momento los saldos, niveles, puntos y retiros se validan en el servidor.
-- Los fondos de los jugadores se resguardan en un **saldo de respaldo (guarda wallet)**. El detalle de cómo funciona queda pendiente hasta la fase de base de datos.
+- El juego corre en modo prueba, sin jugadores reales. Todo (partida, saldos demo) se guarda en el navegador.
+- Las funciones que requieren servidor y base de datos se implementan en la fase real, cuando el juego esté listo o al menos al 90 %.
+- Los fondos de los jugadores se resguardan en un **saldo de respaldo (guarda wallet)**. El detalle queda pendiente hasta la fase real.
 
 ## 1. Orden de implementación
 
 1. **Sistema de niveles de cuenta** (primero).
 2. **Sistema de puntos**: cuántos puntos se ganan y pierden, con los valores de cada acción. Se define después de tener los niveles funcionando.
-3. **Token interno, swap y retiros** en su versión real, con base de datos.
-4. **Pase VIP, pool interna y resto de ingresos**, cuando se construya la base de datos real.
+3. **Verificación de cuentas y antigüedad** (sección 10).
+4. **Control del precio del TOKEN** (sección 11).
+5. **Token interno, swap y retiros** en su versión real.
+6. **Pase VIP, pool interna y resto de ingresos**.
 
 ## 2. Niveles de cuenta
 
@@ -47,11 +49,13 @@ Esta regla busca que el jugador se esfuerce por subir de nivel en cada temporada
 - Un jugador **de menor nivel no puede atacar** a un jugador de mayor nivel.
 - Un jugador **nuevo no puede ser atacado** por un jugador de nivel mayor.
 - Debe existir un **margen 1:3** en los ataques para mantener el equilibrio.
+- Un jugador **puede tener varias cuentas**, pero **no puede atacar a sus propias cuentas**. La detección se hace por dirección IP.
 
 ### 3.2 Pendiente
 
-- Qué mide el margen 1:3: diferencia de niveles, diferencia de puntos o relación de poder militar. Esto cambia por completo la regla, así que hay que definirlo con precisión.
+- Qué mide el margen 1:3: diferencia de niveles, diferencia de puntos o relación de poder militar.
 - Qué significa "jugador nuevo": cuántos días, cuántos puntos o qué nivel.
+- Tratamiento de IP compartidas (hogares, redes móviles con IP común), para no bloquear a jugadores legítimos.
 
 ## 4. Resolución de batallas
 
@@ -68,7 +72,7 @@ Esta regla busca que el jugador se esfuerce por subir de nivel en cada temporada
 
 - Porcentaje de puntos que se pierde en cada derrota.
 - Cantidad de puntos que se gana en cada victoria o defensa exitosa.
-- Fórmula exacta para decidir quién gana la batalla (cómo se compara la fuerza de ataque con la de defensa).
+- Fórmula exacta para decidir quién gana la batalla.
 - Si existe un mínimo de puntos para no caer por debajo de cero.
 
 ## 5. Pase VIP
@@ -97,11 +101,11 @@ Esta regla busca que el jugador se esfuerce por subir de nivel en cada temporada
 
 - Destino de las comisiones del swap y de los retiros (cómo se distribuyen en la pool interna).
 - Cómo se distribuye la pool interna del juego.
-- Si la comisión de retiro aplica también a las ventas en el swap (hoy solo está definida para retiros a wallet).
+- Si la comisión de retiro aplica también a las ventas en el swap.
 
 ## 7. Otros ingresos del proyecto
 
-Para más adelante, al construir la base de datos real:
+Para más adelante:
 
 - Comisión de **5 %** en el mercado P2P.
 - Venta de artículos o naves de temporada.
@@ -110,8 +114,8 @@ Todos sus valores y reglas están pendientes.
 
 ## 8. Inconsistencias con documentos existentes
 
-- `docs/reglas-swap-y-staking.md` indica una comisión de swap de **0,3 %**. Esta decisión nueva fija el swap en **3 %**. El documento de swap debe actualizarse cuando se confirme esta decisión.
-- El mismo documento de swap describe un reloj de juego y saldos demo en el navegador. Esto sigue vigente mientras el proyecto no tenga base de datos.
+- `docs/reglas-swap-y-staking.md` ya fue actualizado a comisión de swap de **3 %**. El valor en el código (`FEE` en `public/swap.html`) todavía debe cambiarse de `0.003` a `0.03`.
+- El documento de swap describe un reloj de juego y saldos demo en el navegador. Esto sigue vigente mientras el proyecto esté en modo prueba.
 
 ## 9. Decisiones pendientes (resumen)
 
@@ -125,4 +129,49 @@ Todos sus valores y reglas están pendientes.
 8. Destino de las comisiones y distribución de la pool interna.
 9. Si la comisión de retiro aplica al swap.
 10. Detalles del saldo de respaldo (guarda wallet).
-11. Ingresos adicionales: P2P, artículos y naves de temporada.
+11. Ingresos adicionales: P2P 5 %, naves y artículos de temporada.
+12. Antigüedad mínima de cuenta: 7 o 15 días (sección 10).
+13. Tratamiento de IP compartidas en la restricción de ataques entre cuentas propias.
+14. Parámetros de control de precio (sección 11).
+15. Conflicto entre comisión fija de swap (3 %) y comisión variable por ventas seguidas (sección 11).
+
+## 10. Verificación de cuentas
+
+### 10.1 Reglas decididas
+
+- **Verificación por Telegram** mediante un bot. Una cuenta de Telegram solo puede estar vinculada a **una cuenta del juego**. Si ya está vinculada a otra, no se puede usar.
+- La verificación de Telegram es **requisito** para:
+  - comerciar en el mercado de recursos,
+  - comerciar en el P2P,
+  - operar en el swap,
+  - retirar a wallet.
+- Se **permite crear varias cuentas**, pero **no se puede atacar entre cuentas propias**, detectado por IP.
+- No habrá verificación de identidad documental.
+
+### 10.2 Antigüedad mínima (pendiente de confirmar)
+
+Recomendación: **7 días**. Es suficiente para frenar las cuentas creadas solo para retirar, sin castigar demasiado a un jugador nuevo que quiere probar el juego.
+
+Un plazo de **15 días** protege más, pero es probable que desmotive a los jugadores nuevos antes de llegar a la primera progresión. Queda pendiente decidir entre ambos.
+
+Se recomienda que la antigüedad aplique a los **retiros** y al **comercio** (mercado de recursos, P2P y swap). El ataque y la progresión de niveles no deberían depender de ella.
+
+## 11. Control del precio del TOKEN
+
+El precio del TOKEN lo fija el proyecto, no un mercado externo. Por eso el proyecto debe controlar el precio y la reserva en conjunto. Las siguientes reglas fueron aceptadas como línea de trabajo; sus parámetros siguen pendientes.
+
+### 11.1 Reglas aceptadas
+
+- **Fórmula de precio con profundidad conocida**: el precio sube al comprar TOKEN y baja al venderlo, con una curva predecible definida por el proyecto. Un jugador con mucho dinero mueve el precio, pero de forma calculada.
+- **Límites por cuenta y por temporada**: máximo de TOKEN que se puede comprar o vender por día, por temporada o por nivel.
+- **Liberación gradual de liquidez**: lo que compra un jugador grande no se puede retirar de inmediato, sino que se libera en tramos.
+- **Piso de precio respaldado por la reserva**: el proyecto se compromete a recomprar a un precio mínimo. Esto solo se activa si la reserva tiene USDT y BNB suficientes.
+
+### 11.2 Pendiente
+
+- **Comisión variable por ventas seguidas.** Choca con la regla de comisión fija del 3 % (sección 6). Hay que decidir si el 3 % es fijo y se añade un recargo aparte, o si se reemplaza la regla.
+- Parámetros de la curva de precio: cuánto sube o baja por cada unidad comprada o vendida.
+- Límites exactos por día, temporada y nivel.
+- Duración y tramos de la liberación gradual.
+- Monto del piso de precio y cuánta reserva se destina a sostenerlo.
+- Regla de reserva mínima: qué pasa cuando la reserva se acerca a cero.
