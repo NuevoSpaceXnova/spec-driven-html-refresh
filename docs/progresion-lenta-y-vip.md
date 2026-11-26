@@ -39,10 +39,12 @@ El pase VIP da ventajas de velocidad y de mercado. Lo que se decide aquí:
 |---|---|---|
 | Velocidad de producción de recursos | Base | **+50 %** |
 | Velocidad de mejora (construcciones e investigaciones) | Base | **+50 %** |
+| Velocidad de construcción de naves | Base | **+50 %** |
+| Órdenes en la cola de construcción | 1 | **hasta 4** |
 | Comisión en el mercado P2P de recursos | **15 %** | **5 %** |
 | Vender naves en el mercado P2P | No | **Sí (solo VIP)** |
 | Puntos perdidos en derrota | Base | Reducidos (ver economía, sección 5) |
-| Puntos ganados en victoria | Base | Aumentados (ver economía, sección 5) |
+| Puntos ganados en victoria | Base | Base (el VIP no aumenta la ganancia) |
 
 ### 3.1 Notas sobre cada beneficio
 
@@ -54,13 +56,13 @@ El pase VIP da ventajas de velocidad y de mercado. Lo que se decide aquí:
 
 ### 3.2 Estado de aplicación (modo prueba)
 
-- Aplicado: producción +50 %, construcción e investigación +50 %, venta de naves en P2P solo para VIP, insignia VIP/FREE y compra del pase.
+- Aplicado: producción +50 %, construcción de edificios +50 %, construcción de naves +50 %, cola de construcción (1 free, hasta 4 VIP), venta de naves en P2P solo para VIP, insignia VIP/FREE, compra del pase y saldo USDT junto a los recursos.
+- Las investigaciones todavía son instantáneas en el juego (pendiente de aprobación en la fase 1), por eso el +50 % en investigaciones no se nota aún.
 - Pendiente: la comisión P2P VIP del 5 % (base y momento del cobro, `docs/economia-niveles-puntos.md`, sección 7.2).
 
 ### 3.3 Pendiente
 
 - Precio del pase VIP y duración: **decidido** en `docs/economia-niveles-puntos.md`, sección 5. Queda pendiente el porcentaje exacto de ventaja en puntos.
-- Si el beneficio de velocidad aplica también a la cola de naves.
 - Cómo se comparan los beneficios VIP con la regla de puntos de la economía (sección 4).
 
 ## 4. Riesgos que hay que vigilar

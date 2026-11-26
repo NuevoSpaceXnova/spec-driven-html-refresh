@@ -130,12 +130,11 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
   - 10 % como respaldo, sin asignar, para eventos o premios imprevistos.
 - **Efectos:**
   - Activar el pase VIP **reduce a la mitad (−50 %) los puntos que se pierden** en una derrota: ataque perdido 30 % pasa a 15 %, defensa perdida 20 % pasa a 10 %.
-  - El pase VIP **aumenta los puntos ganados** en una victoria.
+  - El pase VIP **no cambia los puntos ganados** en una victoria.
   - Otros beneficios (producción, mejora, comisión P2P y venta de naves) están en `docs/progresion-lenta-y-vip.md`.
 
 ### 5.2 Pendiente
 
-- Aumento exacto de puntos ganados en victoria con VIP.
 - Si el pase VIP cambia la comisión de retiro o solo afecta los puntos y los beneficios de la sección 3 de `docs/progresion-lenta-y-vip.md`.
 - Qué pasa con los días restantes si el jugador renueva antes de vencer.
 
@@ -280,7 +279,7 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 11. Resuelto en fase 3: no se baja de Aspirante ni de cero (sección 4.2).
 
 ### 13.2 Pase VIP
-12. Resuelto en fase 3: pérdida con VIP reducida a la mitad. Pendiente: aumento de ganancia con VIP (sección 5.2).
+12. Resuelto en fase 3: pérdida con VIP reducida a la mitad. Decidido: el pase VIP no aumenta los puntos ganados (sección 5.2).
 13. Si el VIP cambia la comisión de retiro o solo afecta puntos y beneficios (sección 5.2).
 14. Qué pasa con los días restantes al renovar antes de vencer (sección 5.2).
 
