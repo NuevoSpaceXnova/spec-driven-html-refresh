@@ -102,7 +102,12 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 - Perder una defensa (tu defensa pierde contra un ataque): **−20 %** de tus puntos.
 - Quién gana la batalla lo decide la simulación de combate que ya existía en el juego, según las defensas de la cuenta (láseres, lanzamisiles, etc.).
 - Si los puntos bajan del mínimo de un nivel, el jugador **baja de nivel**. Nadie baja de Aspirante ni cae por debajo de cero.
-- **Lado del rival (demo):** los rivales simulados aplican las mismas reglas. Si un rival gana un ataque tuyo, gana +50. Si pierde, pierde 30 % (ataque) o 20 % (defensa) y puede bajar de nivel. Esto permite probar con jugadores simulados. Con jugadores reales en otros dispositivos, se requiere el servidor (fase 5).
+- **Lado del rival (demo):** los rivales simulados aplican las mismas reglas:
+  - Si un rival te ataca y **gana**: el rival gana +50 y **tú** pierdes el 20 % de tus puntos. Tú puedes bajar de nivel.
+  - Si un rival te ataca y **pierde** contra tu defensa: el rival pierde el 30 % y puede bajar de nivel.
+  - Si tú atacas a un rival y **ganas**: el rival pierde el 20 % y puede bajar de nivel.
+  - Si tú atacas a un rival y **pierdes**: el rival gana +50.
+  Con jugadores reales en otros dispositivos, se requiere el servidor (fase 5).
 
 ### 4.3 Pendiente
 
