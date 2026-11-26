@@ -49,9 +49,24 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 - Si **no alcanzó Teniente**, vuelve a **Aspirante (nivel 1)** al terminar.
 - El botón para iniciar una temporada nueva irá en el panel administrativo (fase 5).
 
-### 2.3 Pendiente
+### 2.3 Puntos para subir de nivel (fase 3, aplicado)
 
-- Puntos necesarios para subir a cada nivel (fase 3).
+| De nivel | A nivel | Puntos para subir | Puntos acumulados |
+|---|---|---|---|
+| Aspirante | Cadete | 100 | 100 |
+| Cadete | Marinero | 200 | 300 |
+| Marinero | Cabo | 500 | 800 |
+| Cabo | Teniente | 1.000 | 1.800 |
+| Teniente | Capitán | 2.500 | 4.300 |
+| Capitán | Almirante | 6.000 | 10.300 |
+
+- La barra de progreso de Perfil, pestaña "Nivel y temporada", muestra los puntos del nivel actual. Al subir de nivel, la barra vuelve a 0 % y la comisión cambia.
+- Al terminar la temporada, los puntos vuelven a 0. Si el jugador conserva su nivel (Teniente o superior), la barra empieza en 0 % en ese nivel.
+- Se sube de nivel solo si pasaron **3 días** en el nivel actual (provisional, revisar después de las pruebas).
+
+### 2.4 Pendiente
+
+- Cómo se ganan los puntos (se define en una pestaña dentro de Perfil, después de la fase 3).
 - Revisión del tiempo mínimo de 3 días después de las pruebas.
 
 ## 3. Ataques entre jugadores
@@ -242,7 +257,7 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 ### 13.1 Niveles y puntos
 1. Resuelto en fase 2: siete niveles, con nombres (sección 2.1).
 2. Resuelto en fase 2: comisión de retiro de cada nivel (sección 2.1).
-3. Puntos requeridos para subir a cada nivel, fase 3 (sección 2.3).
+3. Resuelto en fase 3: puntos requeridos para subir a cada nivel (sección 2.3). Pendiente: cómo se ganan los puntos (sección 2.4).
 4. Resuelto en fase 2 como provisional: 3 días mínimos en cada nivel. Revisar después de las pruebas (sección 2.3).
 5. Significado exacto del margen 1:3 (sección 3.2).
 6. Definición de "jugador nuevo" (sección 3.2).
