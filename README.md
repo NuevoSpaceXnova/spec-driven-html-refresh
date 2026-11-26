@@ -2,7 +2,7 @@
 
 Juego de estrategia espacial para el navegador. Construyes tu imperio: levantas minas y edificios, investigas tecnologías, fabricas naves y defensas, y compites por conquistar el universo.
 
-## Instrucciones para Lovable y para cualquier asistente de código
+## Instrucciones para cualquier asistente de código
 
 Antes de cambiar cualquier cosa, lee estos documentos en este orden:
 
@@ -79,6 +79,6 @@ Otros comandos disponibles:
 - `npm run test`: ejecuta las pruebas con Vitest.
 - `npm run lint`: revisa el código con ESLint.
 
-## Desarrollo con Lovable
+## Edición
 
-Este proyecto se creó con [Lovable](https://lovable.dev) y está conectado a su editor. Los cambios hechos allí se guardan como commits en este repositorio, y los que se suben a `main` se sincronizan de vuelta con Lovable.
+El proyecto puede editarse con cualquier editor o asistente de código. Los cambios se registran como commits en el repositorio, y la rama `main` es la fuente de verdad.
