@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XnovaEvolution · Swap y Staking</title>
+<title>XnovaEvolution · Swap</title>
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -217,7 +217,6 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 
 <nav class="tabs" aria-label="Secciones">
   <button class="tab active" data-view="swap" type="button">Swap</button>
-  <button class="tab" data-view="stake" type="button">Staking</button>
 </nav>
 
 <!-- ============ VISTA SWAP ============ -->
@@ -298,42 +297,16 @@ td{padding:9px 10px;border-bottom:1px solid var(--border-subtle)}
 <dialog id="swapDlg" class="confirm">
   <h3>Confirmar intercambio</h3>
   <div class="kv" id="swapDlgBody"></div>
+  <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:12px;cursor:pointer">
+    <input type="checkbox" id="termsChk" style="accent-color:#1CFF8A;margin-top:2px">
+    <span>[TEXTO PROVISIONAL, pendiente de revisión del abogado] Acepto los términos y condiciones del swap.</span>
+  </label>
   <div class="pc-btns" style="justify-content:flex-end;margin-top:12px">
     <button class="btn compact ghost" id="swapCancel" type="button">Cancelar</button>
-    <button class="btn compact" id="swapOk" type="button">Confirmar</button>
+    <button class="btn compact" id="swapOk" type="button" disabled>Confirmar</button>
   </div>
 </dialog>
 
-<!-- ============ VISTA STAKING ============ -->
-<div class="stwrap" id="view-stake" hidden>
-  <div class="st-sum" id="stSum"></div>
-
-  <nav class="subtabs" aria-label="Secciones de staking">
-    <button class="tab sm active" data-sub="pools" type="button">Pools</button>
-    <button class="tab sm" data-sub="pos" type="button">Mis posiciones</button>
-    <button class="tab sm" data-sub="hist" type="button">Historial</button>
-  </nav>
-
-  <p class="msg" id="stMsg"></p>
-
-  <section data-sub-panel="pools">
-    <div class="pool-grid" id="poolGrid"></div>
-    <section class="panel proj" style="margin-top:12px">
-      <h3>Proyección de interés en TOKEN (simple)</h3>
-      <div class="field"><label for="prAmt">Monto a proyectar (TOKEN)</label><div class="row"><input class="amt" id="prAmt" type="number" min="0" step="1" value="10000"></div></div>
-      <div id="prWrap"></div>
-    </section>
-  </section>
-
-  <section data-sub-panel="pos" hidden>
-    <div class="pos-grid" id="stakeList"></div>
-    <div class="panel" id="lbWrap" style="margin-top:12px"></div>
-  </section>
-
-  <section data-sub-panel="hist" hidden>
-    <div class="panel" id="stHist"></div>
-  </section>
-</div>
 
 <script>
 /* ==========================================================================
@@ -346,7 +319,7 @@ const CHAIN = {
   rpc:['https://bsc-dataseed.binance.org/'],
   explorer:'https://bscscan.com', currency:{name:'BNB', symbol:'BNB', decimals:18}
 };
-const TOKEN = {sym:'TOKEN', name:'Token XnovaEvolution', contract:null, decimals:18, inGame:true, start:0.80, vol:0.0015};
+const TOKEN = {sym:'TOKEN', name:'Token XnovaEvolution', contract:null, decimals:18, inGame:true, start:0.000152, vol:0.0015};
 const CRYPTOS = [
   {sym:'USDT',  name:'Tether USD',    start:1,      vol:0.00002, stable:true, contract:null},
   {sym:'USDC',  name:'USD Coin',      start:1,      vol:0.00002, stable:true, contract:null},
@@ -364,23 +337,12 @@ const CRYPTOS = [
   {sym:'UNI',   name:'Uniswap',       start:8,      vol:0.0015,  contract:null},
   {sym:'MATIC', name:'Polygon',       start:0.55,   vol:0.0018,  contract:null}
 ];
-const FEE = 0.003;                              // comisión del swap (0,3 %)
+const FEE = 0.03;                               // comisión del swap (3 %, mínimo de la comisión variable)
 const LIQ_USD = 250000;                         // liquidez ficticia por par, para estimar el impacto del precio
 const N_MIN = 43200;                            // 30 días de velas de 1 minuto (ficticias)
 const TF = {'1m':{size:1,show:120,label:'1m',sec:60}, '1h':{size:60,show:120,label:'1H',sec:3600}, '1d':{size:1440,show:30,label:'1D',sec:86400}};
 const ALL = [TOKEN, ...CRYPTOS];                // todos los activos del swap
 const PAIRS = ALL.filter(a => a.sym !== 'USDT');// mercados graficados contra USDT
-
-/* STAKING: el APY depende del par contra el que se hace el pool (TOKEN/X).
-   Valores ficticios para la demo; ajustar aquí cuando se defina la economía real. */
-const STAKE = {
-  lockDays: 15,
-  reserveStart: 100000,
-  apy: {
-    USDT:0.12, USDC:0.12, BNB:0.09, BTCB:0.06, ETH:0.07, CAKE:0.10,
-    XRP:0.08, ADA:0.08, DOGE:0.08, LINK:0.08, DOT:0.08, LTC:0.08, TRX:0.08, UNI:0.08, MATIC:0.08
-  }
-};
 
 /* ============ DATOS FICTICIOS (reemplazar por API real) ============ */
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -460,8 +422,6 @@ function readDemo(){
   let x = null;
   try { const raw = localStorage.getItem(demoKey()); if (raw) x = JSON.parse(raw); } catch(e){}
   x = x || {bal:{USDT:500}, hist:[]};
-  x.stakes = x.stakes || [];
-  if (x.reserve === undefined) x.reserve = STAKE.reserveStart;
   return x;
 }
 function writeDemo(x){ localStorage.setItem(demoKey(), JSON.stringify(x)); }
@@ -778,286 +738,6 @@ function drawSpark(cv, sym){
   ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.stroke();
 }
 
-/* ============ STAKING ============
-   El TOKEN bloqueado sale del saldo de la partida del juego y se guarda en el libro demo.
-   Al retirar, vuelve el capital más el interés pagado desde la reserva.
-   Interés simple: monto × APY × días completos / 365. Tiempo = reloj del juego (simSec). */
-const EARLY_PENALTY = 0.05;         // retiro antes de tiempo: se pierde el interés y se cobra esta penalización sobre el capital
-let subTab = 'pools';
-const notifiedUnlock = new Set();
-let unlockReady = false;
-
-function setStMsg(text, kind){
-  const m = document.getElementById('stMsg');
-  m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : '');
-}
-function toast(text, kind){
-  let box = document.getElementById('toasts');
-  if (!box){ box = document.createElement('div'); box.id = 'toasts'; box.className = 'toasts'; document.body.appendChild(box); }
-  const t = document.createElement('div');
-  t.className = 'toast' + (kind ? ' ' + kind : '');
-  t.textContent = text;
-  box.appendChild(t);
-  setTimeout(() => t.remove(), 4200);
-}
-function showSub(name){
-  subTab = name;
-  document.querySelectorAll('[data-sub-panel]').forEach(s => { s.hidden = s.dataset.subPanel !== name; });
-  document.querySelectorAll('[data-sub]').forEach(b => b.classList.toggle('active', b.dataset.sub === name));
-}
-function stakeRows(d, demo){
-  const now = d ? (d.simSec || 0) : null;
-  return demo.stakes.map(st => {
-    const days = now == null ? 0 : Math.max(0, Math.floor((now - st.start) / 86400));
-    return {st, days, interest: Math.floor(st.amount * st.apy * days / 365), ready: days >= STAKE.lockDays && !!d};
-  });
-}
-function renderSummary(d, demo){
-  const rows = stakeRows(d, demo);
-  const locked = rows.reduce((a, r) => a + r.st.amount, 0);
-  const accrued = rows.reduce((a, r) => a + r.interest, 0);
-  const best = Math.max(...Object.values(STAKE.apy));
-  const cards = [
-    ['TOKEN bloqueado', fmtAmt(locked)],
-    ['Interés acumulado', fmtAmt(accrued)],
-    ['APY más alto', (best*100).toFixed(1) + ' %'],
-    ['Posiciones', String(rows.length)],
-    ['Reserva demo', fmtAmt(demo.reserve)]
-  ];
-  document.getElementById('stSum').innerHTML = cards.map(([l, v]) =>
-    `<div class="panel st-stat"><small>${l}</small><b>${v}</b></div>`).join('');
-}
-function amtInput(pool){ return document.querySelector('[data-amt="' + pool + '"]'); }
-function cardInterest(pool){
-  const amt = Math.floor(Number(amtInput(pool).value) || 0);
-  return Math.floor(amt * STAKE.apy[pool] * STAKE.lockDays / 365);
-}
-/* Cada tarjeta es una copia del bloque "Bloquear TOKEN": par, cantidad, gráfico, datos y botón. */
-function buildPoolGrid(){
-  document.getElementById('poolGrid').innerHTML = Object.keys(STAKE.apy).map(s => `
-    <div class="panel calc pool-card" data-pool="${s}">
-      <h3>${s}/TOKEN</h3>
-      <div class="field">
-        <label for="amt-${s}">Cantidad</label>
-        <div class="row"><input class="amt" id="amt-${s}" data-amt="${s}" type="number" min="0" step="1" placeholder="0"></div>
-        <div class="chips">
-          <button class="chip" data-pct="25" type="button">25 %</button>
-          <button class="chip" data-pct="50" type="button">50 %</button>
-          <button class="chip" data-pct="100" type="button">Máx</button>
-        </div>
-        <small data-bal></small>
-      </div>
-      <div class="minichart">
-        <div class="mc-head"><span class="nm">TOKEN / ${s}</span><span data-price></span><span data-chg></span></div>
-        <canvas data-spark="${s}"></canvas>
-      </div>
-      <dl class="kv">
-        <div><span>APY</span><b data-apy></b></div>
-        <div><span>Interés a ${STAKE.lockDays} días</span><b data-int></b></div>
-        <div><span>Desbloqueo</span><b data-unlock></b></div>
-        <div><span>Reserva demo</span><b data-res></b></div>
-      </dl>
-      <button class="btn compact" data-stake="${s}" type="button">Bloquear</button>
-    </div>`).join('');
-}
-function renderPoolGrid(d, demo){
-  if (!document.querySelector('.pool-card')) buildPoolGrid();
-  const P = planetOf(d);
-  const now = d ? (d.simSec || 0) : null;
-  const unlock = now == null ? '—' : fmtClock(now + STAKE.lockDays * 86400);
-  document.querySelectorAll('.pool-card').forEach(card => {
-    const s = card.dataset.pool;
-    const sr = ratioSeries(s), last = sr[sr.length-1].p, ch = last/sr[0].p - 1;
-    card.querySelector('[data-bal]').textContent = 'Disponible: ' + fmtAmt(P ? P.res.token : 0) + ' TOKEN';
-    card.querySelector('[data-price]').textContent = fmtPrice(last);
-    const chg = card.querySelector('[data-chg]');
-    chg.textContent = (ch>=0?'+':'') + (ch*100).toFixed(2) + '% (4 h)';
-    chg.className = ch>=0 ? 'up' : 'down';
-    card.querySelector('[data-apy]').textContent = (STAKE.apy[s]*100).toFixed(1) + ' %';
-    card.querySelector('[data-int]').textContent = fmtAmt(cardInterest(s)) + ' TOKEN';
-    card.querySelector('[data-unlock]').textContent = unlock;
-    card.querySelector('[data-res]').textContent = fmtAmt(demo.reserve) + ' TOKEN';
-    card.querySelector('[data-stake]').disabled = !d;
-    drawSpark(card.querySelector('canvas'), s);
-  });
-}
-/* Gráfico del interés de una posición: sólido hasta hoy, punteado lo que falta para el desbloqueo */
-function drawInterest(cv, r){
-  if (!cv) return;
-  const dpr = window.devicePixelRatio || 1;
-  const W = cv.clientWidth, H = cv.clientHeight;
-  if (!W || !H) return;
-  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,W,H);
-  const N = STAKE.lockDays, pts = [];
-  for (let k = 0; k <= N; k++) pts.push(Math.floor(r.st.amount * r.st.apy * k / 365));
-  const max = Math.max(1, pts[N]);
-  const X = k => 4 + k / N * (W - 8);
-  const Y = v => H - 6 - v / max * (H - 12);
-  const dd = Math.min(r.days, N);
-  ctx.strokeStyle = '#1CFF8A'; ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  for (let k = 0; k <= dd; k++){ if (k) ctx.lineTo(X(k), Y(pts[k])); else ctx.moveTo(X(k), Y(pts[k])); }
-  ctx.stroke();
-  ctx.setLineDash([3,3]); ctx.strokeStyle = 'rgba(255,255,255,.35)';
-  ctx.beginPath();
-  for (let k = dd; k <= N; k++){ if (k > dd) ctx.lineTo(X(k), Y(pts[k])); else ctx.moveTo(X(k), Y(pts[k])); }
-  ctx.stroke();
-  ctx.setLineDash([]);
-}
-function renderPositions(d, demo){
-  const rows = stakeRows(d, demo);
-  const list = document.getElementById('stakeList');
-  if (!rows.length){
-    list.innerHTML = '<p class="empty" style="padding:0">Aún no tienes TOKEN bloqueado. Elige un pool en la pestaña Pools.</p>';
-  } else {
-    list.innerHTML = rows.map(r => {
-      const pct = Math.min(100, Math.round(r.days / STAKE.lockDays * 100));
-      const unlock = d ? fmtClock(r.st.start + STAKE.lockDays * 86400) : '—';
-      const early = !!d && !r.ready;
-      return `<div class="panel pos-card">
-        <div class="pc-top"><span>TOKEN / ${r.st.pool}</span><span>APY ${(r.st.apy*100).toFixed(1)} %</span></div>
-        <div class="bar"><i style="width:${pct}%"></i></div>
-        <div class="pc-row"><span>Día ${Math.min(r.days, STAKE.lockDays)} de ${STAKE.lockDays}</span><span>Capital <b>${fmtAmt(r.st.amount)}</b></span><span>Interés <b>${fmtAmt(r.interest)}</b></span></div>
-        <canvas data-int-cv="${r.st.id}"></canvas>
-        <div class="pc-row"><span>Desbloqueo: ${unlock}</span></div>
-        <div class="pc-row"><span class="pc-btns">
-          <button class="btn compact" data-unstake="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Retirar</button>
-          <button class="btn compact" data-compound="${r.st.id}" type="button" ${r.ready ? '' : 'disabled'}>Re-bloquear</button>
-          <button class="btn compact ghost" data-early="${r.st.id}" type="button" ${early ? '' : 'disabled'}>Anticipado −${EARLY_PENALTY*100} %</button>
-          <button class="btn compact ghost" data-day="${r.st.id}" type="button">+1 día</button>
-        </span></div>
-      </div>`;
-    }).join('');
-    rows.forEach(r => drawInterest(list.querySelector('[data-int-cv="' + r.st.id + '"]'), r));
-  }
-  // Aviso una sola vez cuando una posición se desbloquea
-  if (!unlockReady){
-    rows.forEach(r => { if (r.ready) notifiedUnlock.add(r.st.id); });
-    unlockReady = true;
-  } else {
-    rows.forEach(r => {
-      if (r.ready && !notifiedUnlock.has(r.st.id)){
-        notifiedUnlock.add(r.st.id);
-        toast('Posición desbloqueada: TOKEN / ' + r.st.pool + '. Ya puedes retirar.', 'ok');
-      }
-    });
-  }
-}
-/* Proyección simple: monto × APY × días / 365, en TOKEN, con el precio actual del par */
-function renderProjection(){
-  const amt = Math.floor(Number(document.getElementById('prAmt').value) || 0);
-  const H = [30, 90, 180, 365];
-  document.getElementById('prWrap').innerHTML = `<table><thead><tr><th>Pool</th><th class="r">APY</th><th class="r">Precio 4 h</th><th class="r">1 mes</th><th class="r">3 meses</th><th class="r">6 meses</th><th class="r">12 meses</th></tr></thead><tbody>${Object.keys(STAKE.apy).map(s => {
-    const sr = ratioSeries(s), ch = sr[sr.length-1].p / sr[0].p - 1;
-    return `<tr><td>TOKEN / ${s}</td><td class="r mono">${(STAKE.apy[s]*100).toFixed(1)} %</td><td class="r mono ${ch>=0?'up':'down'}">${ch>=0?'+':''}${(ch*100).toFixed(2)} %</td>${H.map(days => `<td class="r mono">${fmtAmt(Math.floor(amt * STAKE.apy[s] * days / 365))}</td>`).join('')}</tr>`;
-  }).join('')}</tbody></table>`;
-}
-/* Ranking ficticio: jugadores de relleno (fijos por semilla) más la posición real del jugador */
-function renderLeaderboard(d, demo){
-  const rows = Array.from({length:7}, (_, i) => ({
-    name: 'Jugador_' + (1000 + hashStr('lb' + i) % 9000),
-    amt: 2000 + hashStr('amt' + i) % 60000, me: false
-  }));
-  const mine = demo.stakes.reduce((a, x) => a + x.amount, 0);
-  if (mine > 0) rows.push({name:'Tú', amt:mine, me:true});
-  rows.sort((a, b) => b.amt - a.amt);
-  document.getElementById('lbWrap').innerHTML = `<h3>Ranking de stakers (ficticio)</h3><table><thead><tr><th>#</th><th>Jugador</th><th class="r">TOKEN bloqueado</th></tr></thead><tbody>${rows.map((r, i) => `<tr><td class="mono">${i+1}</td><td>${r.name}</td><td class="r mono">${fmtAmt(r.amt)}</td></tr>`).join('')}</tbody></table>`;
-}
-function renderStakeHist(d){
-  const box = document.getElementById('stHist');
-  const rows = ((d && d.txs) || []).filter(t => /^(Staking|Retiro staking)/.test(String(t.type||'')));
-  if (!rows.length){ box.innerHTML = '<p class="empty" style="padding:0">Aún no hay movimientos de staking.</p>'; return; }
-  box.innerHTML = `<table><thead><tr><th>Hora</th><th>Operación</th><th class="r">Monto</th><th>Estado</th></tr></thead><tbody>
-    ${rows.slice(0,30).map(t => `<tr><td class="mono">${fmtClock(t.t)}</td><td>${t.type}</td><td class="r mono">${t.amount>0?'+':''}${fmtAmt(t.amount)} TOKEN</td><td>${t.status||''}</td></tr>`).join('')}
-  </tbody></table>`;
-}
-function renderStake(d, demo){
-  renderSummary(d, demo);
-  renderPoolGrid(d, demo);
-  renderPositions(d, demo);
-  renderStakeHist(d);
-  renderProjection();
-  renderLeaderboard(d, demo);
-}
-function doStake(pool){
-  const d = readSave(), demo = readDemo();
-  if (!d) return setStMsg('Necesitas una partida guardada para usar TOKEN. Abre el juego primero.', 'bad');
-  const inp = amtInput(pool);
-  const amt = Math.floor(Number(inp.value) || 0);
-  if (amt <= 0) return setStMsg('Ingresa una cantidad válida.', 'bad');
-  const P = planetOf(d);
-  if ((P.res.token || 0) < amt) return setStMsg('Saldo insuficiente de TOKEN.', 'bad');
-  P.res.token -= amt;
-  demo.stakes.push({id:Date.now().toString(36), pool, amount:amt, start:d.simSec || 0, apy:STAKE.apy[pool]});
-  d.txs = d.txs || [];
-  d.txs.unshift({t:d.simSec || 0, type:'Staking TOKEN/' + pool, amount:-amt, status:'Bloqueado ' + STAKE.lockDays + ' días'});
-  if (d.txs.length > 100) d.txs.length = 100;
-  localStorage.setItem(sessionKey(), JSON.stringify(d));
-  writeDemo(demo);
-  inp.value = '';
-  setStMsg('Bloqueaste ' + fmtAmt(amt) + ' TOKEN en el pool ' + pool + '.', 'ok');
-  refreshAll();
-}
-function unstake(id, mode){   // 'withdraw' | 'compound' | 'early'
-  const d = readSave(), demo = readDemo();
-  if (!d) return setStMsg('Abre el juego para retirar.', 'bad');
-  const i = demo.stakes.findIndex(s => s.id === id); if (i < 0) return;
-  const st = demo.stakes[i];
-  const days = Math.floor(((d.simSec || 0) - st.start) / 86400);
-  const P = planetOf(d);
-  d.txs = d.txs || [];
-  if (mode === 'early'){
-    if (days >= STAKE.lockDays) return setStMsg('Ya está desbloqueada: usa Retirar.', 'bad');
-    const penalty = Math.floor(st.amount * EARLY_PENALTY);
-    const back = st.amount - penalty;
-    P.res.token = (P.res.token || 0) + back;
-    demo.reserve += penalty;
-    demo.stakes.splice(i, 1);
-    d.txs.unshift({t:d.simSec || 0, type:'Retiro anticipado TOKEN/' + st.pool, amount:back, status:'Penalización ' + fmtAmt(penalty)});
-    if (d.txs.length > 100) d.txs.length = 100;
-    localStorage.setItem(sessionKey(), JSON.stringify(d));
-    writeDemo(demo);
-    setStMsg('Retiro anticipado: recibiste ' + fmtAmt(back) + ' TOKEN, sin interés. La penalización de ' + fmtAmt(penalty) + ' TOKEN fue a la reserva.', 'ok');
-    return refreshAll();
-  }
-  if (days < STAKE.lockDays) return setStMsg('Faltan ' + (STAKE.lockDays - days) + ' días para retirar.', 'bad');
-  const interest = Math.floor(st.amount * st.apy * days / 365);
-  const paid = Math.min(interest, demo.reserve);
-  demo.reserve -= paid;
-  demo.stakes.splice(i, 1);
-  if (mode === 'compound'){
-    const newAmt = st.amount + paid;
-    demo.stakes.push({id:Date.now().toString(36), pool:st.pool, amount:newAmt, start:d.simSec || 0, apy:st.apy});
-    d.txs.unshift({t:d.simSec || 0, type:'Re-bloqueo TOKEN/' + st.pool, amount:paid, status:'Bloqueado ' + STAKE.lockDays + ' días'});
-    setStMsg('Re-bloqueaste ' + fmtAmt(newAmt) + ' TOKEN (capital + ' + fmtAmt(paid) + ' de interés).', 'ok');
-  } else {
-    P.res.token = (P.res.token || 0) + st.amount + paid;
-    d.txs.unshift({t:d.simSec || 0, type:'Retiro staking TOKEN/' + st.pool, amount:st.amount + paid, status:'Completado'});
-    setStMsg(paid < interest
-      ? 'Retiro completo. La reserva cubrió ' + fmtAmt(paid) + ' de ' + fmtAmt(interest) + ' TOKEN de interés.'
-      : 'Retiro completo: ' + fmtAmt(st.amount) + ' TOKEN + ' + fmtAmt(paid) + ' de interés.', 'ok');
-  }
-  if (d.txs.length > 100) d.txs.length = 100;
-  localStorage.setItem(sessionKey(), JSON.stringify(d));
-  writeDemo(demo);
-  refreshAll();
-}
-function addDemoDay(id){
-  const demo = readDemo();
-  const st = demo.stakes.find(s => s.id === id); if (!st) return;
-  st.start -= 86400;   // solo demo: adelanta un día el inicio del bloqueo
-  writeDemo(demo);
-  refreshAll();
-}
-function setPct(pool, p){
-  const P = planetOf(readSave());
-  if (!P) return;
-  amtInput(pool).value = Math.floor((P.res.token || 0) * p / 100);
-  refreshAll();
-}
 
 /* ============ SWAP ============ */
 function quote(from, to, amt){ return amt * usdt(from) / usdt(to) * (1-FEE); }
@@ -1135,11 +815,14 @@ function openSwapConfirm(){
     <div><span>Mínimo recibido (tolerancia ${slip} %)</span><b>${fmtAmt(p.min)} ${p.to}</b></div>
     <div><span>Comisión</span><b>${(FEE*100).toFixed(1)} %</b></div>
     <div><span>Impacto estimado</span><b>${(p.impact*100).toFixed(2)} %</b></div>`;
+  document.getElementById('termsChk').checked = false;   // el check se pide en cada operación
+  document.getElementById('swapOk').disabled = true;
   document.getElementById('swapDlg').showModal();
 }
 function doSwap(){
   const prev = pendingSwap;
   const dlg = document.getElementById('swapDlg');
+  if (!document.getElementById('termsChk').checked) return;   // sin el check, no se ejecuta
   if (dlg.open) dlg.close();
   const err = swapCheck();
   if (err){ pendingSwap = null; return setMsg(err, 'bad'); }
@@ -1199,9 +882,8 @@ function renderInfo(){
 
 /* ============ PESTAÑAS ============ */
 function showView(v){
-  view = v === 'stake' ? 'stake' : 'swap';
-  document.getElementById('view-swap').hidden = view !== 'swap';
-  document.getElementById('view-stake').hidden = view !== 'stake';
+  view = 'swap';
+  document.getElementById('view-swap').hidden = false;
   document.querySelectorAll('.tab[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === view));
   if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
   refreshAll();
@@ -1215,7 +897,6 @@ function refreshAll(){
     renderSwapForm(d, demo); renderHistory(d, demo);
   }
   renderBalances(d, demo);
-  renderStake(d, demo);
   renderWallet();
 }
 
@@ -1293,7 +974,7 @@ cv.addEventListener('mouseleave', () => { if (!drag && !pending){ hover = null; 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && pending){ pending = null; drawChart(); }
 });
-window.addEventListener('resize', () => { drawChart(); if (view !== 'swap') renderPoolGrid(readSave(), readDemo()); });
+window.addEventListener('resize', () => drawChart());
 window.addEventListener('storage', e => { if (e.key===sessionKey() || e.key===demoKey()) refreshAll(); });
 
 ['fromA','toA','fromAmt'].forEach(id => document.getElementById(id).addEventListener('input', refreshAll));
@@ -1306,28 +987,12 @@ document.getElementById('flip').addEventListener('click', () => {
 document.getElementById('doSwap').addEventListener('click', openSwapConfirm);
 document.getElementById('swapCancel').addEventListener('click', () => document.getElementById('swapDlg').close());
 document.getElementById('swapOk').addEventListener('click', doSwap);
+document.getElementById('termsChk').addEventListener('change', e => {
+  document.getElementById('swapOk').disabled = !e.target.checked;
+});
 document.getElementById('slip').addEventListener('click', e => {
   const b = e.target.closest('[data-slip]'); if (!b) return;
   slip = Number(b.dataset.slip); refreshAll();
-});
-document.getElementById('prAmt').addEventListener('input', renderProjection);
-
-document.getElementById('poolGrid').addEventListener('click', e => {
-  const card = e.target.closest('.pool-card'); if (!card) return;
-  const pool = card.dataset.pool;
-  const c = e.target.closest('[data-pct]'); if (c) return setPct(pool, Number(c.dataset.pct));
-  if (e.target.closest('[data-stake]')) doStake(pool);
-});
-document.getElementById('poolGrid').addEventListener('input', e => {
-  if (e.target.matches('[data-amt]')) refreshAll();
-});
-document.getElementById('view-stake').addEventListener('click', e => {
-  const s = e.target.closest('[data-sub]');
-  if (s){ showSub(s.dataset.sub); return refreshAll(); }
-  const u = e.target.closest('[data-unstake]'); if (u) return unstake(u.dataset.unstake, 'withdraw');
-  const cp = e.target.closest('[data-compound]'); if (cp) return unstake(cp.dataset.compound, 'compound');
-  const ea = e.target.closest('[data-early]'); if (ea) return unstake(ea.dataset.early, 'early');
-  const dd = e.target.closest('[data-day]'); if (dd) addDemoDay(dd.dataset.day);
 });
 const wbtn = document.getElementById('walletBtn'), wmenu = document.getElementById('walletMenu');
 wbtn.addEventListener('click', e => { e.stopPropagation(); wmenu.hidden = !wmenu.hidden; renderWallet(); });
@@ -1340,8 +1005,7 @@ document.addEventListener('click', e => {
 });
 
 renderTfs();
-showView(location.hash === '#stake' ? 'stake' : 'swap');
-showSub('pools');
+showView('swap');
 </script>
 </body>
 </html>

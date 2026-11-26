@@ -33,3 +33,6 @@ use the editor.
 - The game is a single self-contained HTML file at `public/forja-astral.html` (vanilla JS, localStorage saves); the `/` route only frames it full-screen. Why: keeps the original game logic intact while the app shell stays TanStack.
 - Game scene images (mines, buildings, ships) live as local files under `public/assets/` referenced by `/assets/...` paths inside the HTML, never Lovable `/__l5e/` URLs or inline base64. Why: the user runs the repo from Codespaces, where only local paths load, and the HTML stays light.
 - Shipyard ship images live as optimized WebP files in `public/assets/<shipId>.webp` (user-uploaded via the repo; PNG originals kept). Why: the user edits the repo from Codespaces, so local paths work outside Lovable.
+- All work is done directly on `main`. Do not use test branches.
+- Every finished phase or update gets a commit and a push to `main`. Report the commit name to the user.
+- When a phase or update is completed, update the status information in `README.md` and in this file so the order of the work is kept.

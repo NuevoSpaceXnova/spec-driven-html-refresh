@@ -24,6 +24,12 @@ Antes de cualquier acción, lee esta sección completa y los documentos de la se
 4. **Prueba en el juego:** verifica que el cambio funciona en el juego antes de darlo por terminado.
 5. **Cierre de la implementación:** confirma que la tarea está cerrada y espera la siguiente aprobación.
 
+### Reglas de trabajo con el repositorio
+
+1. Todo se trabaja directamente en la rama `main`. No se usan ramas de prueba.
+2. Cada fase o actualización terminada se guarda con un commit y se sube con push a `main`. Al final se informa el nombre del commit.
+3. Cada vez que se complete una fase o una actualización, se actualiza la información de este README y de `AGENTS.md` (estado de las fases y decisiones) para mantener el orden.
+
 ### Primer paso
 
 Lee el README y los documentos indicados, y responde solo con:
@@ -38,7 +44,7 @@ No empieces a implementar nada hasta que yo apruebe la lista de fases.
 
 Crea a partir de esta lista las fases de trabajo, y propón al dueño el orden antes de empezar:
 
-0. **Limpieza del swap:** precio inicial del TOKEN en 0,000152, comisión `FEE` en 0,03, quitar el código del staking demo y añadir el check de términos antes de cada swap.
+0. **Limpieza del swap:** precio inicial del TOKEN en 0,000152, comisión `FEE` en 0,03, quitar el código del staking demo y añadir el check de términos antes de cada swap. **Estado: completada** (check de términos con texto provisional, pendiente del abogado).
 1. **Modo prueba:** separar la velocidad de prueba (x100) en un interruptor claro. La investigación con tiempo real y cola está **pendiente de aprobación** (fórmula y si la cola es por planeta o por cuenta); no se implementa hasta que se apruebe.
 2. **Niveles de cuenta:** Grumete a Almirante, comisiones de retiro por nivel y reinicio de temporada.
 3. **Puntos y batallas:** ganancia y pérdida de puntos, efecto del pase VIP, margen 1:3.
