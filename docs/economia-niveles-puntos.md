@@ -105,6 +105,7 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 ### 6.1 Reglas decididas
 
 - **Dentro del juego solo se comercia y se gana TOKEN.** USDT y BNB solo sirven para depositar y para retirar.
+- **El swap es la página que se abre al hacer clic en "swap".** Ahí se cambia TOKEN por USDT o BNB.
 - La comisión del **swap es variable**, entre un **mínimo de 3 %** y un **máximo de 12 %**. El valor vigente depende de la presión de compras y ventas (sección 11).
 - **Destino de la comisión del swap:** 100 % a la reserva de los jugadores.
 - El valor vigente de la comisión se muestra al jugador en el resumen antes de confirmar cada operación.
@@ -118,10 +119,11 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 - Mecanismo exacto de la comisión variable (sección 11.2).
 - Si la comisión de retiro aplica también a las ventas en el swap.
 
-## 7. Comisión P2P de recursos
+## 7. Mercado P2P de recursos
 
 ### 7.1 Reglas decididas
 
+- **El mercado P2P y el mercado de recursos son el mismo mercado.**
 - El comprador **no paga comisión**. El vendedor la paga en TOKEN al publicar el aviso de venta.
 - **Comisión free: 15 %**, repartida así:
   - 7,5 % para la **reserva de los jugadores**.
@@ -152,8 +154,7 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 - **Verificación por Telegram** mediante un bot. Una cuenta de Telegram solo puede estar vinculada a **una cuenta del juego**. Si ya está vinculada a otra, no se puede usar.
 - La verificación de Telegram es **requisito** para:
-  - comerciar en el mercado de recursos,
-  - comerciar en el P2P,
+  - comerciar en el mercado de recursos (P2P),
   - operar en el swap,
   - retirar a wallet.
 - Se **permiten varias cuentas por jugador**, con un **máximo de 3 cuentas por dirección IP**.
@@ -254,45 +255,44 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 23. Aprobación de la comunicación al jugador sobre el estado del retiro (`docs/flujo-token-mercado-retiros.md`, sección 5.3).
 24. Texto final de los estados y de las preguntas frecuentes del retiro (`docs/flujo-token-mercado-retiros.md`, sección 5.4).
 25. Qué pasa si el vendedor cancela un aviso de venta después de pagar la comisión (`docs/flujo-token-mercado-retiros.md`, sección 2.1).
-26. Si el "mercado de recursos" y el "P2P" son el mismo mercado o dos mercados distintos (`docs/flujo-token-mercado-retiros.md`, sección 1).
-27. Lista de criptos disponibles en el swap. La lista actual viene del prototipo y no está aprobada (`docs/reglas-swap-y-staking.md`, sección 1).
+26. Lista de criptos disponibles en el swap. La lista actual viene del prototipo y no está aprobada (`docs/reglas-swap-y-staking.md`, sección 1).
 
 ### 13.4 Precio del TOKEN, control y conexión con redes reales
-28. Criterios internos de la administración para mover el precio (sección 11.2).
-29. Límites exactos por día, temporada y nivel (sección 11.2).
-30. Duración y tramos de la liberación gradual (sección 11.2).
-31. Monto del piso de precio y reserva destinada a sostenerlo (sección 11.2).
-32. Regla de reserva mínima cuando la reserva se acerca a cero (sección 11.2).
-33. Direcciones de contrato del TOKEN y de las criptos en BNB Chain (`docs/reglas-swap-y-staking.md`, sección 7).
-34. Fuente de precios de las criptos para la fase real: API o contrato oráculo (`docs/reglas-swap-y-staking.md`, sección 2 y 7).
-35. Router de intercambio y flujo de aprobación de tokens (`docs/reglas-swap-y-staking.md`, sección 7).
-36. Auditoría de seguridad de los contratos antes de activar dinero real (`docs/reglas-swap-y-staking.md`, sección 7).
+27. Criterios internos de la administración para mover el precio (sección 11.2).
+28. Límites exactos por día, temporada y nivel (sección 11.2).
+29. Duración y tramos de la liberación gradual (sección 11.2).
+30. Monto del piso de precio y reserva destinada a sostenerlo (sección 11.2).
+31. Regla de reserva mínima cuando la reserva se acerca a cero (sección 11.2).
+32. Direcciones de contrato del TOKEN y de las criptos en BNB Chain (`docs/reglas-swap-y-staking.md`, sección 7).
+33. Fuente de precios de las criptos para la fase real: API o contrato oráculo (`docs/reglas-swap-y-staking.md`, secciones 2 y 7).
+34. Router de intercambio y flujo de aprobación de tokens (`docs/reglas-swap-y-staking.md`, sección 7).
+35. Auditoría de seguridad de los contratos antes de activar dinero real (`docs/reglas-swap-y-staking.md`, sección 7).
 
 ### 13.5 Pool free, respaldo y otros ingresos
-37. Límite diario de las misiones de la pool free, en TOKEN por día y por jugador (`docs/flujo-token-mercado-retiros.md`, sección 3.3).
-38. Regla de uso del respaldo de 10 %: quién lo autoriza y en qué casos (sección 12.3).
-39. Destino de la venta de artículos y naves de temporada (sección 12.2).
+36. Límite diario de las misiones de la pool free, en TOKEN por día y por jugador (`docs/flujo-token-mercado-retiros.md`, sección 3.3).
+37. Regla de uso del respaldo de 10 %: quién lo autoriza y en qué casos (sección 12.3).
+38. Destino de la venta de artículos y naves de temporada (sección 12.2).
 
 ### 13.6 Cuentas y verificación
-40. Antigüedad mínima: 7 días (propuesta) o 15 días (sección 10.2).
-41. Proceso de apelación para IP compartidas (sección 10.3).
-42. Medidas contra evasión por VPN o cambio de red, si el cliente lo requiere (sección 10.3).
-43. Saldo de respaldo (guarda wallet): detalle de funcionamiento hasta la fase real (sección 0).
+39. Antigüedad mínima: 7 días (propuesta) o 15 días (sección 10.2).
+40. Proceso de apelación para IP compartidas (sección 10.3).
+41. Medidas contra evasión por VPN o cambio de red, si el cliente lo requiere (sección 10.3).
+42. Saldo de respaldo (guarda wallet): detalle de funcionamiento hasta la fase real (sección 0).
 
 ### 13.7 Progresión y beneficios VIP (`docs/progresion-lenta-y-vip.md`)
-44. Factores de crecimiento de costo y tiempo por edificio, investigación, nave y defensa (sección 2.1).
-45. Requisitos exactos de cada desbloqueo por fase (sección 2.1).
-46. Duración esperada de cada fase para un jugador gratuito (sección 2.1).
-47. Si el beneficio de velocidad aplica a la cola de naves (sección 3.2).
-48. Compensación para jugadores free frente al VIP (riesgo 2).
-49. Vigilancia de la presión de oferta de la producción VIP sobre el precio (riesgo 1).
+43. Factores de crecimiento de costo y tiempo por edificio, investigación, nave y defensa (sección 2.1).
+44. Requisitos exactos de cada desbloqueo por fase (sección 2.1).
+45. Duración esperada de cada fase para un jugador gratuito (sección 2.1).
+46. Si el beneficio de velocidad aplica a la cola de naves (sección 3.2).
+47. Compensación para jugadores free frente al VIP (riesgo 2).
+48. Vigilancia de la presión de oferta de la producción VIP sobre el precio (riesgo 1).
 
 ### 13.8 Tiempos y fases (`docs/fases-jugabilidad.md`)
-50. Fórmula de tiempo de investigaciones (propuesta en `docs/fases-jugabilidad.md`, sección 3.2).
-51. Si la cola de investigación es por planeta o por cuenta (sección 3.2).
-52. Revisión del tiempo de construcción de naves por fase (sección 3.3).
-53. Lista completa de edificios, investigaciones y naves con costo, tiempo y requisito (`docs/fases-jugabilidad.md`, sección 5).
-54. Consumo de energía en la recuperación de minas (`docs/fases-jugabilidad.md`, sección 5).
-55. Número de colas de construcción por fase (`docs/fases-jugabilidad.md`, sección 5).
-56. Requisitos exactos de nivel de edificio para cada fase (`docs/fases-jugabilidad.md`, sección 5).
-57. Quitar las configuraciones de prueba antes del lanzamiento (`docs/fases-jugabilidad.md`, sección 1).
+49. Fórmula de tiempo de investigaciones (propuesta en `docs/fases-jugabilidad.md`, sección 3.2).
+50. Si la cola de investigación es por planeta o por cuenta (sección 3.2).
+51. Revisión del tiempo de construcción de naves por fase (sección 3.3).
+52. Lista completa de edificios, investigaciones y naves con costo, tiempo y requisito (`docs/fases-jugabilidad.md`, sección 5).
+53. Consumo de energía en la recuperación de minas (`docs/fases-jugabilidad.md`, sección 5).
+54. Número de colas de construcción por fase (`docs/fases-jugabilidad.md`, sección 5).
+55. Requisitos exactos de nivel de edificio para cada fase (`docs/fases-jugabilidad.md`, sección 5).
+56. Quitar las configuraciones de prueba antes del lanzamiento (`docs/fases-jugabilidad.md`, sección 1).
