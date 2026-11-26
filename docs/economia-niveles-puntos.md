@@ -142,10 +142,9 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 ## 9. Inconsistencias con documentos existentes
 
-- `docs/reglas-swap-y-staking.md` describe pools, bloqueos e interés del staking. Esa sección queda sin efecto con la decisión de la sección 8 y debe actualizarse.
-- `docs/flujo-token-mercado-retiros.md` (sección 3.2) y `docs/progresion-lenta-y-vip.md` (sección 4) todavía no reflejan la nueva distribución de comisiones de las secciones 6.1 y 7.1.
-- `public/swap.html` todavía tiene el código del staking demo. Se quitará en la fase de limpieza, junto con los cambios de precio demo y `FEE` que ya están pendientes.
+- `public/swap.html` todavía tiene el código del staking demo. Se quitará en la fase de limpieza.
 - `public/swap.html` usa un precio inicial de **0,80** para el TOKEN en la demo. Debe cambiarse al valor inicial decidido de **0,000152 USD** (sección 11).
+- `public/swap.html` tiene la constante `FEE` en `0.003`. Debe cambiarse a `0.03` (mínimo de la comisión variable decidida).
 
 ## 10. Verificación de cuentas
 
@@ -221,22 +220,72 @@ Propuesta de alcance: la antigüedad aplica a los **retiros** y al **comercio** 
 - Destino de la venta de artículos y naves de temporada (sección 12.2).
 - Si el 10 % de respaldo del VIP tiene un tope o una regla de uso (`docs/flujo-token-mercado-retiros.md`, sección 3.3).
 
-## 13. Decisiones pendientes (resumen)
+## 13. Decisiones pendientes (lista completa)
 
-1. Cantidad y nombres de niveles, y comisión de cada uno.
-2. Puntos requeridos para cada nivel y tiempo mínimo por nivel.
-3. Significado exacto del margen 1:3 en ataques.
-4. Definición de "jugador nuevo".
-5. Porcentajes y montos de puntos ganados y perdidos en batalla.
-6. Fórmula de resolución de batallas.
-7. Porcentajes exactos de ventaja VIP en puntos, y efecto sobre la comisión de retiro (sección 5.2).
-8. Qué pasa con los días restantes al renovar el VIP (sección 5.2).
-9. Si la comisión de retiro aplica al swap.
-10. Detalles del saldo de respaldo (guarda wallet).
-11. Destino de la venta de artículos y naves de temporada (sección 12.3).
-12. Antigüedad mínima de cuenta: 7 o 15 días (sección 10).
-13. Tratamiento de IP compartidas (sección 3.2).
-14. Mecanismo de la comisión variable del swap (sección 11.2).
-15. Criterios internos de la administración para mover el precio del TOKEN (sección 11.2).
-16. Texto final de los términos y condiciones del swap (sección 6.2).
-17. Base de la comisión P2P: precio total o cantidad (sección 7.2).
+Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. Cuando se aprueba una, se pasa a la sección correspondiente como decidida y se quita de aquí.
+
+### 13.1 Niveles y puntos
+1. Cantidad y nombres de niveles entre Grumete y el máximo (sección 2.3).
+2. Comisión de retiro de cada nivel intermedio (sección 2.3).
+3. Puntos requeridos para subir a cada nivel (sección 2.3).
+4. Tiempo mínimo en un nivel antes de subir, si aplica (sección 2.3).
+5. Significado exacto del margen 1:3 (sección 3.2).
+6. Definición de "jugador nuevo" (sección 3.2).
+7. Tratamiento de IP compartidas (sección 3.2).
+8. Porcentaje de puntos que se pierde en cada derrota (sección 4.2).
+9. Puntos ganados en cada victoria o defensa exitosa (sección 4.2).
+10. Fórmula para decidir quién gana la batalla (sección 4.2).
+11. Mínimo de puntos para no caer por debajo de cero (sección 4.2).
+
+### 13.2 Pase VIP
+12. Porcentaje exacto de reducción de pérdida y aumento de ganancia de puntos (sección 5.2).
+13. Si el VIP cambia la comisión de retiro o solo afecta puntos y beneficios (sección 5.2).
+14. Qué pasa con los días restantes al renovar antes de vencer (sección 5.2).
+
+### 13.3 Swap, retiros y comisiones
+15. Texto final de los términos y condiciones del swap. Lo revisa el abogado del cliente (sección 6.2).
+16. Mecanismo de la comisión variable del swap (secciones 6.2 y 11.2).
+17. Si la comisión de retiro aplica también a las ventas en el swap (sección 6.2).
+18. Base de la comisión P2P: precio total o cantidad, y momento de cobro (sección 7.2).
+19. Equivalente en USD del TOKEN para el umbral de retiro de 10 USD (`docs/flujo-token-mercado-retiros.md`, sección 4.1).
+20. Base de la comisión de retiro por nivel: sobre TOKEN o sobre USDT/BNB (`docs/flujo-token-mercado-retiros.md`, sección 4.1).
+21. Horario de pagos fuera de horario: qué pasa con solicitudes recibidas después de las 6 pm (`docs/flujo-token-mercado-retiros.md`, sección 5.4).
+22. Trazabilidad de cada pago en el panel administrativo (`docs/flujo-token-mercado-retiros.md`, sección 5.4).
+23. Aprobación de la comunicación al jugador sobre el estado del retiro (`docs/flujo-token-mercado-retiros.md`, sección 5.3).
+24. Texto final de los estados y de las preguntas frecuentes del retiro (`docs/flujo-token-mercado-retiros.md`, sección 5.4).
+
+### 13.4 Precio del TOKEN y control
+25. Criterios internos de la administración para mover el precio (sección 11.2).
+26. Límites exactos por día, temporada y nivel (sección 11.2).
+27. Duración y tramos de la liberación gradual (sección 11.2).
+28. Monto del piso de precio y reserva destinada a sostenerlo (sección 11.2).
+29. Regla de reserva mínima cuando la reserva se acerca a cero (sección 11.2).
+
+### 13.5 Pool free, respaldo y otros ingresos
+30. Límite diario de las misiones de la pool free, en TOKEN por día y por jugador (`docs/flujo-token-mercado-retiros.md`, sección 3.3).
+31. Regla de uso del respaldo de 10 %: quién lo autoriza y en qué casos (sección 12.3).
+32. Destino de la venta de artículos y naves de temporada (sección 12.2).
+
+### 13.6 Cuentas y verificación
+33. Antigüedad mínima: 7 días (propuesta) o 15 días (sección 10.2).
+34. Proceso de apelación para IP compartidas (sección 10.3).
+35. Medidas contra evasión por VPN o cambio de red, si el cliente lo requiere (sección 10.3).
+36. Saldo de respaldo (guarda wallet): detalle de funcionamiento hasta la fase real (sección 0).
+
+### 13.7 Progresión y beneficios VIP (`docs/progresion-lenta-y-vip.md`)
+37. Factores de crecimiento de costo y tiempo por edificio, investigación, nave y defensa (sección 2.1).
+38. Requisitos exactos de cada desbloqueo por fase (sección 2.1).
+39. Duración esperada de cada fase para un jugador gratuito (sección 2.1).
+40. Si el beneficio de velocidad aplica a la cola de naves (sección 3.2).
+41. Compensación para jugadores free frente al VIP (riesgo 2).
+42. Vigilancia de la presión de oferta de la producción VIP sobre el precio (riesgo 1).
+
+### 13.8 Tiempos y fases (`docs/fases-jugabilidad.md`)
+43. Fórmula de tiempo de investigaciones (propuesta en `docs/fases-jugabilidad.md`, sección 3.2).
+44. Si la cola de investigación es por planeta o por cuenta (sección 3.2).
+45. Revisión del tiempo de construcción de naves por fase (sección 3.3).
+46. Lista completa de edificios, investigaciones y naves con costo, tiempo y requisito (`docs/fases-jugabilidad.md`, sección 5).
+47. Consumo de energía en la recuperación de minas (`docs/fases-jugabilidad.md`, sección 5).
+48. Número de colas de construcción por fase (`docs/fases-jugabilidad.md`, sección 5).
+49. Requisitos exactos de nivel de edificio para cada fase (`docs/fases-jugabilidad.md`, sección 5).
+50. Quitar las configuraciones de prueba antes del lanzamiento (`docs/fases-jugabilidad.md`, sección 1).
