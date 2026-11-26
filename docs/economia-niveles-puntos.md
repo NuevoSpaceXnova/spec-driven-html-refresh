@@ -25,22 +25,34 @@ Complementa a `docs/progresion-lenta-y-vip.md` (beneficios VIP), `docs/fases-jug
 
 ### 2.1 Reglas decididas
 
-- El nivel inicial es **Grumete (nivel 1)**.
+- Hay **siete niveles**: Aspirante (nivel 1), Cadete, Marinero, Cabo, Teniente, Capitán y Almirante (nivel 7).
+- El nivel inicial es **Aspirante (nivel 1)**.
 - La progresión es difícil a propósito: subir de nivel requiere puntos y no basta con acumularlos rápido.
-- La comisión de retiro **baja gradualmente** al subir de nivel. El nivel inicial paga **70 %** y el máximo paga **5 %**.
+- La comisión de retiro **baja gradualmente** al subir de nivel:
 
-### 2.2 Reinicio por temporada
+| Nivel | Comisión de retiro |
+|---|---|
+| Aspirante | 70 % |
+| Cadete | 60 % |
+| Marinero | 50 % |
+| Cabo | 40 % |
+| Teniente | 30 % |
+| Capitán | 15 % |
+| Almirante | 5 % |
 
-- Los puntos se reinician cada mes (temporada).
-- Si el jugador **alcanzó el nivel Teniente** durante la temporada, conserva su nivel al reiniciarse.
-- Si **no alcanzó Teniente**, vuelve a **Grumete (nivel 1)** al reiniciarse.
+- **Tiempo mínimo en cada nivel: 3 días** (decisión provisional). Se aplicará cuando existan los puntos (fase 3) y se revisará después de las pruebas.
+
+### 2.2 Temporada
+
+- Cada temporada dura **30 días reales** desde que se activa.
+- Si el jugador **alcanzó el nivel Teniente** durante la temporada, conserva su nivel al terminar.
+- Si **no alcanzó Teniente**, vuelve a **Aspirante (nivel 1)** al terminar.
+- El botón para iniciar una temporada nueva irá en el panel administrativo (fase 5).
 
 ### 2.3 Pendiente
 
-- Nombre y cantidad de niveles entre Grumete y el nivel máximo.
-- Comisión de retiro de cada nivel intermedio (solo están fijados 70 % al inicio y 5 % al final).
-- Puntos necesarios para subir a cada nivel.
-- Tiempo mínimo en un nivel antes de poder subir (si se aplica).
+- Puntos necesarios para subir a cada nivel (fase 3).
+- Revisión del tiempo mínimo de 3 días después de las pruebas.
 
 ## 3. Ataques entre jugadores
 
@@ -228,10 +240,10 @@ Propuesta de alcance: la antigüedad aplica a los **retiros** y al **comercio** 
 Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. Cuando se aprueba una, se pasa a la sección correspondiente como decidida y se quita de aquí.
 
 ### 13.1 Niveles y puntos
-1. Cantidad y nombres de niveles entre Grumete y el máximo (sección 2.3).
-2. Comisión de retiro de cada nivel intermedio (sección 2.3).
-3. Puntos requeridos para subir a cada nivel (sección 2.3).
-4. Tiempo mínimo en un nivel antes de subir, si aplica (sección 2.3).
+1. Resuelto en fase 2: siete niveles, con nombres (sección 2.1).
+2. Resuelto en fase 2: comisión de retiro de cada nivel (sección 2.1).
+3. Puntos requeridos para subir a cada nivel, fase 3 (sección 2.3).
+4. Resuelto en fase 2 como provisional: 3 días mínimos en cada nivel. Revisar después de las pruebas (sección 2.3).
 5. Significado exacto del margen 1:3 (sección 3.2).
 6. Definición de "jugador nuevo" (sección 3.2).
 7. Tratamiento de IP compartidas (sección 3.2).

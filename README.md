@@ -46,7 +46,7 @@ Crea a partir de esta lista las fases de trabajo, y propón al dueño el orden a
 
 0. **Limpieza del swap:** precio inicial del TOKEN en 0,000152, comisión `FEE` en 0,03, quitar el código del staking demo y añadir el check de términos antes de cada swap. **Estado: completada** (check de términos con texto provisional, pendiente del abogado).
 1. **Modo prueba:** separar la velocidad de prueba (x100) en un interruptor claro. La investigación con tiempo real y cola está **pendiente de aprobación** (fórmula y si la cola es por planeta o por cuenta); no se implementa hasta que se apruebe. **Estado: aplicada** (botón "Activar modo prueba" en ajustes, velocidad normal x1). **Regla:** el botón de modo prueba y el selector de velocidad se quitan antes del lanzamiento oficial.
-2. **Niveles de cuenta:** Grumete a Almirante, comisiones de retiro por nivel y reinicio de temporada.
+2. **Niveles de cuenta:** de Aspirante a Almirante, comisiones de retiro por nivel y reinicio de temporada. **Estado: aplicada** (siete niveles, comisiones 70 a 5 %, temporada de 30 días reales; los puntos llegan en la fase 3).
 3. **Puntos y batallas:** ganancia y pérdida de puntos, efecto del pase VIP, margen 1:3.
 4. **Verificación de cuentas:** Telegram, límite de 3 cuentas por IP y antigüedad. Requiere servidor.
 5. **Base de datos y servidor:** cuentas, saldos, niveles, puntos, registro de transacciones y panel administrativo protegido.

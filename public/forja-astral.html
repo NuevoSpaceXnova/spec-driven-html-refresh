@@ -1071,6 +1071,9 @@ const state = {
   tab:'overview',
   speed:1,
   testMode:false,
+  accountLevel:0,
+  seasonMax:0,
+  seasonStart:Date.now(),
   res:{metal:500, crystal:300, deut:0, token:500},
   lvl:makeLvl(true),
   last:performance.now(),
@@ -1111,7 +1114,7 @@ const state = {
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1142,6 +1145,10 @@ function loadGame(override){
     if (d.debris) state.debris = d.debris;
     state.testMode = !!d.testMode;
     if (d.speed && state.testMode) state.speed = d.speed;
+    if (typeof d.accountLevel === 'number') state.accountLevel = d.accountLevel;
+    if (typeof d.seasonMax === 'number') state.seasonMax = d.seasonMax;
+    if (typeof d.seasonStart === 'number') state.seasonStart = d.seasonStart;
+    checkSeason();
     if (typeof d.simSec === 'number') state.simSec = d.simSec;
     if (typeof d.spent === 'number') state.spent = d.spent;
     if (d.daily) state.daily = d.daily;
@@ -2282,6 +2289,26 @@ function toggleVacation(){
   render();
   setStatus(state.vacation ? 'Modo Vacaciones activado: producción y ataques pausados.' : 'Modo Vacaciones desactivado.');
 }
+/* ============ NIVELES DE CUENTA Y TEMPORADAS ============
+   Los niveles y comisiones están aprobados en docs/economia-niveles-puntos.md, sección 2.
+   La temporada dura 30 días reales. Al terminar, si el jugador llegó a Teniente conserva su nivel;
+   si no, vuelve a Aspirante. Los puntos (fase 3) aún no existen, así que nadie sube de nivel todavía. */
+const ACCOUNT_LEVELS = [
+  {name:'Aspirante', fee:70}, {name:'Cadete', fee:60}, {name:'Marinero', fee:50}, {name:'Cabo', fee:40},
+  {name:'Teniente', fee:30}, {name:'Capitán', fee:15}, {name:'Almirante', fee:5}
+];
+const TENIENTE_LEVEL = 4;
+const SEASON_MS = 30 * 24 * 3600 * 1000;
+function setAccountLevel(n){
+  state.accountLevel = n;
+  state.seasonMax = Math.max(state.seasonMax, n);
+}
+function checkSeason(){
+  if (Date.now() - state.seasonStart < SEASON_MS) return;
+  if (state.seasonMax < TENIENTE_LEVEL) state.accountLevel = 0;
+  state.seasonMax = state.accountLevel;
+  state.seasonStart = Date.now();
+}
 function toggleTestMode(){
   state.testMode = !state.testMode;
   if (!state.testMode) state.speed = 1;
@@ -2467,6 +2494,8 @@ function viewSettings(){
         <div class="form-stack">
           <label class="field">Nombre del planeta activo<input class="input" id="cfg-name" maxlength="24" value="${esc(pl.name)}"></label>
           <button class="btn" data-action="rename-planet">Renombrar planeta</button>
+          <div class="rows"><div><span>Nivel de cuenta</span><span>${ACCOUNT_LEVELS[state.accountLevel].name}</span></div><div><span>Comisión de retiro</span><span>${ACCOUNT_LEVELS[state.accountLevel].fee} %</span></div><div><span>Fin de la temporada</span><span>${new Date(state.seasonStart + SEASON_MS).toLocaleDateString('es-ES')}</span></div></div>
+          <div class="rows">${ACCOUNT_LEVELS.map(l => `<div><span>${l.name}</span><span>${l.fee} %</span></div>`).join('')}</div>
           <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
           ${state.testMode ? `<label class="field">Velocidad de simulación del universo
             <select class="select full" id="speed">${[1, 10, 100, 1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}</select>

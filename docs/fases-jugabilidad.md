@@ -26,7 +26,7 @@ Mientras existan estas configuraciones, cualquier prueba de progresión debe hac
 
 ## 2. Fases del juego
 
-### Fase 1 · Inicio (Grumete)
+### Fase 1 · Inicio (Aspirante)
 - Objetivo: aprender la producción de recursos y el mercado básico.
 - Edificios iniciales de costo bajo, con una construcción activa a la vez.
 - Sin PvP y sin mercado P2P hasta cumplir la antigüedad mínima (economía, sección 10).
