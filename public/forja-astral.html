@@ -1071,6 +1071,7 @@ const state = {
   tab:'overview',
   speed:1,
   testMode:false,
+  vip:false,
   accountLevel:0,
   seasonMax:0,
   seasonStart:Date.now(),
@@ -1117,7 +1118,7 @@ const state = {
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vip:state.vip, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1147,6 +1148,7 @@ function loadGame(override){
     if (d.galaxy) state.galaxy = {g:d.galaxy.g || 1, s:d.galaxy.s || 1, looted:d.galaxy.looted || {}, colonies:d.galaxy.colonies || {}, dmg:d.galaxy.dmg || {}};
     if (d.debris) state.debris = d.debris;
     state.testMode = !!d.testMode;
+    state.vip = !!d.vip;
     if (d.speed && state.testMode) state.speed = d.speed;
     if (typeof d.accountLevel === 'number') state.accountLevel = d.accountLevel;
     if (typeof d.seasonMax === 'number') state.seasonMax = d.seasonMax;
@@ -1233,6 +1235,7 @@ function handleFase2Click(e){
       case 'rename-planet': renamePlanet(); return;
       case 'toggle-vacation': toggleVacation(); return;
       case 'toggle-test-mode': toggleTestMode(); return;
+      case 'toggle-vip-test': toggleVipTest(); return;
       case 'export-save': exportSave(); return;
       case 'copy-json': copyText(document.getElementById('cfg-json').value, 'JSON copiado al portapapeles.'); return;
       case 'import-save': importSave(); return;
@@ -2338,7 +2341,7 @@ function losePctOf(h, pct){ const total = totalOf(h); setTotalOf(h, total - Math
 // Jugador
 function addLevelPoints(n){ addPointsTo(state, n); }
 function totalPoints(){ return totalOf(state); }
-function losePointsPct(pct){ losePctOf(state, pct); }
+function losePointsPct(pct){ losePctOf(state, state.vip ? pct / 2 : pct); }   // VIP: la pérdida se reduce a la mitad
 function checkLevelUp(){ checkLevelUpOf(state); }
 // Rivales (jugadores simulados de la demo). Tienen su propio nivel y progreso.
 function rivalNamed(name){ return ((state.ranking && state.ranking.rivals) || []).find(r => r.name === name); }
@@ -2406,7 +2409,7 @@ function viewLevel(){
     </section>
     <section class="panel pad" style="margin-top:12px">
       <h2 class="section-title" style="margin-top:0">Cómo ganar puntos</h2>
-      <p class="muted" style="font-size:12px;margin:0 0 12px">Los porcentajes se calculan sobre tu total de puntos. Tus defensas (láseres, lanzamisiles, etc.) hacen menos probable perder.</p>
+      <p class="muted" style="font-size:12px;margin:0 0 12px">Los porcentajes se calculan sobre tu total de puntos. Tus defensas (láseres, lanzamisiles, etc.) hacen menos probable perder. Con VIP, las pérdidas de puntos se reducen a la mitad.</p>
       <div style="overflow-x:auto"><table class="table">
         <thead><tr><th>Ataque recibido</th><th>Tú</th><th>El atacante</th></tr></thead>
         <tbody>
@@ -2433,6 +2436,10 @@ function viewLevel(){
         </ul>
       </div>
     </section>`;
+}
+function toggleVipTest(){
+  state.vip = !state.vip;
+  render();
 }
 function toggleTestMode(){
   state.testMode = !state.testMode;
@@ -2624,6 +2631,7 @@ function viewSettings(){
           <div class="rows"><div><span>Nivel de cuenta</span><span>${ACCOUNT_LEVELS[state.accountLevel].name}</span></div><div><span>Comisión de retiro</span><span>${ACCOUNT_LEVELS[state.accountLevel].fee} %</span></div><div><span>Fin de la temporada</span><span>${new Date(state.seasonStart + SEASON_MS).toLocaleDateString('es-ES')}</span></div></div>
           <div class="rows">${ACCOUNT_LEVELS.map(l => `<div><span>${l.name}</span><span>${l.fee} %</span></div>`).join('')}</div>
           <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
+          ${state.testMode ? `<button class="btn" data-action="toggle-vip-test">${state.vip ? 'Desactivar VIP (prueba)' : 'Activar VIP (prueba)'}</button>` : ''}
           ${state.testMode ? `<label class="field">Velocidad de simulación del universo
             <select class="select full" id="speed">${[1, 10, 100, 1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}</select>
           </label>` : ''}
