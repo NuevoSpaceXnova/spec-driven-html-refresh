@@ -2,7 +2,7 @@
 
 Este documento registra la decisión de diseño de que el juego se juegue con progresión lenta y segura, y los beneficios del pase VIP que motivan la inversión. Los valores numéricos están marcados como **Pendiente**.
 
-Complementa a `docs/economia-niveles-puntos.md` (niveles, comisiones, puntos y control de precio) y a `docs/fases-jugabilidad.md` (fases y tiempos reales).
+Complementa a `docs/economia-niveles-puntos.md` (niveles, comisiones, puntos y control de precio), `docs/fases-jugabilidad.md` (fases y tiempos) y `docs/flujo-token-mercado-retiros.md` (flujo del token, pools y retiros).
 
 ---
 
@@ -50,27 +50,27 @@ El pase VIP da ventajas de velocidad y de mercado. Lo que se decide aquí:
 - **Mejora +50 %:** reduce el tiempo de construcción e investigación. No reduce el costo en recursos.
 - **Comisión P2P:** solo aplica al mercado de recursos. **No aplica al swap**, cuya comisión es variable de 3 % a 12 % (economía, sección 6).
 - **Naves en P2P:** solo cuentas VIP pueden publicar naves a la venta en el mercado.
+- **Destino de la comisión P2P:** la comisión se reparte entre la reserva de jugadores y el dueño según `docs/economia-niveles-puntos.md`, sección 7.
 
 ### 3.2 Pendiente
 
-- Precio del pase VIP y duración.
+- Precio del pase VIP y duración: **decidido** en `docs/economia-niveles-puntos.md`, sección 5. Queda pendiente el porcentaje exacto de ventaja en puntos.
 - Si el beneficio de velocidad aplica también a la cola de naves.
-- Si la comisión P2P de 15 % y 5 % es la única comisión del mercado de recursos, o se suma a otras.
-- Cómo se comparan los beneficios VIP con la regla de puntos de la economía (sección 5).
+- Cómo se comparan los beneficios VIP con la regla de puntos de la economía (sección 4).
 
 ## 4. Riesgos que hay que vigilar
 
 Estas decisiones tienen efectos que deben revisarse antes de implementarse:
 
-1. **La producción VIP aumenta la oferta de recursos en el mercado.** Si los compradores pagan con un TOKEN que no tiene un flujo controlado, la producción adicional puede presionar el precio y la reserva. Hay que definir de dónde sale el TOKEN que pagan los compradores antes de fijar el +50 %.
-2. **Riesgo de sensación de pagar para ganar.** Si el VIP ofrece más producción, más velocidad, menor comisión y exclusividad en naves, los jugadores free pueden sentir que no compiten. Conviene que el camino gratuito tenga recompensas claras (misiones diarias, expediciones) para que la diferencia sea de velocidad, no de posibilidad.
-3. **Efecto combinado con el control de precio.** El control de precio (economía, sección 11) debe considerar que los VIP pueden vender más rápido que los free.
+1. **Origen del TOKEN de los compradores.** Ya está definido que el TOKEN entra al juego solo por el swap (`docs/flujo-token-mercado-retiros.md`, sección 1). Queda pendiente vigilar que la mayor producción del VIP no presione el precio ni la reserva, porque la producción aumenta la oferta de recursos que se venden por TOKEN.
+2. **Riesgo de sensación de pagar para ganar.** Si el VIP ofrece más producción, más velocidad, menor comisión y exclusividad en naves, los jugadores free pueden sentir que no compiten. Para evitarlo, el camino gratuito necesita recompensas claras, como misiones diarias y expediciones, y la diferencia debe ser de velocidad, no de posibilidad.
+3. **Efecto combinado con el control de precio.** El control de precio (`docs/economia-niveles-puntos.md`, sección 11) debe considerar que los VIP pueden vender más rápido que los free.
 
 ## 5. Pendiente (resumen)
 
-1. Precio y duración del pase VIP.
+1. Porcentaje exacto de ventaja VIP en puntos (sección 3.2).
 2. Factores de crecimiento y requisitos de cada desbloqueo (sección 2.1).
 3. Duración de fases para un jugador gratuito.
-4. Alcance del beneficio de velocidad (producción, mejora y cola de naves).
-5. Origen del TOKEN que pagan los compradores en el mercado de recursos (riesgo 1).
-6. Compensación para jugadores free (riesgo 2).
+4. Alcance del beneficio de velocidad: producción, mejora y cola de naves (sección 3.2).
+5. Compensación para jugadores free (riesgo 2).
+6. Vigilancia de la presión de oferta de la producción VIP sobre el precio (riesgo 1).
