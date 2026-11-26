@@ -27,7 +27,7 @@ estas reglas son el punto de partida. Los valores que cambian están marcados en
 
 ## 3. Swap
 
-- **Comisión:** 0,3 % sobre el monto recibido.
+- **Comisión:** 3 % sobre el monto recibido, fija para cualquier monto.
 - **Cantidades de TOKEN:** siempre enteras. Cualquier fracción se redondea hacia abajo.
 - **Redondeo de la salida:** TOKEN como salida se redondea hacia abajo. Las criptos conservan hasta 6 decimales.
 - **Mínimo:** la salida debe ser mayor que cero. Si no, la operación se rechaza.
