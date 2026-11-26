@@ -6,34 +6,40 @@ Juego de estrategia espacial para el navegador. Construyes tu imperio: levantas 
 
 Antes de cualquier acción, lee esta sección completa y los documentos de la sección siguiente. Luego crea las fases de trabajo a partir del orden acordado.
 
-### Reglas de decisión
+### Reglas que debes cumplir siempre
 
-- **No tomes decisiones sin el consentimiento del dueño del proyecto.** Si falta un dato, un valor o una regla, propón una opción por escrito y espera.
-- **Pregunta siempre antes de implementar y espera la aprobación.** No empieces a cambiar código ni documentos hasta recibir un sí explícito.
-- Implementa solo lo que está marcado como **decidido** en los documentos. Lo que dice **Pendiente** o **Propuesta** no se implementa.
-- No tomes decisiones legales ni redactes términos y condiciones. Eso lo revisa el abogado del cliente.
-- No decidas qué mensajes ve el jugador. Si dudas si un mensaje se mantiene o se quita, pregunta.
+1. No tomes decisiones sin mi consentimiento. Si falta un dato, un valor o una regla, propón una opción por escrito y espera mi respuesta.
+2. Pregúntame siempre antes de implementar algo y espera mi aprobación explícita. No cambies código ni documentos sin ese sí.
+3. Implementa solo lo que los documentos marcan como "decidido". Lo que dice "Pendiente" o "Propuesta" no se implementa.
+4. No tomes decisiones legales ni redactes términos y condiciones. Eso lo revisa el abogado del cliente.
+5. No decidas qué mensajes ve el jugador. Si dudas si un mensaje se mantiene o se quita, pregúntame.
+6. Háblame en lenguaje claro, sin términos de programación. No des explicaciones largas. No me digas en qué estás trabajando ni en qué vas a trabajar.
+7. Si un documento y el código no coinciden, avísame y espera mi decisión. No corrijas el código por tu cuenta.
 
-### Forma de comunicarte
-
-- Háblale en lenguaje claro, sin términos de programación. Si es imprescindible mencionar un archivo o una línea, hazlo en una frase corta.
-- No des explicaciones largas. Responde con lo necesario.
-- **No digas en qué estás trabajando ni en qué vas a trabajar.** Solo informa de lo que se pidió, de lo que se hizo y de lo que se necesita del dueño.
-
-### Flujo de trabajo para cada tarea
+### Forma de trabajo para cada tarea aprobada
 
 1. **Revisión quirúrgica y focalizada:** mira solo lo necesario para la tarea aprobada. No revises todo el proyecto.
 2. **Implementación quirúrgica:** cambia lo mínimo indispensable. No reescribas archivos completos ni toques partes que no estén en la tarea.
 3. **Resumen de lo implementado:** en pocas frases, en lenguaje claro, qué quedó hecho.
 4. **Prueba en el juego:** verifica que el cambio funciona en el juego antes de darlo por terminado.
-5. **Cierre de la implementación:** confirma al dueño que la tarea está cerrada y espera la siguiente aprobación.
+5. **Cierre de la implementación:** confirma que la tarea está cerrada y espera la siguiente aprobación.
+
+### Primer paso
+
+Lee el README y los documentos indicados, y responde solo con:
+
+- (a) confirmación de que los leíste,
+- (b) la lista de fases que propones, en el orden de abajo, para que yo la apruebe o la cambie,
+- (c) las preguntas que necesites que yo responda antes de la fase 1.
+
+No empieces a implementar nada hasta que yo apruebe la lista de fases.
 
 ## Fases de trabajo acordadas
 
 Crea a partir de esta lista las fases de trabajo, y propón al dueño el orden antes de empezar:
 
 0. **Limpieza del swap:** precio inicial del TOKEN en 0,000152, comisión `FEE` en 0,03, quitar el código del staking demo y añadir el check de términos antes de cada swap.
-1. **Modo prueba:** separar la velocidad de prueba (x100) en un interruptor claro, y preparar la investigación con tiempo real y cola.
+1. **Modo prueba:** separar la velocidad de prueba (x100) en un interruptor claro. La investigación con tiempo real y cola está **pendiente de aprobación** (fórmula y si la cola es por planeta o por cuenta); no se implementa hasta que se apruebe.
 2. **Niveles de cuenta:** Grumete a Almirante, comisiones de retiro por nivel y reinicio de temporada.
 3. **Puntos y batallas:** ganancia y pérdida de puntos, efecto del pase VIP, margen 1:3.
 4. **Verificación de cuentas:** Telegram, límite de 3 cuentas por IP y antigüedad. Requiere servidor.
@@ -52,8 +58,6 @@ Antes de la fase 2 hay decisiones pendientes en `docs/economia-niveles-puntos.md
 4. `docs/flujo-token-mercado-retiros.md`: flujo del TOKEN, distribución de comisiones, pools y retiros.
 5. `docs/reglas-swap-y-staking.md`: reglas del swap.
 6. `docs/fases-jugabilidad.md`: fases del juego y tiempos.
-
-Si un documento y el código no coinciden, avisa al dueño y espera su decisión. No corrijas el código para que coincida sin aprobación.
 
 ## Cómo está organizado el proyecto
 
