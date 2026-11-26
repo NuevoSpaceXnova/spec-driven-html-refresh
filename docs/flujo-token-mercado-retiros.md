@@ -2,7 +2,7 @@
 
 Este documento describe cómo entra, circula y sale el TOKEN en el juego. Complementa a `docs/economia-niveles-puntos.md` (comisiones, control de precio y reglas de niveles) y a `docs/progresion-lenta-y-vip.md` (beneficios VIP).
 
-Las secciones marcadas como **Pendiente** no deben implementarse hasta confirmarse.
+Las secciones marcadas como **Pendiente** no deben implementarse hasta confirmarse. Las secciones marcadas como **Propuesta** esperan aprobación.
 
 ---
 
@@ -52,7 +52,7 @@ Ingresos que alimentan la reserva general:
 - Comisiones del mercado P2P.
 - Venta de artículos y naves de temporada.
 
-Estos ingresos se distribuyen según la misma lógica del VIP o según otra regla. **Pendiente:** confirmar el reparto de estos ingresos.
+**Pendiente:** confirmar el reparto de estos ingresos.
 
 ### 3.3 Pendiente
 
@@ -75,30 +75,32 @@ Estos ingresos se distribuyen según la misma lógica del VIP o según otra regl
 
 ### 5.1 Modelo operativo (decidido)
 
-- **Todos los pagos son manuales.** El administrador (el cliente) los revisa y aprueba desde un panel administrativo protegido con contraseña.
+- **Todos los pagos son manuales.** El administrador revisa y aprueba cada pago desde un panel administrativo protegido con contraseña.
 - **Auditoría manual.** Cada pago se verifica antes de enviarse.
 - **Horario de pagos: de 9 am a 6 pm.**
 
-### 5.2 Comunicación con el jugador (decisión pendiente)
+### 5.2 Estados del retiro (decidido)
 
-**Decisión tomada:** no se mostrará al jugador un mensaje que atribuya la demora a la red o a la congestión cuando el pago depende de una aprobación manual. Ese mensaje sería engañoso sobre su propio dinero y, si se descubre, generaría más desconfianza y más presión en soporte que la que quiere evitarse.
+El jugador ve solo dos estados:
 
-Para reducir la presión en soporte sin engañar, se propone:
+- **Processing** (rojo): la solicitud fue recibida y todavía no se ha pagado.
+- **Processed** (verde): el pago fue enviado.
 
-- **Estado visible del retiro:** "Recibido", "En revisión", "Aprobado", "Enviado", con la hora de cada cambio.
-- **Ventana de procesamiento clara:** "Los retiros se procesan de 9 am a 6 pm. Tu solicitud recibida después de las 6 pm se procesa al día siguiente."
-- **Explicación general en preguntas frecuentes:** "Revisamos cada retiro manualmente para proteger tu cuenta y tu saldo." Esto es verdadero y no revela procesos internos.
-- **Respuesta automática de soporte** que repita la ventana y el estado del retiro, para que el jugador no tenga que escribir para saberlo.
-- **Plazo estimado solo si es real:** mostrar un plazo únicamente cuando el equipo pueda cumplirlo.
+### 5.3 Propuesta pendiente de aprobación: comunicación adicional
 
-Con esto, el jugador sabe cuándo esperar y qué significa cada estado, y el equipo de soporte recibe menos consultas.
+Estas ideas son propuestas. No están aprobadas:
 
-### 5.3 Pendiente
+- Mostrar la ventana de procesamiento: "Los retiros se procesan de 9 am a 6 pm."
+- Respuesta automática de soporte que repita la ventana y el estado del retiro.
+- Texto en preguntas frecuentes que explique de forma general que cada retiro se revisa antes de pagarse.
 
-- Texto final de los estados y de la explicación en preguntas frecuentes.
-- Tratamiento de solicitudes fuera de horario.
+**Nota:** antes propuse un mensaje que atribuía la demora a la red. No lo recomiendo, porque sería engañoso sobre el proceso de pago y, si el jugador lo descubre, la desconfianza sería mayor que la presión que se quiere evitar.
+
+### 5.4 Pendiente
+
+- Tratamiento de solicitudes recibidas fuera de horario.
 - Cómo se registra la trazabilidad de cada pago en el panel administrativo.
-- Revisión legal de la comunicación con el jugador, a cargo del abogado del cliente.
+- Aprobación de las propuestas de la sección 5.3.
 
 ## 6. Panel administrativo
 
@@ -114,4 +116,5 @@ Con esto, el jugador sabe cuándo esperar y qué significa cada estado, y el equ
 4. Reparto de comisiones de swap, mercado y temporada (sección 3.2).
 5. Cálculo del equivalente en USD del TOKEN para el umbral de 10 USD (sección 4.1).
 6. Base de la comisión de retiro por nivel: TOKEN o USDT/BNB (sección 4.1).
-7. Textos finales de estados y preguntas frecuentes del retiro (sección 5.3).
+7. Solicitudes fuera de horario y trazabilidad de pagos (sección 5.4).
+8. Aprobación de las propuestas de comunicación (sección 5.3).
