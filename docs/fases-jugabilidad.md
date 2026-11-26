@@ -16,6 +16,14 @@ Algunas configuraciones del juego existen solo para probar. Se quitarán antes d
 
 Mientras existan estas configuraciones, cualquier prueba de progresión debe hacerse sabiendo que los tiempos no son los reales.
 
+**Estado de la fase 1 (aplicada):**
+- La velocidad normal es x1.
+- Existe un botón "Activar modo prueba" en ajustes, visible para cualquier jugador, porque el juego aún no tiene jugadores reales ni base de datos.
+- Con el modo prueba activo aparece el selector de velocidad (x1, x10, x100, x1000). Al desactivarlo, la velocidad vuelve a x1.
+- Las partidas guardadas con velocidad distinta de x1 vuelven a x1 si el modo prueba no está activo.
+- Las investigaciones siguen instantáneas (sin cambios).
+- **Regla:** el botón de modo prueba y el selector de velocidad se quitan antes del lanzamiento oficial.
+
 ## 2. Fases del juego
 
 ### Fase 1 · Inicio (Grumete)

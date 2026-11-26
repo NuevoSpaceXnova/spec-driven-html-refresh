@@ -35,4 +35,5 @@ use the editor.
 - Shipyard ship images live as optimized WebP files in `public/assets/<shipId>.webp` (user-uploaded via the repo; PNG originals kept). Why: the user edits the repo from Codespaces, so local paths work outside Lovable.
 - All work is done directly on `main`. Do not use test branches.
 - Every finished phase or update gets a commit and a push to `main`. Report the commit name to the user.
+- The test-mode button and the speed selector in `public/forja-astral.html` are temporary. Remove them before the official launch.
 - Every time the game is updated or a phase is completed, update the rules and status in `README.md`, in this file, and in the affected documents in `docs/`, so the order of the work is kept.

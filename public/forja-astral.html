@@ -1069,7 +1069,8 @@ const RES_COL  = {metal:'var(--res-metal)', crystal:'var(--res-crystal)', deut:'
 /* ============ ESTADO ============ */
 const state = {
   tab:'overview',
-  speed:100,
+  speed:1,
+  testMode:false,
   res:{metal:500, crystal:300, deut:0, token:500},
   lvl:makeLvl(true),
   last:performance.now(),
@@ -1110,7 +1111,7 @@ const state = {
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1139,7 +1140,8 @@ function loadGame(override){
     if (d.market) state.market = d.market;
     if (d.galaxy) state.galaxy = {g:d.galaxy.g || 1, s:d.galaxy.s || 1, looted:d.galaxy.looted || {}, colonies:d.galaxy.colonies || {}, dmg:d.galaxy.dmg || {}};
     if (d.debris) state.debris = d.debris;
-    if (d.speed) state.speed = d.speed;
+    state.testMode = !!d.testMode;
+    if (d.speed && state.testMode) state.speed = d.speed;
     if (typeof d.simSec === 'number') state.simSec = d.simSec;
     if (typeof d.spent === 'number') state.spent = d.spent;
     if (d.daily) state.daily = d.daily;
@@ -1218,6 +1220,7 @@ function handleFase2Click(e){
       case 'save-profile': saveProfile(); return;
       case 'rename-planet': renamePlanet(); return;
       case 'toggle-vacation': toggleVacation(); return;
+      case 'toggle-test-mode': toggleTestMode(); return;
       case 'export-save': exportSave(); return;
       case 'copy-json': copyText(document.getElementById('cfg-json').value, 'JSON copiado al portapapeles.'); return;
       case 'import-save': importSave(); return;
@@ -2279,6 +2282,11 @@ function toggleVacation(){
   render();
   setStatus(state.vacation ? 'Modo Vacaciones activado: producción y ataques pausados.' : 'Modo Vacaciones desactivado.');
 }
+function toggleTestMode(){
+  state.testMode = !state.testMode;
+  if (!state.testMode) state.speed = 1;
+  render();
+}
 function exportSave(){
   if (!saveGame()) return setStatus('No se pudo generar la partida: el almacenamiento no está disponible.', true);
   const raw = localStorage.getItem(SAVE_KEY) || '{}';
@@ -2459,9 +2467,10 @@ function viewSettings(){
         <div class="form-stack">
           <label class="field">Nombre del planeta activo<input class="input" id="cfg-name" maxlength="24" value="${esc(pl.name)}"></label>
           <button class="btn" data-action="rename-planet">Renombrar planeta</button>
-          <label class="field">Velocidad de simulación del universo
+          <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
+          ${state.testMode ? `<label class="field">Velocidad de simulación del universo
             <select class="select full" id="speed">${[1, 10, 100, 1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}</select>
-          </label>
+          </label>` : ''}
           <div class="rows"><div><span>Modo Vacaciones</span><span class="${state.vacation ? 'tag-ok' : 'muted'}">${state.vacation ? 'Activo' : 'Inactivo'}</span></div></div>
           <button class="btn" data-action="toggle-vacation">${state.vacation ? 'Desactivar Modo Vacaciones' : 'Activar Modo Vacaciones'}</button>
           <p class="muted" style="font-size:12px;margin:0">El Modo Vacaciones pausa la producción y los ataques entrantes.</p>
@@ -4044,11 +4053,13 @@ function viewOverview(){
         </div>
 
         <div class="setting">
-          <label for="speed">Factor de velocidad del universo</label>
+          <label>Modo prueba</label>
+          <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
+          ${state.testMode ? `<label for="speed">Factor de velocidad del universo</label>
           <select class="select" id="speed" style="max-width:200px">
             ${[1,10,100,1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}
           </select>
-          <p>Multiplica toda la producción y los tiempos de construcción. Por defecto x100 para probar rápido. Con x1 el juego corre a velocidad real.</p>
+          <p>Multiplica toda la producción y los tiempos de construcción. Con x1 el juego corre a velocidad real.</p>` : ''}
         </div>
         <div class="setting">
           <label>Partida</label>
