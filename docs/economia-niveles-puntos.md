@@ -15,7 +15,7 @@ Este documento registra las decisiones tomadas hasta hoy sobre la economía y la
 1. **Sistema de niveles de cuenta** (primero).
 2. **Sistema de puntos**: cuántos puntos se ganan y pierden, con los valores de cada acción. Se define después de tener los niveles funcionando.
 3. **Verificación de cuentas y antigüedad** (sección 10).
-4. **Control del precio del TOKEN** (sección 11).
+4. **Control del precio del TOKEN y comisión variable del swap** (sección 11).
 5. **Token interno, swap y retiros** en su versión real.
 6. **Pase VIP, pool interna y resto de ingresos**.
 
@@ -93,12 +93,14 @@ Esta regla busca que el jugador se esfuerce por subir de nivel en cada temporada
 
 ### 6.1 Reglas decididas
 
-- La comisión del **swap es fija de 3 % para cualquier monto**.
+- La comisión del **swap es variable**, con un valor base de **3 %**. Sube y baja según la presión de compras y ventas (ver sección 11).
+- El valor vigente de la comisión se muestra al jugador en el resumen antes de confirmar cada operación.
 - El **retiro a wallet** tiene una comisión de **70 %** para el nivel inicial (ver sección 2).
 - El USDT y el BNB que se pagan a los jugadores salen de una **reserva**.
 
 ### 6.2 Pendiente
 
+- Mínimo y máximo de la comisión variable del swap.
 - Destino de las comisiones del swap y de los retiros (cómo se distribuyen en la pool interna).
 - Cómo se distribuye la pool interna del juego.
 - Si la comisión de retiro aplica también a las ventas en el swap.
@@ -114,7 +116,8 @@ Todos sus valores y reglas están pendientes.
 
 ## 8. Inconsistencias con documentos existentes
 
-- `docs/reglas-swap-y-staking.md` ya fue actualizado a comisión de swap de **3 %**. El valor en el código (`FEE` en `public/swap.html`) todavía debe cambiarse de `0.003` a `0.03`.
+- `docs/reglas-swap-y-staking.md` dice todavía que la comisión del swap es **fija** de 3 %. Debe actualizarse para reflejar la comisión base variable de la sección 6.
+- El valor en el código (`FEE` en `public/swap.html`) está en `0.003` y debe cambiarse a `0.03` como base. El mecanismo variable se implementa en la fase real.
 - El documento de swap describe un reloj de juego y saldos demo en el navegador. Esto sigue vigente mientras el proyecto esté en modo prueba.
 
 ## 9. Decisiones pendientes (resumen)
@@ -131,9 +134,9 @@ Todos sus valores y reglas están pendientes.
 10. Detalles del saldo de respaldo (guarda wallet).
 11. Ingresos adicionales: P2P 5 %, naves y artículos de temporada.
 12. Antigüedad mínima de cuenta: 7 o 15 días (sección 10).
-13. Tratamiento de IP compartidas en la restricción de ataques entre cuentas propias.
-14. Parámetros de control de precio (sección 11).
-15. Conflicto entre comisión fija de swap (3 %) y comisión variable por ventas seguidas (sección 11).
+13. Tratamiento de IP compartidas en la restricción de cuentas y ataques (sección 10).
+14. Parámetros de control de precio y comisión variable (sección 11).
+15. Mínimo y máximo de la comisión variable del swap (sección 11).
 
 ## 10. Verificación de cuentas
 
@@ -145,7 +148,8 @@ Todos sus valores y reglas están pendientes.
   - comerciar en el P2P,
   - operar en el swap,
   - retirar a wallet.
-- Se **permite crear varias cuentas**, pero **no se puede atacar entre cuentas propias**, detectado por IP.
+- Se **permiten varias cuentas por jugador**, con un **máximo de 3 cuentas por dirección IP**.
+- Un jugador **no puede atacar a sus propias cuentas**. La detección se hace por IP.
 - No habrá verificación de identidad documental.
 
 ### 10.2 Antigüedad mínima (pendiente de confirmar)
@@ -156,20 +160,27 @@ Un plazo de **15 días** protege más, pero es probable que desmotive a los juga
 
 Se recomienda que la antigüedad aplique a los **retiros** y al **comercio** (mercado de recursos, P2P y swap). El ataque y la progresión de niveles no deberían depender de ella.
 
-## 11. Control del precio del TOKEN
+### 10.3 Pendiente
 
-El precio del TOKEN lo fija el proyecto, no un mercado externo. Por eso el proyecto debe controlar el precio y la reserva en conjunto. Las siguientes reglas fueron aceptadas como línea de trabajo; sus parámetros siguen pendientes.
+- Proceso de apelación para jugadores que compartan IP sin ser la misma persona (redes móviles, oficinas, universidades).
+- Medidas adicionales contra la evasión por cambio de red o VPN, si el cliente lo requiere.
 
-### 11.1 Reglas aceptadas
+## 11. Control del precio del TOKEN y comisión variable
 
-- **Fórmula de precio con profundidad conocida**: el precio sube al comprar TOKEN y baja al venderlo, con una curva predecible definida por el proyecto. Un jugador con mucho dinero mueve el precio, pero de forma calculada.
+El precio del TOKEN lo fija el proyecto, no un mercado externo. Por eso el proyecto debe controlar el precio y la reserva en conjunto.
+
+### 11.1 Reglas decididas
+
+- **Comisión variable del swap**: base de 3 %, que sube y baja según la presión de compras y ventas. Se muestra al jugador antes de confirmar.
+- **Fórmula de precio con profundidad conocida**: el precio sube al comprar TOKEN y baja al venderlo, con una curva predecible definida por el proyecto.
 - **Límites por cuenta y por temporada**: máximo de TOKEN que se puede comprar o vender por día, por temporada o por nivel.
 - **Liberación gradual de liquidez**: lo que compra un jugador grande no se puede retirar de inmediato, sino que se libera en tramos.
 - **Piso de precio respaldado por la reserva**: el proyecto se compromete a recomprar a un precio mínimo. Esto solo se activa si la reserva tiene USDT y BNB suficientes.
 
 ### 11.2 Pendiente
 
-- **Comisión variable por ventas seguidas.** Choca con la regla de comisión fija del 3 % (sección 6). Hay que decidir si el 3 % es fijo y se añade un recargo aparte, o si se reemplaza la regla.
+- Mecanismo exacto de la comisión variable: qué mide la presión de ventas y cada cuánto se recalcula.
+- Mínimo y máximo de la comisión variable.
 - Parámetros de la curva de precio: cuánto sube o baja por cada unidad comprada o vendida.
 - Límites exactos por día, temporada y nivel.
 - Duración y tramos de la liberación gradual.
