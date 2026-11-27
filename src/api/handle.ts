@@ -350,7 +350,50 @@ const savePut: Route = async (request, db) => {
   return json({ ok: true, version: version + 1 });
 };
 
+// Saldo de TOKEN de cada cuenta (etapa B1). Solo el servidor lo cambia.
+// WALLET_START es el saldo inicial de una cuenta nueva (pendiente de decisión; hoy es 500 como en el juego).
+const WALLET_START = 500;
+const MAX_REASON = 80;
+
+async function ensureWallet(db: DB, userId: string): Promise<number> {
+  await db.prepare("INSERT OR IGNORE INTO wallets (user_id, token, updated_at) VALUES (?, ?, ?)")
+    .bind(userId, WALLET_START, now()).run();
+  const row = await db.prepare("SELECT token FROM wallets WHERE user_id = ?").bind(userId).first<{ token: number }>();
+  return row ? row.token : 0;
+}
+
+const walletGet: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  return json({ token: await ensureWallet(db, user.id) });
+};
+
+const walletSpend: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const amount = Math.round(Number(body?.amount) * 1000000) / 1000000;
+  const reason = String(body?.reason ?? "").slice(0, MAX_REASON);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) return json({ error: "Cantidad no válida" }, 400);
+  if (!reason) return json({ error: "Motivo no válido" }, 400);
+  await ensureWallet(db, user.id);
+  const upd = await db
+    .prepare("UPDATE wallets SET token = ROUND(token - ?, 6), updated_at = ? WHERE user_id = ? AND token >= ?")
+    .bind(amount, now(), user.id, amount)
+    .run();
+  if (!upd.meta || !upd.meta.changes) {
+    const bal = await ensureWallet(db, user.id);
+    return json({ error: "Saldo de TOKEN insuficiente", token: bal }, 409);
+  }
+  const balance = await ensureWallet(db, user.id);
+  await db.prepare("INSERT INTO wallet_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(user.id, -amount, reason, balance, now()).run();
+  return json({ ok: true, token: balance });
+};
+
 const ROUTES: Record<string, Route> = {
+  "GET /api/wallet": walletGet,
+  "POST /api/wallet/spend": walletSpend,
   "GET /api/save": saveGet,
   "POST /api/save": savePut,
   "POST /api/register": register,

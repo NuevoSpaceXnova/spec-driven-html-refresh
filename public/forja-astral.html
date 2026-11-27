@@ -1183,6 +1183,20 @@ async function pullCloud(){
   if (localStorage.getItem(SAVE_KEY)){ localStorage.removeItem(SAVE_KEY); location.reload(); return; }
   localStorage.setItem(cloudVerKey(), '0');
 }
+/* ---------- Saldo de TOKEN en el servidor (etapa B1) ---------- */
+async function walletPull(){
+  const d = await fetch('/api/wallet', {credentials:'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (d && typeof d.token === 'number'){ state.res.token = d.token; return true; }
+  return false;
+}
+async function walletSpend(amount, reason){
+  const r = await fetch('/api/wallet/spend', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount, reason})}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (d && typeof d.token === 'number') state.res.token = d.token;   // el saldo real del servidor manda
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo completar la operación. Revisa tu conexión.', true); return false; }
+  state.res.token = d.token;
+  return true;
+}
 function loadGame(override){
   try {
     const raw = override || localStorage.getItem(SAVE_KEY);
@@ -1523,7 +1537,7 @@ function mkTotal(){
   const u = Number(document.getElementById('m-unit').value) || 0;
   document.getElementById('m-total').textContent = fmtUnit(q * u);
 }
-function publishOffer(){
+async function publishOffer(){
   const res = document.getElementById('m-res').value;
   const qty = Math.floor(Number(document.getElementById('m-qty').value));
   const unit = Math.round(Number(document.getElementById('m-unit').value) * 100) / 100;
@@ -1534,8 +1548,8 @@ function publishOffer(){
   if (state.res[res] < qty) return setStatus('No tienes suficiente ' + RES_NAME[res] + ' en el planeta.', true);
   const fee = Math.ceil(price * (isVip() ? 0.05 : 0.15));   // comisión P2P sobre el precio total, en TOKEN
   if (state.res.token < fee) return setStatus('Necesitas ' + fmt(fee) + ' TOKEN para pagar la comisión de publicación.', true);
-  state.res.token -= fee;
-  addTx('Comisión P2P', -fee, 'Completado (simulado)');
+  if (!(await walletSpend(fee, 'Comisión P2P'))) return;
+  addTx('Comisión P2P', -fee, 'Completado');
   state.res[res] -= qty;
   state.market.own.push({id:'own' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), owner:'Tú', res, qty, price});
   state.market.lastUnit = state.market.lastUnit || {};
@@ -1554,14 +1568,14 @@ function offerQty(o){
   const inp = document.querySelector('[data-mqty="' + o.id + '"]');
   return Math.min(o.qty, Math.max(0, Math.floor(Number(inp && inp.value) || 0)));
 }
-function buyOffer(id){
+async function buyOffer(id){
   const o = state.market.rivals.find(x => x.id === id);
   if (!o) return;
   const q = offerQty(o);
   if (!(q > 0)) return setStatus('Escribe una cantidad mayor que 0.', true);
   const cost = offerCost(o, q);
   if (state.res.token < cost) return setStatus('Te faltan ' + fmt(cost - state.res.token) + ' Tokens para esta compra.', true);
-  state.res.token -= cost;
+  if (!(await walletSpend(cost, 'Compra en el mercado'))) return;
   if (o.kind === 'ship') {
     const P = activePlanet();
     P.fleet[o.res] = (P.fleet[o.res] || 0) + q;
@@ -1622,7 +1636,6 @@ function cancelOffer(id){
 function marketTick(dt){
   let changed = false;
   state.market.own = state.market.own.filter(o => {
-    if (Math.random() < 0.01 * dt) { state.res.token += o.price; changed = true; return false; }
     return true;
   });
   if (state.market.rivals.length < 6 && Math.random() < 0.02 * dt) { state.market.rivals.push(randomOffer()); changed = true; }
@@ -1682,7 +1695,7 @@ function esc(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function addRes(k, n){
-  if (k === 'token'){ state.res.token += n; return; }
+  if (k === 'token') return;   // TOKEN solo entra por el swap y por premios del administrador
   state.res[k] = Math.min(capOf(state.lvl[CAP_KEY[k]]), state.res[k] + n);
 }
 function formatRewards(r){
@@ -1786,9 +1799,7 @@ function launchExpedition(){
     addRes(r, amount);
     pushLog('ok', 'Hallazgo: +' + fmt(amount) + ' de ' + RES_NAME[r] + ' en un asteroide a la deriva.');
   } else if (outcome === 'tok'){
-    const t = Math.floor((5 + Math.floor(Math.random() * 41)) * expMult());
-    addRes('token', t);
-    pushLog('ok', 'Hallazgo: +' + t + ' Tokens de un mercader perdido.');
+    // Hallazgo de TOKEN retirado en la etapa B1 (pendiente de decisión)
   } else if (outcome === 'ship'){
     const k = Math.random() < 0.5 ? 'nc' : 'cz';
     state.fleet[k] = (state.fleet[k] || 0) + 1;
@@ -1912,10 +1923,9 @@ function postMessage(){
 function claimTribute(){
   if (!state.alliance) return setStatus('Necesitas pertenecer a una alianza.', true);
   if (state.simSec < state.alliance.fortressNext) return setStatus('El tributo aún no está disponible.', true);
-  state.res.token += 150;
   state.res.deut = Math.min(capOf(state.lvl.tk), state.res.deut + 500);
   state.alliance.fortressNext = state.simSec + 86400;
-  state.alliance.msgs.push({author:'Sistema', text:'Tributo de fortaleza reclamado: +150 Tokens y +500 Deuterio.', t:state.simSec});
+  state.alliance.msgs.push({author:'Sistema', text:'Tributo de fortaleza reclamado: +500 Deuterio.', t:state.simSec});
   state.wallDirty = true;
   refresh();
   setStatus('Tributo reclamado: +150 Tokens y +500 Deuterio.');
@@ -2248,11 +2258,11 @@ function maxFleets(){ return 2 + (officerOn('adm') ? 2 : 0); }
 function effEs(){ return state.lvl.es + (officerOn('tec') ? 2 : 0); }
 function expMult(){ return state.empireClass === 'discoverer' ? 1.2 : 1; }
 
-function hireOfficer(k){
+async function hireOfficer(k){
   const O = OFFICERS[k];
   if (!O.timed && state.officers[k] === true) return setStatus(O.name + ' ya está contratado.', true);
   if (state.res.token < O.cost) return setStatus('Necesitas ' + O.cost + ' Tokens para contratar al ' + O.name + '.', true);
-  state.res.token -= O.cost;
+  if (!(await walletSpend(O.cost, 'Oficial · ' + O.name))) return;
   if (O.timed) state.officers[k] = Math.max(state.simSec, state.officers[k]) + 7 * DAY;
   else state.officers[k] = true;
   addTx('Oficial · ' + O.name, -O.cost, 'Completado');
@@ -2280,12 +2290,12 @@ function linkWallet(){
   render();
   setStatus('Wallet vinculada (red BSC / BEP-20).');
 }
-function withdraw(){
+async function withdraw(){
   const amount = Math.floor(Number(document.getElementById('w-amount').value));
   if (!state.wallet.address) return setStatus('Vincula una wallet antes de retirar.', true);
   if (!(amount >= 100)) return setStatus('El retiro mínimo es de 100 Tokens.', true);
   if (state.res.token < amount) return setStatus('Saldo insuficiente.', true);
-  state.res.token -= amount;
+  if (!(await walletSpend(amount, 'Retiro solicitado'))) return;
   const a = state.wallet.address;
   addTx('Retiro a ' + a.slice(0, 6) + '…' + a.slice(-4), -amount, 'Pendiente (simulado)');
   render();
@@ -2297,7 +2307,7 @@ function simulateDeposit(){
   render();
   setStatus('Depósito simulado: +100 Tokens.');
 }
-function swap(){
+async function swap(){
   const res = document.getElementById('sw-res').value;
   const dir = document.getElementById('sw-dir').value;
   const pk = Math.floor(Number(document.getElementById('sw-qty').value));
@@ -2307,15 +2317,11 @@ function swap(){
     const cost = SWAP_BUY * pk;
     if (state.res.token < cost) return setStatus('Tokens insuficientes para ese swap.', true);
     if (state.res[res] + units > capOf(state.lvl[CAP_KEY[res]])) return setStatus('El almacén no tiene espacio para ' + fmt(units) + ' unidades.', true);
-    state.res.token -= cost;
+    if (!(await walletSpend(cost, 'Swap compra · ' + RES_NAME[res]))) return;
     addRes(res, units);
     addTx('Swap compra · ' + RES_NAME[res] + ' ' + fmt(units), -cost, 'Completado');
   } else {
-    if (state.res[res] < units) return setStatus('No tienes ' + fmt(units) + ' de ' + RES_NAME[res] + ' en este planeta.', true);
-    const gain = SWAP_SELL * pk;
-    state.res[res] -= units;
-    state.res.token += gain;
-    addTx('Swap venta · ' + RES_NAME[res] + ' ' + fmt(units), gain, 'Completado');
+    return setStatus('La venta de recursos por TOKEN no está disponible en esta etapa.', true);
   }
   render();
   setStatus('Swap completado.');
@@ -2374,10 +2380,8 @@ function simReferral(){
   const pool = PLAYERS.filter(n => !used.includes(n));
   const name = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Comandante ' + (state.referrals.length + 1);
   state.referrals.unshift({name, t:state.simSec, commission:15});
-  state.res.token += 15;
-  addTx('Comisión por referido · ' + name, 15, 'Completado');
   render();
-  setStatus('Nuevo referido: ' + name + ' (+15 Tokens).');
+  setStatus('Nuevo referido: ' + name + '.');
 }
 function renamePlanet(){
   const name = (document.getElementById('cfg-name').value || '').trim();
@@ -2561,9 +2565,9 @@ function openVip(){
     <button class="btn" data-action="buy-vip" ${active || missing > 0 ? 'disabled' : ''}>Comprar VIP</button>`;
   openModal('Pase VIP', body);
 }
-function buyVip(){
+async function buyVip(){
   if (isVip() || state.res.token < VIP_COST) return refresh();
-  state.res.token -= VIP_COST;
+  if (!(await walletSpend(VIP_COST, 'Pase VIP'))) return;
   state.vipUntil = Date.now() + VIP_DAYS_MS;
   addTx('Pase VIP', -VIP_COST, 'Completado (simulado)');
   closeModal();
@@ -2673,7 +2677,6 @@ function viewWallet(){
           <span class="field">Dirección de depósito simulada (BSC)</span>
           <div class="rows" style="word-break:break-all">${DEPOSIT_ADDR}</div>
           <button class="btn inline" data-action="copy-deposit" style="width:auto;align-self:flex-start">Copiar</button>
-          <button class="btn" data-action="simulate-deposit">Simular Depósito (+100 Tokens)</button>
         </div>
       </section>
       <section class="panel pad">
@@ -2734,7 +2737,6 @@ function viewProfile(){
           <label class="field">Enlace de invitación<input class="input" id="pf-link" readonly value="${inviteLink()}"></label>
           <button class="btn inline" data-action="copy-invite" style="width:auto;align-self:flex-start">Copiar Enlace</button>
           <div class="kpi" style="padding:12px"><div class="kpi-label">Amigos invitados</div><div class="kpi-val">${fmt(state.referrals.length)}</div></div>
-          <button class="btn" data-action="sim-referral">Simular Nuevo Referido</button>
         </div>
         <div style="overflow-x:auto;margin-top:12px"><table class="table">
           <thead><tr><th>Comandante</th><th>Fecha</th><th class="r">Comisión</th></tr></thead>
@@ -4933,12 +4935,12 @@ function darkMatterView(){
     <p class="page-sub">Cajas de materia oscura vendidas por la administración. No se compran ni se venden entre jugadores.</p>
     <div class="grid3">${cards}</div>`;
 }
-function buyDark(usd){
+async function buyDark(usd){
   const b = DARK_BOXES.find(x => x.usd === usd);
   if (!b) return;
   const cost = Math.round(usd / TOKEN_USD);
   if (state.res.token < cost) return refresh();
-  state.res.token -= cost;
+  if (!(await walletSpend(cost, 'Caja de materia oscura'))) return;
   state.dark += b.dm;
   addTx('Caja de materia oscura', -cost, 'Completado (simulado)');
   render();
@@ -5278,6 +5280,7 @@ async function initStart(){
   if (user){
     localStorage.setItem('forja-astral-session', user.email);
     await pullCloud();
+    await walletPull();
     hideStart();
     if (state.profile) state.profile.name = user.email;
     saveGame();

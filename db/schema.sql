@@ -32,3 +32,19 @@ CREATE TABLE IF NOT EXISTS saves (
   version INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- Saldo de TOKEN de cada cuenta y su historial (fase 5, etapa B1). Solo el servidor cambia el saldo.
+CREATE TABLE IF NOT EXISTS wallets (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  token REAL NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS wallet_moves (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  delta REAL NOT NULL,
+  reason TEXT NOT NULL,
+  balance_after REAL NOT NULL,
+  created_at INTEGER NOT NULL
+);
