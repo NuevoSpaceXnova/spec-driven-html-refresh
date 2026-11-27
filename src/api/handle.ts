@@ -338,7 +338,7 @@ function clipSaveResources(data: any): void {
   for (const p of data.planets) {
     for (const k of ["metal","crystal","deut"]) {
       const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
-      p.res[k] = Math.min(p.res[k], capOfSave(p.lvl[storageKey]) * 1.5);
+      p.res[k] = Math.min(p.res[k], capOfSave(p.lvl[storageKey]));
     }
   }
 }
@@ -388,6 +388,8 @@ function validateSaveStructure(data: any): string {
   if (data.v !== 2 || !Array.isArray(data.planets) || data.planets.length < 1 || data.planets.length > 20) return "Estructura de planetas no válida.";
   if (!Number.isInteger(data.active) || data.active < 0 || data.active >= data.planets.length) return "Planeta activo no válido.";
   if (data.speed !== 1) return "Velocidad de partida no válida.";
+  const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
+  for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
   for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   for (const p of data.planets) {
