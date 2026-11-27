@@ -29,6 +29,7 @@ Las secciones marcadas como **Pendiente** no deben implementarse hasta confirmar
 ### 2.1 Aplicado
 
 - La comisión se calcula sobre el precio total de la venta y se cobra en TOKEN al publicar el aviso.
+- **Saldo TOKEN de la cuenta (modo prueba):** hay un solo saldo de TOKEN por cuenta, no por planeta. El swap y el juego leen y escriben ese mismo saldo. Si el jugador cambia USDT por TOKEN en el swap, el juego muestra el nuevo saldo al momento. Si gasta TOKEN en el juego, el swap lo muestra al momento. USDT queda solo en el swap (libro demo). La sincronización funciona dentro del mismo navegador; entre dispositivos llegará con la base de datos (fase 5).
 
 ### 2.1b Precio por unidad (aplicado en modo prueba)
 

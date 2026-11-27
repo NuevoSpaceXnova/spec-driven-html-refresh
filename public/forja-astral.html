@@ -1148,7 +1148,7 @@ const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales de
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1159,9 +1159,11 @@ function loadGame(override){
     const d = JSON.parse(raw);
     if (d.prod) state.prod = Object.assign({mm:100,mc:100,ds:100,sol:100,fus:100}, d.prod);
     if (d.planets && d.planets.length){
+      state.token = typeof d.token === 'number' ? d.token : undefined;
       state.planets = d.planets;
       state.active = d.active || 0;
       state.planets.forEach(ensureLevels);
+      linkTokenAll();
       bindActive();
     }
     if (d.moves) state.moves = d.moves;
@@ -1206,6 +1208,7 @@ function loadGame(override){
 
 /* ----- Reinicio del universo ----- */
 function resetUniverse(){
+  state.token = undefined;
   state.planets = [{name:'Ceres Prima [1:1:1]', coords:'1:1:1',
     res:{metal:500, crystal:300, deut:0, token:500}, lvl:makeLvl(true), fleet:makeFleet(), queue:null, moon:false}];
   state.active = 0;
@@ -2915,7 +2918,17 @@ function processQueues(){
   });
 }
 
+// TOKEN de la cuenta: todos los planetas leen y escriben el mismo saldo
+function isTokenLinked(P){ const d = P.res && Object.getOwnPropertyDescriptor(P.res, 'token'); return !!(d && d.get); }
+function linkTokenAll(){
+  if (typeof state.token !== 'number') state.token = (state.planets[0] && state.planets[0].res.token) || 0;
+  state.planets.forEach(P => {
+    if (!P.res || isTokenLinked(P)) return;
+    Object.defineProperty(P.res, 'token', {get(){ return state.token; }, set(v){ state.token = v; }, enumerable:true, configurable:true});
+  });
+}
 function tick(){
+  if (state.planets.some(P => !isTokenLinked(P))) linkTokenAll();
   checkLevelUp();
   const now = performance.now();
   let dt = (now - state.last) / 1000;

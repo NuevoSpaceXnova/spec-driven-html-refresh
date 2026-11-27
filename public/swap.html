@@ -417,6 +417,9 @@ function sessionKey(){ const u = userSuffix(); return u ? 'forja-astral-save-v2:
 function demoKey(){ const u = userSuffix(); return 'forja-astral-swap-demo' + (u ? ':' + u : ''); }
 function readSave(){ try { const raw = localStorage.getItem(sessionKey()); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
 function planetOf(d){ return d ? ((d.planets||[])[d.active||0] || (d.planets||[])[0] || null) : null; }
+// TOKEN de la cuenta: un solo saldo para el swap y el juego
+function tokenOf(d){ if (!d) return 0; if (typeof d.token === 'number') return d.token; const P = planetOf(d); return P ? (P.res.token||0) : 0; }
+function setTokenOf(d, v){ if (!d) return; d.token = v; (d.planets||[]).forEach(P => { if (P.res) P.res.token = v; }); }
 // Libro demo: saldos de criptos, historial, reserva y posiciones de staking. No toca la partida del juego.
 function readDemo(){
   let x = null;
@@ -426,7 +429,7 @@ function readDemo(){
 }
 function writeDemo(x){ localStorage.setItem(demoKey(), JSON.stringify(x)); }
 function balanceOf(sym, d, demo){
-  if (sym==='TOKEN'){ const P = planetOf(d); return P ? (P.res.token||0) : 0; }
+  if (sym==='TOKEN') return tokenOf(d);
   return (demo.bal[sym]||0);
 }
 
@@ -835,9 +838,9 @@ function doSwap(){
   pendingSwap = null;
   const d = readSave(), demo = readDemo();
   const have = balanceOf(from, d, demo);
-  if (from === 'TOKEN'){ planetOf(d).res.token -= amt; }
+  if (from === 'TOKEN' && d){ setTokenOf(d, tokenOf(d) - amt); }
   else { demo.bal[from] = Number((have - amt).toFixed(6)); }
-  if (to === 'TOKEN'){ planetOf(d).res.token = (planetOf(d).res.token || 0) + get; }
+  if (to === 'TOKEN' && d){ setTokenOf(d, tokenOf(d) + get); }
   else { demo.bal[to] = Number(((demo.bal[to] || 0) + get).toFixed(6)); }
   demo.hist = demo.hist || [];
   demo.hist.unshift({t:(d && d.simSec) || 0, pay:from, get:to, out:get});
