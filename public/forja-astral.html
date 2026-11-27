@@ -1168,7 +1168,18 @@ async function pushCloud(){
     const version = Number(localStorage.getItem(cloudVerKey()) || 0);
     const r = await fetch('/api/save', {method:'POST', credentials:'same-origin', keepalive:true, headers:{'Content-Type':'application/json'}, body:JSON.stringify({data, version})});
     const d = await r.json().catch(() => ({}));
-    if (r.ok){ localStorage.setItem(cloudVerKey(), String(d.version)); cloudLast = data; }
+    if (r.ok){
+      localStorage.setItem(cloudVerKey(), String(d.version));
+      if (d.clipped && Array.isArray(d.resources)){
+        d.resources.forEach((res, i) => {
+          const P = state.planets && state.planets[i];
+          if (!P || !P.res) return;
+          P.res.metal = res.metal; P.res.crystal = res.crystal; P.res.deut = res.deut;
+        });
+        saveGame();
+      }
+      cloudLast = localStorage.getItem(SAVE_KEY) || data;
+    }
     else if (r.status === 409 && d.rejected){
       cloudBlockedUntil = Date.now() + 10000;
       cloudPending = false;
