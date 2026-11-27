@@ -1090,6 +1090,7 @@ const state = {
   testMode:false,
   vipUntil:0,
   dark:0,
+  dmShips:{},
   accountLevel:0,
   seasonMax:0,
   seasonStart:Date.now(),
@@ -1140,7 +1141,7 @@ const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales de
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1172,6 +1173,7 @@ function loadGame(override){
     state.testMode = !!d.testMode;
     state.vipUntil = typeof d.vipUntil === 'number' ? d.vipUntil : 0;
     state.dark = typeof d.dark === 'number' ? d.dark : 0;
+    state.dmShips = d.dmShips && typeof d.dmShips === 'object' ? d.dmShips : {};
     if (d.speed && state.testMode) state.speed = d.speed;
     if (typeof d.accountLevel === 'number') state.accountLevel = d.accountLevel;
     if (typeof d.seasonMax === 'number') state.seasonMax = d.seasonMax;
@@ -3586,6 +3588,8 @@ function simDataOf(p){
 
 /* ----- Construcción de naves y defensas ----- */
 function unitOk(id){ return reqOk(unitReqs(id)); }
+// Materia oscura para desbloquear naves de ataque: se paga una sola vez por tipo de nave
+const DM_SHIP = {bt:5, bm:7, de:30, dr:150};
 // Datos de prueba de velocidad (unidades por hora de vuelo); reemplazar por los valores de diseño
 const SHIP_SPEED_TEST = {cz:12500, ch:10000, nc:7500, ng:7500, cr:15000, bt:10000, ac:6000, bm:4000, de:9000, dr:5000, rc:2000, sp:100000, co:2500};
 function shipSpeed(id){ return SHIP_SPEED_TEST[id] != null ? SHIP_SPEED_TEST[id] : 5000; }
@@ -3607,6 +3611,8 @@ function buildShips(id, qtyOverride){
   const P = activePlanet();
   if (state.lvl.sy < 1) return setStatus('Necesitas un Astillero Naval de nivel 1 o superior.', true);
   if (!unitOk(id)) return setStatus('Requisitos no cumplidos: ' + reqText(unitReqs(id)) + '.', true);
+  const dmUnlock = DM_SHIP[id] && !state.dmShips[id] ? DM_SHIP[id] : 0;
+  if (dmUnlock && state.dark < dmUnlock) return setStatus('Necesitas ' + dmUnlock + ' de materia oscura para desbloquear ' + S.name + '.', true);
   if (id === 'mi'){
     const cap = 10 * (state.lvl.silo || 0);
     if ((state.fleet.mi || 0) + q > cap) return setStatus('Silo insuficiente: capacidad de ' + cap + ' misiles.', true);
@@ -3615,6 +3621,7 @@ function buildShips(id, qtyOverride){
   if (!RES.every(r => state.res[r] >= need[r])) return setStatus('Recursos insuficientes para construir ' + q + ' × ' + S.name + '.', true);
   RES.forEach(r => { state.res[r] -= need[r]; });
   state.spent += need.metal + need.crystal + need.deut;
+  if (dmUnlock){ state.dark -= dmUnlock; state.dmShips[id] = true; }
   // Cola por planeta: cada orden empieza cuando termina la anterior
   const queue = P.shipQueue || (P.shipQueue = []);
   const start = queue.length ? queue[queue.length - 1].end : state.simSec;
@@ -4463,6 +4470,7 @@ function shipCard(id){
     </div>
     ${SCENE_IMG[id] ? sceneHTML(id) : shipSceneHTML(id, locked)}
     ${stats}
+    ${DM_SHIP[id] && !state.dmShips[id] ? `<p class="muted" style="margin:0 0 8px;font-size:12px">Desbloqueo: ${DM_SHIP[id]} materia oscura (una sola vez)</p>` : ''}
     ${locked ? `<div class="cost sc-req">
       <span class="sc-req-title">Requisitos</span>
       ${reqChecklist(id)}

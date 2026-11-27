@@ -144,12 +144,17 @@ Estas ideas son propuestas. No están aprobadas:
 - **Subida de nivel:** desde el nivel 6, cada subida cuesta 10 más que la anterior (5→6 = 10, 6→7 = 20, 7→8 = 30...). Se aplica a edificios de recursos, instalaciones y lunas, e investigaciones.
 - La materia oscura se **gasta** al subir o al encolar la construcción. Si se cancela una construcción, se devuelve.
 
-### 6.2 Decidido por el cliente (pendiente de aplicar)
+### 6.2 Naves de ataque (aprobado, aplicado en modo prueba)
+
+- Se desbloquea **una sola vez por tipo de nave** con materia oscura. Si una nave se destruye en combate, no se paga de nuevo.
+- Nave de Batalla: 5. Bombardero: 7. Destructor: 30. Estrella de la Muerte: 150.
+
+### 6.3 Decidido por el cliente (pendiente de aplicar)
 
 - El TOKEN de cada venta de caja se reparte **50 % al dueño** y **50 % a la reserva**.
 
-### 6.3 Pendiente
+### 6.4 Pendiente
 
-- Naves: cuáles se desbloquean con materia oscura y con qué costo (propuesta: ×2).
 - Defensas planetarias: cuáles y con qué costo (propuesta: ×3). Hoy no existen en el juego como ítems de nivel.
+- Defensas: aplicar la misma regla (propuesta anterior: ×3).
 - Desde qué nivel exacto se pide materia oscura en naves y defensas.
