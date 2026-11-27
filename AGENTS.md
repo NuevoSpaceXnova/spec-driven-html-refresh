@@ -1,4 +1,4 @@
-<!-- LOVABLE:BEGIN -->
+ <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -29,19 +29,68 @@ use the editor.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
 
-## Project rules
-- The game is a single self-contained HTML file at `public/forja-astral.html` (vanilla JS, localStorage saves); the `/` route only frames it full-screen. Why: keeps the original game logic intact while the app shell stays TanStack.
-- Game scene images (mines, buildings, ships) live as local files under `public/assets/` referenced by `/assets/...` paths inside the HTML, never Lovable `/__l5e/` URLs or inline base64. Why: the user runs the repo from Codespaces, where only local paths load, and the HTML stays light.
-- Scene and building images used by the game are WebP files (the PNG originals are kept). Use WebP for new images to keep the game light.
-- Shipyard ship images live as optimized WebP files in `public/assets/<shipId>.webp` (user-uploaded via the repo; PNG originals kept). Why: the user edits the repo from Codespaces, so local paths work outside Lovable.
-- All work is done directly on `main`. Do not use test branches.
-- Every finished phase or update gets a commit and a push to `main`. Report the commit name to the user.
-- Costs (test mode): buildings, storage, facilities and research cost 10 times the base formula; ships and defenses cost 5 times their base cost. Build time follows the cost.
-- Decided rules currently in the game (test mode): the building queue allows 1 order for free accounts and up to 4 for VIP; VIP gives +50 % to production, building, ship construction and queue speed; publishing a resource offer charges the seller 15 % (free) or 5 % (VIP) of the total price in TOKEN; the USDT balance uses 0.000152 USDT per TOKEN until the real economy phase.
-- The TOKEN balance is per account, not per planet. The game and the swap share it (same browser only, until the database phase). USDT stays in the swap's demo book.
-- Resource offers are priced per unit: the player enters the unit price and the total is calculated. The minimum unit price is the last published offer for that resource (sold or cancelled offers still count), or 0.10 metal, 0.20 crystal and 0.50 deuterium if there is none. There is no maximum.
-- The market is called "Mercado" (not "Mercado P2P"). Its "Materia Oscura" tab holds six boxes sold only by the administration (10, 55, 120, 325, 700 and 1.500 dark matter for 1, 5, 10, 25, 50 and 100 USD). Upgrading buildings and research from level 6 costs 10 × (target level − 5) dark matter. Attack ships and the strongest planetary defenses unlock once per type with dark matter: Nave de Batalla 5, Acorazado 12, Bombardero 7, Destructor 30, Estrella de la Muerte 150, Cañón Gauss 10, Cañón de Plasma 40, Cúpula Grande 25. Basic defenses do not use dark matter.
-- Accounts (phase 5, part 1): the API lives in `src/api/handle.ts` and is called from `src/server.ts` for paths starting with `/api/`. It uses the D1 database bound as `DB` (on Cloudflare it is read from the `cloudflare:workers` module when the request does not carry it); the schema is `db/schema.sql`. Roles: `player`, `assistant`, `admin`. The administrator is set once in the database; the assistant role is set by the administrator through `/api/admin/set-role`. The admin panel is protected by a second password, stored as the Cloudflare secret `PANEL_PASSWORD` (never in the repo). Opening the panel requires it (`/api/panel/unlock`); `Salir del panel` locks it again (`/api/panel/lock`); the panel unlock is tied to the current session and lasts 8 hours. Logout clears both. The panel has no logout button; logout is only in the game. Assistants start with no section permissions. The administrator grants or removes each section per assistant (table `assistant_permissions`, routes `/api/admin/assistants` and `/api/admin/permissions`) in the panel section Ayudantes, which only the administrator sees. Removing the assistant role deletes its permissions. Admin routes require the unlocked panel. The admin panel `public/admin.html` has thirteen sections (Retiros, Trazabilidad de pagos, Saldos, Precio del TOKEN, Temporadas, Jugadores, Asignar premios, Movimientos de TOKEN, Mercado, Límites de compra y venta, Multicuentas, Materia oscura (ventas de cajas), Registro de acciones, Herramientas de prueba); they are empty placeholders until their logic is approved. The list is `SECTIONS` in `src/api/handle.ts`; the database does not restrict section names, so new sections only need the code list. The Panel button in the game and `public/admin.html` are visible only to the administrator and assistant. Until the database is bound, the API answers 503 and no player can register. The game's start screen uses these server accounts: sign in or register with email (password at least 8 characters). The game's saves live in the database (table `saves`, one per account, with a version number): the game loads the account's save at start, pushes changes about every 4 seconds and on logout or page close, and if another tab saved first the server copy wins. The browser copy is only a cache. Accounts without a database save start from zero (the old browser saves were test data). TOKEN (stage B1): the account balance lives on the server (table `wallets`, history `wallet_moves`). Every TOKEN spend (market fee and purchases, officers, withdrawal request, swap purchase, VIP, dark matter boxes) goes through `/api/wallet/spend`; the browser shows the server balance. TOKEN enters only through the real swap (not yet connected), the administrator's prizes (not yet built) and expedition finds from the administrator's reserves (below). The simulated TOKEN income was removed: simulated market sales, simulated deposits, referral commissions, the alliance tribute TOKEN, old browser-side expedition TOKEN finds (replaced by the server roll above), and selling resources for TOKEN in the in-game swap. Resources (metal, crystal, deuterium) are still calculated in the browser until stage B2. Starting balance for new accounts is 0 (approved: every account starts with 0 TOKEN). The local username login and the 'Acceso rápido de prueba' button were removed.
-- The test-mode button, the speed selector, the "Activar VIP (prueba)" button the "Enviar Flota de Prueba" button and the "Simular Ataque Entrante" button were removed from `public/forja-astral.html`. Saved games always run at real speed. The VIP purchase is paid on the server (98.684 TOKEN for 30 days, route `/api/vip/buy`, table `vip`); the VIP status comes from the server on every start (`vipUntil` in `/api/wallet`). The wallet equivalent (0,000152 USD per TOKEN) is simulated until the real economy phase.
-- Expeditions (approved): each expedition may find resources, ships, pirates or nothing (the browser roll, unchanged except that the TOKEN slot is gone). TOKEN and dark matter are rolled on the server (`/api/expedition/roll`): base chance 3 % for TOKEN and 1 % for dark matter per expedition; VIP accounts get +50 % chance (4,5 % and 1,5 %). Each find takes a random amount between the minimum and maximum set by the administrator and comes out of a reserve (table `reserves`, two reserves: `token` and `dark`), loaded by the administrator in the admin-only panel section "Reservas de expedición" (routes `/api/admin/reserves`). When a reserve is empty, expeditions keep working without that find and the panel shows 0. TOKEN finds are credited to the wallet; dark matter is added to the browser balance until stage B2. Every expedition ends with a summary line: Metal, Cristal, Deuterio, Naves, TOKEN and Materia oscura (zeros included). Pending: daily limit on TOKEN finds per account (decide last, it depends on where the TOKEN deposits come from); alliance tribute TOKEN.
-- Every time the game is updated or a phase is completed, update the rules and status in `README.md`, in this file, and in the affected documents in `docs/`, so the order of the work is kept.
+# Reglas de trabajo
+
+- Todo se trabaja en `main`. Sin ramas de prueba.
+- Cada tarea terminada: commit y push a `main`. Informa el nombre del commit.
+- Al cerrar una fase, actualiza `README.md`, este archivo y los `docs/` afectados.
+- Nunca reescribas historial ya publicado (nada de force push, rebase ni squash).
+- Ningún secreto en el repo. `PANEL_PASSWORD` vive como secreto de Cloudflare.
+
+# Qué puedes decidir solo y qué necesita aprobación
+
+| Hazlo sin preguntar | Pide aprobación |
+|---|---|
+| Corregir un fallo que rompe el juego | Cambiar precios, probabilidades, comisiones o cualquier regla de economía |
+| Añadir validaciones de seguridad en el servidor | Añadir o quitar funciones del juego |
+| Refactorizar sin cambiar comportamiento | Cambiar textos o mensajes que ve el jugador |
+| Actualizar documentación para reflejar lo ya hecho | Cambiar el esquema de la base de datos |
+| Corregir una contradicción entre docs y código, avisando en el resumen | Retiros, pagos, dinero real, términos y condiciones |
+
+Si puedes avanzar con una suposición razonable, avanza y dilo en el resumen.
+No te detengas a preguntar por detalles que el código ya responde.
+
+# Cómo responder
+
+- Una sola pregunta por turno, y solo si bloquea el trabajo.
+- No repitas el plan antes de trabajar. Empieza.
+- Al terminar: 3 a 5 líneas con qué cambió, qué probaste y el nombre del commit.
+- Si un documento contradice el código, sigue el código y avísalo en el resumen.
+- Lenguaje claro, sin jerga. Sin explicaciones largas.
+
+# Datos del proyecto (no los redescubras)
+
+- Despliegue: GitHub `main` → `bun run build` → `npx wrangler deploy`. Se publica `.output/public`.
+- No existe `wrangler.jsonc` en el repo: lo genera Nitro en `.output/server/wrangler.json`.
+- Base de datos: D1 `xnova-evolution`, binding `DB`. Tablas: `users`, `wallets`,
+  `wallet_moves`, `saves`, `sessions`, `assistant_permissions`, `vip`, `reserves`.
+- API: `src/api/handle.ts`, rutas `/api/*` desde `src/server.ts`.
+- El juego también responde directo en `/forja-astral.html`; `/` es la app que lo enmarca.
+- La copia del navegador (`localStorage`) es solo caché: la partida vive en `saves`.
+- Local se usa `npm`; el despliegue usa `bun`. Los dos funcionan.
+
+# Reglas del juego ya decididas (no cambiar sin aprobación)
+
+- Costos: edificios, almacenes, instalaciones e investigación ×10; naves y defensas ×5.
+  El tiempo de construcción sigue el costo.
+- Cola de construcción: 1 orden gratis, hasta 4 con VIP.
+- VIP: 98.684 TOKEN por 30 días, +50 % producción, construcción, naves y cola.
+- Comisión al publicar oferta: 15 % gratis, 5 % VIP, en TOKEN.
+- USDT: 0,000152 por TOKEN hasta la fase de economía real.
+- Materia oscura: seis cajas (1 a 100 USD). Mejoras desde nivel 6: 10 × (nivel − 5).
+  Desbloqueo único: Nave de Batalla 5, Acorazado 12, Bombardero 7, Destructor 30,
+  Estrella de la Muerte 150, Cañón Gauss 10, Cañón de Plasma 40, Cúpula Grande 25.
+- Mercado: precio por unidad; mínimo la última oferta publicada de ese recurso,
+  o 0,10 metal / 0,20 cristal / 0,50 deuterio. Sin máximo.
+- Expediciones: TOKEN 3 % y materia oscura 1 % por expedición (+50 % con VIP),
+  tirados en el servidor y pagados desde `reserves` (`token` y `dark`).
+- El saldo de TOKEN es por cuenta, no por planeta. Toda cuenta nueva empieza en 0.
+- Los recursos (metal, cristal, deuterio) todavía se calculan en el navegador (etapa B2 pendiente).
+
+# Problemas de seguridad conocidos (no los "descubras" de nuevo)
+
+- `/api/save` acepta el estado que envía el navegador sin validar: un jugador puede
+  darse recursos. Pendiente de arreglo (validación con topes y delta por tiempo).
+- `/api/expedition/roll` no tiene enfriamiento ni exige una expedición real: se puede
+  repetir en bucle y vaciar la reserva. Pendiente de arreglo.
+- `/api/wallet/spend` deja que el cliente fije el importe. Pendiente: precios en el servidor.
