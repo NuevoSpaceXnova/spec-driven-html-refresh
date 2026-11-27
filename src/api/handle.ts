@@ -383,6 +383,7 @@ function maxSaveProduction(data: any): { metal: number; crystal: number; deuteri
 function stripAuthoritativeSaveFields(data: any): any {
   delete data.dark;
   delete data.token;
+  delete data.dmShips;
   for (const p of data.planets || []) if (p.res) delete p.res.token;
   return data;
 }
@@ -660,7 +661,9 @@ const walletGet: Route = async (request, db) => {
   const token = await ensureWallet(db, user.id);
   const darkRow = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id)
     .first<{ dark: number }>();
-  return json({ token, dark: darkRow?.dark ?? 0, vipUntil: await vipUntilFor(db, user.id) });
+  const unlockRows = await db.prepare("SELECT ship_id FROM dm_ship_unlocks WHERE user_id = ?").bind(user.id).all<{ship_id:string}>();
+  const dmShips = Object.fromEntries(unlockRows.results.map(r => [r.ship_id, true]));
+  return json({ token, dark: darkRow?.dark ?? 0, dmShips, vipUntil: await vipUntilFor(db, user.id) });
 };
 
 const walletSpend: Route = async (request, db) => {
@@ -689,6 +692,8 @@ const walletDarkSpend: Route = async (request, db) => {
     .bind(amount, now(), user.id, amount).run();
   const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
   if (!upd.meta || !upd.meta.changes) return json({ error: "Materia oscura insuficiente", dark: row?.dark ?? 0 }, 409);
+  await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(user.id, -amount, reason, row?.dark ?? 0, now()).run();
   return json({ ok: true, dark: row?.dark ?? 0 });
 };
 const walletDarkBuy: Route = async (request, db) => {
@@ -704,17 +709,51 @@ const walletDarkBuy: Route = async (request, db) => {
   const dark = await creditDark(db, user.id, boxes[usd]);
   return json({ ok: true, token, dark });
 };
-
-
-// Pase VIP en el servidor. Mismo precio y duración que el juego: 98.684 TOKEN por 30 días.
-const VIP_COST = 98684;
-const VIP_MS = 30 * 86400000;
-
-async function vipUntilFor(db: DB, userId: string): Promise<number> {
-  const row = await db.prepare("SELECT until_ms FROM vip WHERE user_id = ?").bind(userId).first<{ until_ms: number }>();
-  return row ? row.until_ms : 0;
-}
-
+const walletDarkRefund: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const spendId = Number(body?.spendId);
+  if (!Number.isInteger(spendId) || spendId <= 0) return json({ error: "Reembolso no válido" }, 400);
+  const spend = await db.prepare("SELECT delta, reason FROM dark_moves WHERE id = ? AND user_id = ? AND delta < 0")
+    .bind(spendId, user.id).first<{delta:number; reason:string}>();
+  if (!spend) return json({ error: "Gasto no encontrado" }, 404);
+  const prior = await db.prepare("SELECT id FROM dark_moves WHERE refund_of = ?").bind(spendId).first();
+  if (prior) return json({ error: "Este gasto ya fue reembolsado" }, 409);
+  const amount = -spend.delta;
+  await ensureWallet(db, user.id);
+  await db.prepare("UPDATE wallets SET dark = ROUND(dark + ?, 6), updated_at = ? WHERE user_id = ?")
+    .bind(amount, now(), user.id).run();
+  const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
+  await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at, refund_of) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(user.id, amount, "Reembolso · " + spend.reason, row?.dark ?? 0, now(), spendId).run();
+  return json({ ok: true, dark: row?.dark ?? 0 });
+};
+const walletDarkUnlock: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const costs: Record<string,number> = {bt:5, ac:12, bm:7, de:30, dr:150, gc:10, cpl:40, cg:25};
+  const shipId = String(body?.shipId ?? "");
+  const cost = costs[shipId];
+  if (!cost) return json({ error: "Desbloqueo no válido" }, 400);
+  const existing = await db.prepare("SELECT ship_id FROM dm_ship_unlocks WHERE user_id = ? AND ship_id = ?")
+    .bind(user.id, shipId).first();
+  if (existing) {
+    const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
+    return json({ ok: true, dark: row?.dark ?? 0, unlocked: true });
+  }
+  await ensureWallet(db, user.id);
+  const upd = await db.prepare("UPDATE wallets SET dark = ROUND(dark - ?, 6), updated_at = ? WHERE user_id = ? AND dark >= ?")
+    .bind(cost, now(), user.id, cost).run();
+  const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
+  if (!upd.meta || !upd.meta.changes) return json({ error: "Materia oscura insuficiente", dark: row?.dark ?? 0 }, 409);
+  await db.prepare("INSERT INTO dm_ship_unlocks (user_id, ship_id, unlocked_at) VALUES (?, ?, ?)")
+    .bind(user.id, shipId, now()).run();
+  await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(user.id, -cost, "Desbloqueo de nave · " + shipId, row?.dark ?? 0, now()).run();
+  return json({ ok: true, dark: row?.dark ?? 0, unlocked: true });
+};
 const vipBuy: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
@@ -755,7 +794,10 @@ async function creditDark(db: DB, userId: string, amount: number): Promise<numbe
     .bind(amount, now(), userId).run();
   const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(userId)
     .first<{ dark: number }>();
-  return row?.dark ?? 0;
+  const balance = row?.dark ?? 0;
+  await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(userId, amount, "Crédito de materia oscura", balance, now()).run();
+  return balance;
 }
 
 const expeditionRoll: Route = async (request, db) => {
@@ -857,6 +899,8 @@ const ROUTES: Record<string, Route> = {
   "POST /api/wallet/spend": walletSpend,
   "POST /api/wallet/dark/spend": walletDarkSpend,
   "POST /api/wallet/dark/buy": walletDarkBuy,
+  "POST /api/wallet/dark/refund": walletDarkRefund,
+  "POST /api/wallet/dark/unlock": walletDarkUnlock,
   "POST /api/vip/buy": vipBuy,
   "POST /api/expedition/roll": expeditionRoll,
   "GET /api/admin/reserves": reservesGet,
