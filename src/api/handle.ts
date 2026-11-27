@@ -718,7 +718,7 @@ const walletDarkRefund: Route = async (request, db) => {
   const spend = await db.prepare("SELECT delta, reason FROM dark_moves WHERE id = ? AND user_id = ? AND delta < 0")
     .bind(spendId, user.id).first<{delta:number; reason:string}>();
   if (!spend) return json({ error: "Gasto no encontrado" }, 404);
-  const match = /^Mejora · ([a-z]+) nivel (\\d+)$/.exec(spend.reason);
+  const match = /^Mejora · ([a-z]+) nivel (\d+)$/.exec(spend.reason);
   if (!match) return json({ error: "Este gasto no admite reembolso de construcción" }, 403);
   const saved = await db.prepare("SELECT data FROM saves WHERE user_id = ?").bind(user.id).first<{data:string}>();
   let queued = false;
