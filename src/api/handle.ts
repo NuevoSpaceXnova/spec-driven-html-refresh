@@ -332,15 +332,20 @@ function validateSaveTree(v: unknown, key = "", depth = 0): boolean {
   return Object.entries(v).every(([k, x]) => k.length <= 100 && validateSaveTree(x, k, depth + 1));
 }
 function capOfSave(level: number): number {
-  return 100000 + 50000 * Math.floor(Math.pow(1.6, level));
+  const cap = 100000 + 50000 * Math.floor(Math.pow(1.6, level));
+  return Number.isFinite(cap) ? Math.min(cap, 1e15) : 1e15;
 }
-function clipSaveResources(data: any): void {
+function clipSaveResources(data: any): boolean {
+  let clipped = false;
   for (const p of data.planets) {
     for (const k of ["metal","crystal","deut"]) {
       const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
-      p.res[k] = Math.min(p.res[k], capOfSave(p.lvl[storageKey]));
+      const capacity = capOfSave(p.lvl[storageKey]);
+      if (p.res[k] > capacity) clipped = true;
+      p.res[k] = Math.min(p.res[k], capacity);
     }
   }
+  return clipped;
 }
 function saveLevelBuildSeconds(id: string, targetLevel: number, levels: any): number {
   const costs: Record<string, [number,number,number]> = {
@@ -595,7 +600,7 @@ const savePut: Route = async (request, db) => {
   const baseline = check ? {metal:check.metal, crystal:check.crystal, deuterium:check.deuterium} : null;
   const growthError = validateGrowth(previous, parsed, elapsed, baseline);
   if (growthError) return rejectSave(db, user.id, growthError);
-  clipSaveResources(parsed);
+  const clipped = clipSaveResources(parsed);
   const resourceError = validateResourceGrowth(previous, parsed, elapsed, baseline);
   if (resourceError) return rejectSave(db, user.id, resourceError);
   const cleanAfterClip = JSON.stringify(parsed);
@@ -609,7 +614,7 @@ const savePut: Route = async (request, db) => {
   }
   await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
     .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
-  return json({ ok: true, version: version + 1 });
+  return json({ ok: true, version: version + 1, clipped, resources: parsed.planets.map((p: any) => ({metal:p.res.metal, crystal:p.res.crystal, deut:p.res.deut})) });
 };
 
 // Saldo de TOKEN de cada cuenta (etapa B1). Solo el servidor lo cambia.
