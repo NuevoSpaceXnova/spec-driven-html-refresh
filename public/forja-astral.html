@@ -692,8 +692,9 @@ button,select,input{font-family:inherit}
 .res-box{width:150px;min-width:150px;max-width:150px;overflow:hidden}
 .res-box>div{min-width:0;flex:1}
 .res-val{font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:1400px){.res-box{width:100px;min-width:100px;max-width:100px}}
-@media (max-width:1100px){.res-box{width:124px;min-width:124px;max-width:124px}}
+@media (max-width:1400px){.res-box{width:auto;min-width:0;max-width:none;padding:0 8px;gap:6px}}
+@media (max-width:1100px){.res-box{width:auto;min-width:0;max-width:none}}
+@media (max-width:1100px){.topbar{height:auto;flex-wrap:wrap;row-gap:6px}.resources{order:3;flex:1 1 100%;min-width:0}}
 @media (max-width:767px){
   .resources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding-top:6px;overflow:visible}
   .res-box,.res-box[title^="Energía"]{width:auto;min-width:0;max-width:none;height:48px;min-height:0;gap:4px;padding:4px 6px;border:1px solid var(--border-subtle);border-radius:var(--r);background:var(--bg-surface)}
@@ -722,7 +723,7 @@ button,select,input{font-family:inherit}
 /* Energía necesita más ancho para su etiqueta completa */
 .res-box[title^="Energía"]{width:172px;min-width:172px;max-width:172px}
 @media (max-width:767px){.res-box[title^="Energía"]{width:auto;min-width:0;max-width:none}}
-@media (max-width:1400px){.res-box[title^="Energía"]{width:100px;min-width:100px;max-width:100px}}
+@media (max-width:1400px){.res-box[title^="Energía"]{width:auto;min-width:0;max-width:none}}
 /* Icono de recurso en la tarjeta */
 .card-res-icon{width:28px;height:28px;object-fit:contain;display:block}
 /* Miniatura de planeta en la tabla de galaxia */
