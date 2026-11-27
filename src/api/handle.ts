@@ -388,6 +388,8 @@ function validateSaveStructure(data: any): string {
   if (data.v !== 2 || !Array.isArray(data.planets) || data.planets.length < 1 || data.planets.length > 20) return "Estructura de planetas no válida.";
   if (!Number.isInteger(data.active) || data.active < 0 || data.active >= data.planets.length) return "Planeta activo no válido.";
   if (data.speed !== 1) return "Velocidad de partida no válida.";
+  const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
+  for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   for (const p of data.planets) {
     if (!saveRecord(p) || Object.keys(p).some(k => !SAVE_PLANET_KEYS.includes(k))) return "Estructura de planeta no válida.";
     if (!saveRecord(p.res) || !saveRecord(p.lvl) || !saveRecord(p.fleet)) return "Recursos, niveles o flota no válidos.";
@@ -439,18 +441,14 @@ function firstSaveIsFresh(data: any): boolean {
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
 function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
-  const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(previous);
-  for (const k of ["metal","crystal","deuterium"] as const) {
-    const increase = newRes[k] - oldRes[k];
-    if (increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
-  }
+  const oldRes = baseline || saveResources(previous), newRes = saveResources(next);
   const oldPlanets = previous.planets || [];
   const researchCosts: Record<string,[number,number,number,number]> = {
     en:[0,800,400,2], cm:[400,0,600,2], bl:[1000,0,0,2], es:[200,1000,200,2],
     cp:[0,400,600,2], ap:[4000,8000,4000,1.75], lz:[200,100,0,2], io:[300,400,0,2],
     pl:[2000,4000,1000,2], im:[800,0,400,2], hd:[1500,800,600,2], hy:[4000,4000,2000,2], gv:[0,20000,10000,2],
   };
-  let researchSpend = {metal:0, crystal:0, deut:0};
+  const researchSpend = {metal:0, crystal:0, deut:0};
   for (let i = 0; i < next.planets.length; i++) {
     const old = oldPlanets[i];
     if (!old) continue;
@@ -464,10 +462,12 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
       }
     }
   }
-  for (const k of ["metal","crystal","deut"] as const) {
-    const allowedSpend = oldRes[k] + rates[k] * elapsed / 3600 * 3 - newRes[k === "deut" ? "deuterium" : k];
-    const required = researchSpend[k === "deut" ? "deut" : k];
-    if (!Number.isFinite(required) || required > allowedSpend + 1) return "Aumento de investigación sin recursos suficientes.";
+  const rates = maxSaveProduction(previous);
+  for (const [resource, field] of [["metal","metal"],["crystal","crystal"],["deuterium","deut"]] as const) {
+    const allowedSpend = oldRes[resource] + rates[resource] * elapsed / 3600 * 3 - newRes[resource];
+    if (!Number.isFinite(researchSpend[field]) || researchSpend[field] > allowedSpend + 1) {
+      return "Aumento de investigación sin recursos suficientes.";
+    }
   }
   const shipCosts: Record<string,[number,number]> = {
     nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
@@ -495,9 +495,19 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
       if (newCount <= oldCount) continue;
       const [metal, crystal] = shipCosts[id] || [0,0];
       const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
-      const maxUnits = Math.floor(elapsed / unitSeconds) * 3;
-      if (newCount - oldCount > maxUnits) return "Aumento de flota o defensas superior a la velocidad del astillero.";
+      if (newCount - oldCount > Math.floor(elapsed / unitSeconds) * 3) {
+        return "Aumento de flota o defensas superior a la velocidad del astillero.";
+      }
     }
+    if ((p.fleet.mi || 0) > 10 * (p.lvl.silo || 0)) return "Los misiles superan la capacidad del silo.";
+  }
+  return "";
+}
+function validateResourceGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
+  const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(previous);
+  for (const k of ["metal","crystal","deuterium"] as const) {
+    const increase = newRes[k] - oldRes[k];
+    if (increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
   }
   return "";
 }
@@ -551,6 +561,8 @@ const savePut: Route = async (request, db) => {
   const growthError = validateGrowth(previous, parsed, elapsed, baseline);
   if (growthError) return rejectSave(db, user.id, growthError);
   clipSaveResources(parsed);
+  const resourceError = validateResourceGrowth(previous, parsed, elapsed, baseline);
+  if (resourceError) return rejectSave(db, user.id, resourceError);
   const cleanAfterClip = JSON.stringify(parsed);
   const resources = saveResources(parsed);
   const updated = await db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
