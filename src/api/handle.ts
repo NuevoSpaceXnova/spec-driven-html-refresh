@@ -718,6 +718,16 @@ const walletDarkRefund: Route = async (request, db) => {
   const spend = await db.prepare("SELECT delta, reason FROM dark_moves WHERE id = ? AND user_id = ? AND delta < 0")
     .bind(spendId, user.id).first<{delta:number; reason:string}>();
   if (!spend) return json({ error: "Gasto no encontrado" }, 404);
+  const match = /^Mejora · ([a-z]+) nivel (\\d+)$/.exec(spend.reason);
+  if (!match) return json({ error: "Este gasto no admite reembolso de construcción" }, 403);
+  const saved = await db.prepare("SELECT data FROM saves WHERE user_id = ?").bind(user.id).first<{data:string}>();
+  let queued = false;
+  try {
+    const game = saved ? JSON.parse(saved.data) : null;
+    queued = !!game?.planets?.some((p: any) => p.queue?.darkSpendId === spendId && p.queue.id === match[1]
+      && (p.lvl?.[match[1]] || 0) + 1 === Number(match[2]));
+  } catch { queued = false; }
+  if (!queued) return json({ error: "La construcción ya no está pendiente en el servidor" }, 409);
   const prior = await db.prepare("SELECT id FROM dark_moves WHERE refund_of = ?").bind(spendId).first();
   if (prior) return json({ error: "Este gasto ya fue reembolsado" }, 409);
   const amount = -spend.delta;
