@@ -39,7 +39,6 @@
   <div class="head-right">
     <div id="who">Comprobando la cuenta…</div>
     <button type="button" id="lock" hidden>Salir del panel</button>
-    <button type="button" id="logout" hidden>Cerrar sesión</button>
   </div>
 </header>
 
@@ -102,7 +101,6 @@
   var gateErr = document.getElementById('gate-err');
   var passInput = document.getElementById('panel-pass');
   var lockBtn = document.getElementById('lock');
-  var logoutBtn = document.getElementById('logout');
   var buttons = document.querySelectorAll('nav button');
 
   buttons.forEach(function (b) {
@@ -151,11 +149,6 @@
       .finally(showGate);
   });
 
-  logoutBtn.addEventListener('click', function () {
-    fetch('/api/logout', { method: 'POST', credentials: 'same-origin' })
-      .finally(function () { window.location.href = '/login.html'; });
-  });
-
   fetch('/api/me', { credentials: 'same-origin' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -165,7 +158,6 @@
         return null;
       }
       who.textContent = u.email + ' · ' + (u.role === 'admin' ? 'administración' : 'ayudante');
-      logoutBtn.hidden = false;
       return fetch('/api/panel/status', { credentials: 'same-origin' }).then(function (r) { return r.json(); });
     })
     .then(function (s) {
