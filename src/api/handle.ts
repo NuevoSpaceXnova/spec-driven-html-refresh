@@ -206,7 +206,7 @@ export async function handleApi(request: Request, env: ApiEnv): Promise<Response
   if (!path.startsWith("/api/")) return null;
   const route = ROUTES[`${request.method} ${path}`];
   if (!route) return json({ error: "No encontrado" }, 404);
-  if (!env.DB) return json({ error: "La base de datos todavía no está conectada" }, 503);
+  if (!env || !env.DB) return json({ error: "La base de datos todavía no está conectada" }, 503);
   try {
     return await route(request, env.DB);
   } catch (error) {

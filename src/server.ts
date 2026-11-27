@@ -45,13 +45,25 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// En Cloudflare, la base llega por el módulo "cloudflare:workers" cuando la petición
+// pasa por el motor de la app y no trae el entorno. Si el módulo no existe, no se rompe.
+async function getWorkerEnv(env: unknown): Promise<unknown> {
+  if (env) return env;
+  try {
+    const mod = (await import("cloudflare:workers")) as { env?: unknown };
+    return mod.env;
+  } catch {
+    return undefined;
+  }
+}
+
 // Hosting compresses every response at the edge. Never compress a body (gzip, brotli,
 // CompressionStream) or set content-encoding here or in a server route: the body gets encoded
 // twice and renders garbled.
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
-      const api = await handleApi(request, env as Parameters<typeof handleApi>[1]);
+      const api = await handleApi(request, (await getWorkerEnv(env)) as Parameters<typeof handleApi>[1]);
       if (api) return api;
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
