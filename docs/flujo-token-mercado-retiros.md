@@ -130,7 +130,7 @@ Estas ideas son propuestas. No están aprobadas:
 ### 6.1 Aplicado en el juego
 
 - Saldo de **materia oscura** junto a metal (primera caja de la barra superior).
-- Dentro de **Mercado**, pestaña **Materia Oscura** con seis cajas. Se compran a la administración con TOKEN (precio en USD convertido a TOKEN). No se venden ni se compran entre jugadores.
+- Dentro de **Mercado**, pestaña **Materia Oscura** con seis cajas, cada una con su imagen y nombre: Frasco de Materia Oscura (1 USD), Frasco Evolucionado (5 USD), Cilindro de Contención (10 USD), Tanque Blindado (25 USD), Núcleo de Contención (50 USD) y Cofre de Materia Oscura (100 USD). Se compran a la administración con TOKEN (precio en USD convertido a TOKEN). No se venden ni se compran entre jugadores.
 
 | Caja | Materia oscura | Por dólar |
 |---|---|---|

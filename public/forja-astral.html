@@ -4852,7 +4852,14 @@ function viewMarket(){
     ${M.sub === 'sell' ? sell : M.sub === 'sellship' ? sellShips() : M.sub === 'dark' ? darkMatterView() : explore}`;
 }
 // Materia Oscura: cajas que se compran a la administración con TOKEN. Cantidad aún por definir.
-const DARK_BOXES = [{usd:1,dm:10},{usd:5,dm:55},{usd:10,dm:120},{usd:25,dm:325},{usd:50,dm:700},{usd:100,dm:1500}];
+const DARK_BOXES = [
+  {usd:1,  dm:10,   name:'Frasco de Materia Oscura', img:'assets/caja-materia-1.webp'},
+  {usd:5,  dm:55,   name:'Frasco Evolucionado',      img:'assets/caja-materia-5.webp'},
+  {usd:10, dm:120,  name:'Cilindro de Contención',   img:'assets/caja-materia-10.webp'},
+  {usd:25, dm:325,  name:'Tanque Blindado',          img:'assets/caja-materia-25.webp'},
+  {usd:50, dm:700,  name:'Núcleo de Contención',     img:'assets/caja-materia-50.webp'},
+  {usd:100,dm:1500, name:'Cofre de Materia Oscura',  img:'assets/caja-materia-100.webp'}
+];
 // Materia oscura para subir de nivel: desde el nivel 6, 10 más que el nivel anterior (5→6 = 10, 6→7 = 20...)
 function dmCost(id, N){ return N < 6 ? 0 : 10 * (N - 5); }
 function dmRow(id){ return `<div class="cost-row" data-dmrow="${id}"><span>Materia oscura</span><span data-bind="dmcost:${id}"></span></div>`; }
@@ -4861,8 +4868,9 @@ function darkMatterView(){
     const cost = Math.round(b.usd / TOKEN_USD);
     return `
     <section class="panel pad">
-      <h2 class="section-title" style="margin-top:0">Caja de ${b.usd} USD</h2>
-      <p class="muted" style="margin:0 0 6px">Precio: ${fmt(cost)} TOKEN</p>
+      <img src="${b.img}" alt="" style="width:100%;height:auto;border-radius:8px;display:block;margin-bottom:12px">
+      <h2 class="section-title" style="margin-top:0">${b.name}</h2>
+      <p class="muted" style="margin:0 0 6px">Precio: ${b.usd} USD · ${fmt(cost)} TOKEN</p>
       <p class="muted" style="margin:0 0 12px">Materia oscura: ${fmt(b.dm)}</p>
       <button class="btn" data-action="buy-dark" data-usd="${b.usd}" ${state.res.token < cost ? 'disabled' : ''}>Comprar caja</button>
     </section>`;
