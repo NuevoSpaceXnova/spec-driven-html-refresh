@@ -3010,7 +3010,7 @@ async function cancelBuild(){
   P.queue = null;
   if (P.queueExtra && P.queueExtra.length){
     const nx = P.queueExtra.shift();
-    P.queue = {id:nx.id, end: state.simSec + nx.total, total: nx.total};
+    P.queue = {id:nx.id, end: state.simSec + nx.total, total: nx.total, darkSpendId:nx.darkSpendId};
     reflowQueue(P);
   }
   saveGame();
