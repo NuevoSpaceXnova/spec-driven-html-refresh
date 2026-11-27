@@ -332,6 +332,29 @@ function validateSaveTree(v: unknown, key = "", depth = 0): boolean {
 function capOfSave(level: number): number {
   return 100000 + 50000 * Math.floor(Math.pow(1.6, level));
 }
+function clipSaveResources(data: any): void {
+  for (const p of data.planets) {
+    for (const k of ["metal","crystal","deut"]) {
+      const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
+      p.res[k] = Math.min(p.res[k], capOfSave(p.lvl[storageKey]) * 1.5);
+    }
+  }
+}
+function saveLevelBuildSeconds(id: string, targetLevel: number, levels: any): number {
+  const costs: Record<string, [number,number,number]> = {
+    mm:[60,15,1.5], mc:[48,24,1.6], ds:[225,75,1.5], sol:[75,30,1.5],
+    sm:[1000,250,1.6], sc:[1000,500,1.6], tk:[1000,1000,1.6],
+    rf:[400,120,1.5], sy:[400,200,1.5], lab:[200,400,1.6],
+    fus:[900,360,1.8], nan:[1000,300,2], ter:[0,50000,2], silo:[20000,20000,2],
+    lb:[20000,40000,2], ph:[10000,20000,2], jg:[200000,100000,2],
+  };
+  const c = costs[id];
+  if (!c) return 0;
+  const metal = Math.floor(c[0] * Math.pow(c[2], targetLevel - 1));
+  const crystal = Math.floor(c[1] * Math.pow(c[2], targetLevel - 1));
+  const base = (metal + crystal) / (2500 * (1 + (levels.rf || 0))) * 3600;
+  return Math.max(5, Math.ceil(base * Math.pow(0.5, levels.nan || 0) * (1 - 0.02 * (levels.gv || 0)) / 1.5));
+}
 function saveResources(data: any): { metal: number; crystal: number; deuterium: number } {
   return (data.planets || []).reduce((sum: any, p: any) => ({
     metal: sum.metal + p.res.metal, crystal: sum.crystal + p.res.crystal, deuterium: sum.deuterium + p.res.deut,
@@ -374,13 +397,28 @@ function validateSaveStructure(data: any): string {
     for (const k of SAVE_LEVEL_KEYS) if (p.lvl[k] === undefined) p.lvl[k] = 0;
     for (const k of SAVE_UNIT_KEYS) if (p.fleet[k] === undefined) p.fleet[k] = 0;
   }
+  const expectedTypes: Record<string,string[]> = {
+    planets:["array"], moves:["array"], inbox:["array"], market:["object"], galaxy:["object"],
+    debris:["object"], dmShips:["object"], daily:["object"], expLog:["array"], alliances:["array"],
+    wallet:["object"], txs:["array"], officers:["object"], prod:["object"], stats:["object"], referrals:["array"],
+    alliance:["object","null"], ranking:["object","null"], profile:["object","null"], empireClass:["string","null"],
+    testMode:["boolean"], animOff:["boolean"], vacation:["boolean"],
+  };
+  for (const [k, types] of Object.entries(expectedTypes)) {
+    if (data[k] === undefined) continue;
+    const type = data[k] === null ? "null" : Array.isArray(data[k]) ? "array" : typeof data[k];
+    if (!types.includes(type)) return "Tipo de dato incorrecto en " + k + ".";
+  }
+  for (const p of data.planets) {
+    for (const k of SAVE_LEVEL_KEYS) if (!Number.isInteger(p.lvl[k]) || p.lvl[k] < 0) return "Los niveles deben ser enteros no negativos.";
+    for (const k of SAVE_UNIT_KEYS) if (!Number.isInteger(p.fleet[k]) || p.fleet[k] < 0) return "Las unidades deben ser enteros no negativos.";
+  }
   if (!validateSaveTree(data)) return "La partida contiene valores numéricos o estructuras no válidos.";
   for (const p of data.planets) {
-    for (const k of ["metal","crystal","deut"]) {
-      const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
-      const capacity = capOfSave(p.lvl[storageKey]) * 1.5;
-      p.res[k] = Math.min(p.res[k], capacity);
-    }
+    const keys = p.moon ? ["lb","rf","sy","ph","jg"] : ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo"];
+    const used = keys.reduce((n: number, k: string) => n + p.lvl[k], 0);
+    const fields = p.moon ? 1 + 3 * p.lvl.lb : 163 + 5 * p.lvl.ter;
+    if (used > fields) return "El planeta supera sus campos de construcción.";
   }
   return "";
 }
@@ -398,30 +436,38 @@ function firstSaveIsFresh(data: any): boolean {
   if (SAVE_UNIT_KEYS.some(k => p.fleet[k] !== 0)) return false;
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
-function validateGrowth(previous: any, next: any, elapsed: number): string {
-  const oldRes = saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(previous);
+function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
+  const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(previous);
   for (const k of ["metal","crystal","deuterium"] as const) {
     const increase = newRes[k] - oldRes[k];
-    if (increase > 0 && increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
+    if (increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
   }
   const oldPlanets = previous.planets || [];
+  const shipCosts: Record<string,[number,number]> = {
+    nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
+    bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
+    rc:[50000,30000], sp:[0,5000], co:[50000,100000], sat:[0,10000],
+    lm:[10000,0], ll:[7500,2500], lg:[30000,10000], gc:[100000,75000], ci:[10000,30000],
+    cpl:[250000,250000], cs:[0,100000], cg:[100000,100000], mi:[62500,0],
+  };
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = oldPlanets[i];
     if (!old) {
       if (Object.values(p.fleet).some((n: any) => n > 0)) return "No se permite crear flotas en planetas nuevos.";
       continue;
     }
+    let buildSeconds = 0;
+    const buildKeys = p.moon ? ["lb","rf","sy","ph","jg"] : ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo"];
+    for (const id of buildKeys) {
+      const increase = p.lvl[id] - (old.lvl[id] || 0);
+      for (let n = 1; n <= increase; n++) buildSeconds += saveLevelBuildSeconds(id, (old.lvl[id] || 0) + n, old.lvl);
+    }
+    if (buildSeconds > elapsed * 12) return "Aumento de edificios superior al tiempo de construcción permitido.";
     const yard = Math.max(1, old.lvl.sy || 1);
     for (const id of SAVE_UNIT_KEYS) {
       const oldCount = old.fleet[id] || 0, newCount = p.fleet[id] || 0;
       if (newCount <= oldCount) continue;
-      const catalog: Record<string, [number,number]> = {
-        nc:[2000,2000], ng:[6000,6000], cz:[3000,1000], ch:[6000,4000], cr:[20000,7000],
-        bt:[45000,15000], ac:[30000,40000], bm:[50000,25000], de:[60000,50000], dr:[5000000,4000000],
-        rc:[10000,6000], sp:[0,1000], co:[10000,20000], sat:[0,0], lm:[0,0], ll:[0,0], lg:[0,0],
-        gc:[0,0], ci:[0,0], cpl:[0,0], cs:[0,0], cg:[0,0], mi:[0,0],
-      };
-      const [metal, crystal] = catalog[id] || [0,0];
+      const [metal, crystal] = shipCosts[id] || [0,0];
       const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
       const maxUnits = Math.floor(elapsed / unitSeconds) * 3;
       if (newCount - oldCount > maxUnits) return "Aumento de flota o defensas superior a la velocidad del astillero.";
@@ -475,11 +521,14 @@ const savePut: Route = async (request, db) => {
   let previous: any;
   try { previous = JSON.parse(current.data); } catch { return rejectSave(db, user.id, "La copia guardada del servidor no es válida."); }
   const elapsed = check ? Math.max(0, now() - check.checked_at) : 0;
-  const growthError = validateGrowth(previous, parsed, elapsed);
+  const baseline = check ? {metal:check.metal, crystal:check.crystal, deuterium:check.deuterium} : null;
+  const growthError = validateGrowth(previous, parsed, elapsed, baseline);
   if (growthError) return rejectSave(db, user.id, growthError);
+  clipSaveResources(parsed);
+  const cleanAfterClip = JSON.stringify(parsed);
   const resources = saveResources(parsed);
   const updated = await db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
-    .bind(cleanData, now(), user.id, version).run();
+    .bind(cleanAfterClip, now(), user.id, version).run();
   if (!updated.meta || !updated.meta.changes) {
     const latest = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
       .first<{ data: string; version: number }>();
