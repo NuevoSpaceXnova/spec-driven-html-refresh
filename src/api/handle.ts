@@ -390,7 +390,10 @@ async function creditToken(db: DB, userId: string, amount: number, reason: strin
 const walletGet: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
-  return json({ token: await ensureWallet(db, user.id), vipUntil: await vipUntilFor(db, user.id) });
+  const token = await ensureWallet(db, user.id);
+  const darkRow = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id)
+    .first<{ dark: number }>();
+  return json({ token, dark: darkRow?.dark ?? 0, vipUntil: await vipUntilFor(db, user.id) });
 };
 
 const walletSpend: Route = async (request, db) => {
@@ -468,6 +471,8 @@ const expeditionRoll: Route = async (request, db) => {
   const current = now();
 
   if (action === "start") {
+    await db.prepare("DELETE FROM expeditions WHERE rolled_at IS NOT NULL AND rolled_at < ?")
+      .bind(current - 7 * 24 * 60 * 60).run();
     await db.prepare("DELETE FROM expeditions WHERE user_id = ? AND rolled_at IS NULL AND started_at <= ?")
       .bind(user.id, current - EXPEDITION_EXPIRY_SECONDS).run();
     const open = await db.prepare("SELECT id FROM expeditions WHERE user_id = ? AND rolled_at IS NULL")
