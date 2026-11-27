@@ -1231,7 +1231,8 @@ async function expeditionRoll(){
   const d = r && r.ok ? await r.json().catch(() => null) : null;
   if (!d) return {token:0, dark:0, failed:true};
   if (typeof d.balance === 'number') state.res.token = d.balance;
-  if (typeof d.dark === 'number' && d.dark > 0) state.dark += d.dark;
+  if (typeof d.darkBalance === 'number') state.dark = d.darkBalance;
+  else if (typeof d.dark === 'number' && d.dark > 0) state.dark += d.dark;
   return {token: d.token || 0, dark: d.dark || 0, failed:false};
 }
 async function walletSpend(amount, reason){
@@ -2978,6 +2979,8 @@ async function upgrade(id){
     RES.forEach(r => { state.res[r] -= c[r]; });
     state.lvl[id] = N;
     state.spent += c.metal + c.crystal + c.deut;
+    saveGame();
+    await pushCloud();
     return refresh();
   }
   const P = activePlanet();
@@ -3027,7 +3030,7 @@ function processQueues(){
     if (!q || state.simSec < q.end) return;
     P.lvl[q.id] = (P.lvl[q.id] || 0) + 1;
     P.queue = null;
-    if (P.queueExtra && P.queueExtra.length) P.queue = P.queueExtra.shift();
+    if (P.queueExtra && P.queueExtra.length) { const nx = P.queueExtra.shift(); P.queue = {id:nx.id, end: state.simSec + nx.total, total:nx.total, darkSpendId:nx.darkSpendId}; }
     saveGame();
     toast((TECH_KEYS.includes(q.id) ? 'Investigación terminada: ' : 'Construcción terminada: ') + ITEMS[q.id].name + ' nivel ' + P.lvl[q.id] + '.');
   });
