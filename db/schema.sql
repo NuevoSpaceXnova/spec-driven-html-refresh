@@ -17,3 +17,10 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
+
+-- Permisos de los ayudantes por sección del panel (fase 5, parte 2)
+CREATE TABLE IF NOT EXISTS assistant_permissions (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  section TEXT NOT NULL CHECK (section IN ('retiros', 'trazabilidad', 'saldos', 'precio', 'temporadas', 'pruebas')),
+  PRIMARY KEY (user_id, section)
+);

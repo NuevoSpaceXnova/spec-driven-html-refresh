@@ -10,6 +10,7 @@ const enc = new TextEncoder();
 type Stmt = {
   bind(...args: unknown[]): {
     first<T = Record<string, unknown>>(): Promise<T | null>;
+    all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
     run(): Promise<{ meta?: { changes?: number } }>;
   };
 };
@@ -19,6 +20,9 @@ type User = { id: string; email: string; role: string };
 type Route = (request: Request, db: DB, env: ApiEnv) => Promise<Response>;
 
 const now = () => Math.floor(Date.now() / 1000);
+
+// Secciones del panel. El administrador las tiene todas; el ayudante solo las que se le den.
+export const SECTIONS = ["retiros", "trazabilidad", "saldos", "precio", "temporadas", "pruebas"];
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
@@ -140,6 +144,23 @@ async function currentUser(request: Request, db: DB): Promise<User | null> {
     .first<User>();
 }
 
+async function sectionsFor(db: DB, user: User): Promise<string[]> {
+  if (user.role === "admin") return SECTIONS;
+  const rows = await db
+    .prepare("SELECT section FROM assistant_permissions WHERE user_id = ?")
+    .bind(user.id)
+    .all<{ section: string }>();
+  return rows.results.map((r) => r.section).filter((x) => SECTIONS.includes(x));
+}
+
+// Solo el administrador con el panel desbloqueado puede usar estas rutas.
+async function adminGate(request: Request, db: DB, env: ApiEnv): Promise<{ user: User } | { res: Response }> {
+  const user = await currentUser(request, db);
+  if (!user || user.role !== "admin") return { res: json({ error: "No autorizado" }, 403) };
+  if (!(await panelUnlocked(request, env))) return { res: json({ error: "Panel bloqueado" }, 403) };
+  return { user };
+}
+
 const register: Route = async (request, db) => {
   const body = await readJson(request);
   if (!body) return json({ error: "Datos no válidos" }, 400);
@@ -195,7 +216,11 @@ const logout: Route = async (request, db) => {
 const panelStatus: Route = async (request, db, env) => {
   const user = await currentUser(request, db);
   if (!user || (user.role !== "admin" && user.role !== "assistant")) return json({ error: "No autorizado" }, 403);
-  return json({ unlocked: await panelUnlocked(request, env) });
+  return json({
+    unlocked: await panelUnlocked(request, env),
+    role: user.role,
+    sections: await sectionsFor(db, user),
+  });
 };
 
 const panelUnlock: Route = async (request, db, env) => {
@@ -216,21 +241,61 @@ const me: Route = async (request, db) => {
   return json({ user: user ? { email: user.email, role: user.role } : null });
 };
 
-// Solo el administrador asigna el rol de ayudante (o lo quita).
-const setRole: Route = async (request, db) => {
-  const me = await currentUser(request, db);
-  if (!me || me.role !== "admin") return json({ error: "No autorizado" }, 403);
+// Solo el administrador asigna el rol de ayudante (o lo quita). Al quitarlo, se borran sus permisos.
+const setRole: Route = async (request, db, env) => {
+  const gate = await adminGate(request, db, env);
+  if ("res" in gate) return gate.res;
   const body = await readJson(request);
   const email = normEmail(body?.email);
   const role = body?.role;
   if (!email) return json({ error: "Correo no válido" }, 400);
   if (role !== "assistant" && role !== "player") return json({ error: "Rol no válido" }, 400);
-  const result = await db
-    .prepare("UPDATE users SET role = ? WHERE email = ? AND role != 'admin'")
-    .bind(role, email)
-    .run();
-  if (!result.meta || !result.meta.changes) return json({ error: "Cuenta no encontrada" }, 404);
+  const target = await db.prepare("SELECT id, role FROM users WHERE email = ?").bind(email).first<{ id: string; role: string }>();
+  if (!target) return json({ error: "Cuenta no encontrada" }, 404);
+  if (target.role === "admin") return json({ error: "La cuenta de administración no cambia de rol aquí" }, 400);
+  await db.prepare("UPDATE users SET role = ? WHERE id = ?").bind(role, target.id).run();
+  if (role !== "assistant") {
+    await db.prepare("DELETE FROM assistant_permissions WHERE user_id = ?").bind(target.id).run();
+  }
   return json({ ok: true, email, role });
+};
+
+// Lista de ayudantes con sus secciones.
+const assistantsList: Route = async (request, db, env) => {
+  const gate = await adminGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const rows = await db
+    .prepare(`SELECT u.email AS email, p.section AS section FROM users u
+      LEFT JOIN assistant_permissions p ON p.user_id = u.id
+      WHERE u.role = 'assistant' ORDER BY u.email, p.section`)
+    .bind()
+    .all<{ email: string; section: string | null }>();
+  const map = new Map<string, string[]>();
+  for (const r of rows.results) {
+    if (!map.has(r.email)) map.set(r.email, []);
+    if (r.section) map.get(r.email)!.push(r.section);
+  }
+  return json({ assistants: [...map.entries()].map(([email, sections]) => ({ email, sections })) });
+};
+
+// Da o quita un permiso de sección a un ayudante.
+const permissionSet: Route = async (request, db, env) => {
+  const gate = await adminGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const body = await readJson(request);
+  const email = normEmail(body?.email);
+  const section = String(body?.section ?? "");
+  const granted = body?.granted === true;
+  if (!email) return json({ error: "Correo no válido" }, 400);
+  if (!SECTIONS.includes(section)) return json({ error: "Sección no válida" }, 400);
+  const target = await db.prepare("SELECT id, role FROM users WHERE email = ?").bind(email).first<{ id: string; role: string }>();
+  if (!target || target.role !== "assistant") return json({ error: "La cuenta no es ayudante" }, 404);
+  if (granted) {
+    await db.prepare("INSERT OR IGNORE INTO assistant_permissions (user_id, section) VALUES (?, ?)").bind(target.id, section).run();
+  } else {
+    await db.prepare("DELETE FROM assistant_permissions WHERE user_id = ? AND section = ?").bind(target.id, section).run();
+  }
+  return json({ ok: true, email, section, granted });
 };
 
 const ROUTES: Record<string, Route> = {
@@ -242,6 +307,8 @@ const ROUTES: Record<string, Route> = {
   "POST /api/panel/unlock": panelUnlock,
   "POST /api/panel/lock": panelLock,
   "POST /api/admin/set-role": setRole,
+  "GET /api/admin/assistants": assistantsList,
+  "POST /api/admin/permissions": permissionSet,
 };
 
 // Devuelve null si la dirección no es de la API, para que siga el flujo normal del sitio.

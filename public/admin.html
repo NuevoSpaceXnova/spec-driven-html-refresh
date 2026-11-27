@@ -11,7 +11,6 @@
   body{margin:0;min-height:100vh;background:#0b0d14;color:#e8eaf2;font-family:system-ui,sans-serif;display:flex;flex-direction:column}
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;background:#151927;border-bottom:1px solid #2a3044}
   header h1{font-size:18px;margin:0}
-  .head-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   #who{font-size:13px;color:#aab1c8}
   header button{background:#222a40;color:#e8eaf2;border:1px solid #2a3044;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer}
   .gate{margin:auto;width:min(340px,90vw);display:flex;flex-direction:column;gap:12px;background:#151927;padding:24px;border-radius:10px;border:1px solid #2a3044}
@@ -30,6 +29,14 @@
   section h2{font-size:18px;margin:0 0 8px}
   section p{color:#aab1c8;font-size:14px;margin:0 0 10px}
   .empty{border:1px dashed #2a3044;border-radius:8px;padding:24px;text-align:center;color:#6b7390;font-size:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .row input[type=email]{flex:1;min-width:200px;padding:8px;border-radius:6px;border:1px solid #2a3044;background:#0b0d14;color:#e8eaf2;font-size:14px}
+  .btn{padding:8px 12px;border:0;border-radius:6px;background:#7c5cff;color:#fff;font-size:14px;cursor:pointer}
+  .btn.danger{background:#5a2a35}
+  .assist{border:1px solid #2a3044;border-radius:8px;padding:12px;margin-bottom:10px}
+  .assist-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .perms{display:flex;flex-wrap:wrap;gap:8px 16px}
+  .perms label{font-size:13px;color:#aab1c8;display:flex;gap:6px;align-items:center}
   @media (max-width:700px){.layout{flex-direction:column} nav{width:auto;flex-direction:row;flex-wrap:wrap}}
 </style>
 </head>
@@ -58,6 +65,7 @@
     <button type="button" data-tab="precio">Precio del TOKEN</button>
     <button type="button" data-tab="temporadas">Temporadas</button>
     <button type="button" data-tab="pruebas">Herramientas de prueba</button>
+    <button type="button" data-tab="ayudantes" hidden>Ayudantes</button>
   </nav>
   <main>
     <section id="retiros" class="on">
@@ -90,11 +98,26 @@
       <p>Herramientas temporales del modo prueba. Se quitan antes del lanzamiento oficial.</p>
       <div class="empty">Sin herramientas todavía.</div>
     </section>
+    <section id="ayudantes" hidden>
+      <h2>Ayudantes</h2>
+      <p>Asigna el rol de ayudante con el correo de la cuenta y elige qué secciones puede usar. Sin permisos, el ayudante no ve ninguna sección.</p>
+      <form class="row" id="assign-form" novalidate>
+        <input type="email" id="assign-email" maxlength="254" placeholder="correo de la ayudante" required>
+        <button class="btn" type="submit">Asignar ayudante</button>
+      </form>
+      <div class="err" id="assign-err"></div>
+      <div id="assistants"></div>
+    </section>
   </main>
 </div>
 
 <script>
 (function () {
+  var SECTION_LABELS = {
+    retiros: 'Retiros', trazabilidad: 'Trazabilidad de pagos', saldos: 'Saldos',
+    precio: 'Precio del TOKEN', temporadas: 'Temporadas', pruebas: 'Herramientas de prueba'
+  };
+  var SECTION_KEYS = Object.keys(SECTION_LABELS);
   var who = document.getElementById('who');
   var app = document.getElementById('app');
   var gate = document.getElementById('gate');
@@ -102,15 +125,42 @@
   var passInput = document.getElementById('panel-pass');
   var lockBtn = document.getElementById('lock');
   var buttons = document.querySelectorAll('nav button');
+  var isAdmin = false;
+
+  function api(path, body) {
+    return fetch(path, {
+      method: body === undefined ? 'GET' : 'POST',
+      credentials: 'same-origin',
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; });
+    });
+  }
+
+  function show(tab) {
+    buttons.forEach(function (x) { x.classList.toggle('on', x.getAttribute('data-tab') === tab); });
+    document.querySelectorAll('main section').forEach(function (s) { s.classList.toggle('on', s.id === tab); });
+    if (tab === 'ayudantes' && isAdmin) loadAssistants();
+  }
 
   buttons.forEach(function (b) {
-    b.addEventListener('click', function () {
-      buttons.forEach(function (x) { x.classList.toggle('on', x === b); });
-      document.querySelectorAll('main section').forEach(function (s) {
-        s.classList.toggle('on', s.id === b.getAttribute('data-tab'));
-      });
-    });
+    b.addEventListener('click', function () { show(b.getAttribute('data-tab')); });
   });
+
+  // Muestra solo las secciones que esta cuenta puede usar
+  function applyPermissions(sections, role) {
+    isAdmin = role === 'admin';
+    buttons.forEach(function (b) {
+      var tab = b.getAttribute('data-tab');
+      var ok = tab === 'ayudantes' ? isAdmin : sections.indexOf(tab) !== -1;
+      b.hidden = !ok;
+      document.getElementById(tab).hidden = !ok;
+    });
+    var first = isAdmin ? 'retiros' : (SECTION_KEYS.filter(function (k) { return sections.indexOf(k) !== -1; })[0] || null);
+    if (first) show(first);
+    else document.querySelectorAll('main section').forEach(function (s) { s.classList.remove('on'); });
+  }
 
   function showGate() {
     app.hidden = true;
@@ -120,35 +170,108 @@
     gateErr.textContent = '';
     passInput.focus();
   }
-  function showApp() {
+
+  function showApp(status) {
     gate.hidden = true;
     app.hidden = false;
     lockBtn.hidden = false;
+    applyPermissions(status.sections || [], status.role);
   }
 
   gate.addEventListener('submit', function (e) {
     e.preventDefault();
     gateErr.textContent = '';
-    fetch('/api/panel/unlock', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: passInput.value })
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
-    }).then(function (res) {
-      if (res.ok) { showApp(); return; }
-      gateErr.textContent = res.d.error || 'No se pudo entrar';
+    api('/api/panel/unlock', { password: passInput.value }).then(function (res) {
+      if (!res.ok) { gateErr.textContent = res.d.error || 'No se pudo entrar'; return; }
+      return api('/api/panel/status').then(function (s) { showApp(s.d); });
     }).catch(function () {
       gateErr.textContent = 'Sin conexión con el servidor';
     });
   });
 
   lockBtn.addEventListener('click', function () {
-    fetch('/api/panel/lock', { method: 'POST', credentials: 'same-origin' })
-      .finally(showGate);
+    fetch('/api/panel/lock', { method: 'POST', credentials: 'same-origin' }).finally(showGate);
   });
 
+  // ---------- Ayudantes (solo administración) ----------
+  var assignForm = document.getElementById('assign-form');
+  var assignEmail = document.getElementById('assign-email');
+  var assignErr = document.getElementById('assign-err');
+  var list = document.getElementById('assistants');
+
+  function setErr(text) { assignErr.textContent = text || ''; }
+
+  function loadAssistants() {
+    api('/api/admin/assistants').then(function (res) {
+      list.textContent = '';
+      if (!res.ok) { setErr(res.d.error || 'No se pudo cargar la lista'); return; }
+      setErr('');
+      if (!res.d.assistants.length) {
+        var empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'Todavía no hay ayudantes.';
+        list.appendChild(empty);
+        return;
+      }
+      res.d.assistants.forEach(function (a) { list.appendChild(assistantCard(a)); });
+    });
+  }
+
+  function assistantCard(a) {
+    var card = document.createElement('div');
+    card.className = 'assist';
+    var head = document.createElement('div');
+    head.className = 'assist-head';
+    var name = document.createElement('strong');
+    name.textContent = a.email;
+    var remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn danger';
+    remove.textContent = 'Quitar ayudante';
+    remove.addEventListener('click', function () {
+      if (!window.confirm('¿Quitar el rol de ayudante a ' + a.email + '?')) return;
+      api('/api/admin/set-role', { email: a.email, role: 'player' }).then(function (res) {
+        if (!res.ok) { setErr(res.d.error || 'No se pudo quitar'); return; }
+        loadAssistants();
+      });
+    });
+    head.appendChild(name);
+    head.appendChild(remove);
+    card.appendChild(head);
+    var perms = document.createElement('div');
+    perms.className = 'perms';
+    SECTION_KEYS.forEach(function (key) {
+      var label = document.createElement('label');
+      var box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = a.sections.indexOf(key) !== -1;
+      box.addEventListener('change', function () {
+        api('/api/admin/permissions', { email: a.email, section: key, granted: box.checked }).then(function (res) {
+          if (!res.ok) { box.checked = !box.checked; setErr(res.d.error || 'No se pudo guardar'); return; }
+          setErr('');
+        });
+      });
+      label.appendChild(box);
+      label.appendChild(document.createTextNode(SECTION_LABELS[key]));
+      perms.appendChild(label);
+    });
+    card.appendChild(perms);
+    return card;
+  }
+
+  assignForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    setErr('');
+    var email = assignEmail.value.trim().toLowerCase();
+    if (!email) { setErr('Escribe un correo.'); return; }
+    api('/api/admin/set-role', { email: email, role: 'assistant' }).then(function (res) {
+      if (!res.ok) { setErr(res.d.error || 'No se pudo asignar'); return; }
+      assignEmail.value = '';
+      loadAssistants();
+    }).catch(function () { setErr('Sin conexión con el servidor'); });
+  });
+
+  // ---------- Arranque ----------
   fetch('/api/me', { credentials: 'same-origin' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -158,11 +281,11 @@
         return null;
       }
       who.textContent = u.email + ' · ' + (u.role === 'admin' ? 'administración' : 'ayudante');
-      return fetch('/api/panel/status', { credentials: 'same-origin' }).then(function (r) { return r.json(); });
+      return api('/api/panel/status');
     })
     .then(function (s) {
       if (!s) return;
-      if (s.unlocked) showApp(); else showGate();
+      if (s.ok && s.d.unlocked) showApp(s.d); else showGate();
     })
     .catch(function () { window.location.href = '/login.html'; });
 })();
