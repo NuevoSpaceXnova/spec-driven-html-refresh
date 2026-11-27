@@ -692,9 +692,9 @@ const walletDarkSpend: Route = async (request, db) => {
     .bind(amount, now(), user.id, amount).run();
   const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
   if (!upd.meta || !upd.meta.changes) return json({ error: "Materia oscura insuficiente", dark: row?.dark ?? 0 }, 409);
-  await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(user.id, -amount, reason, row?.dark ?? 0, now()).run();
-  return json({ ok: true, dark: row?.dark ?? 0 });
+  const move = await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id")
+    .bind(user.id, -amount, reason, row?.dark ?? 0, now()).first<{id:number}>();
+  return json({ ok: true, dark: row?.dark ?? 0, spendId: move?.id ?? null });
 };
 const walletDarkBuy: Route = async (request, db) => {
   const user = await currentUser(request, db);
