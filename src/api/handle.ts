@@ -300,53 +300,193 @@ const permissionSet: Route = async (request, db, env) => {
 
 // Partida de la cuenta. Control de versión: si otra pestaña guardó antes, responde 409 con la copia actual.
 const MAX_SAVE_CHARS = 1_500_000;
-
+const SAVE_TOP_KEYS = ["v","token","planets","active","moves","inbox","market","galaxy","debris","speed","testMode","vipUntil","dark","dmShips","animOff","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","daily","expLog","alliance","alliances","ranking","profile","wallet","txs","officers","empireClass","vacation","prod","stats","referrals"];
+const SAVE_LEVEL_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg","en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
+const SAVE_UNIT_KEYS = ["nc","ng","cz","ch","cr","bt","ac","bm","de","dr","rc","sp","co","sat","lm","ll","lg","gc","ci","cpl","cs","cg","mi"];
+const SAVE_PLANET_KEYS = ["name","coords","parent","moon","queue","queueExtra","shipQueue","res","lvl","fleet"];
+const SAVE_SIGNED_KEYS = new Set(["amount","delta"]);
+const SAVE_NUMERIC_CAPS: Record<string, number> = {
+  metal: 1e15, crystal: 1e15, deut: 1e15, token: 1e15, dark: 1e15,
+  mm: 1e6, mc: 1e6, ds: 1e6, sol: 1e6, sm: 1e6, sc: 1e6, tk: 1e6,
+  rf: 1e6, sy: 1e6, lab: 1e6, fus: 1e6, nan: 1e6, ter: 1e6, silo: 1e6,
+  lb: 1e6, ph: 1e6, jg: 1e6, en: 1e6, cm: 1e6, bl: 1e6, es: 1e6,
+  cp: 1e6, ap: 1e6, lz: 1e6, io: 1e6, pl: 1e6, im: 1e6, hd: 1e6, hy: 1e6, gv: 1e6,
+  n: 1e12, wins: 1e12, mined: 1e15, spent: 1e15, pts: 1e15, rate: 1e12,
+  start: 1e15, end: 1e15, total: 1e15, t: 1e15, endAt: 1e15, startAt: 1e15,
+  g: 1e6, s: 1e6, active: 100, version: 1e9, day: 1e9, level: 1e6,
+};
+function saveRecord(v: unknown): v is Record<string, any> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+function validateSaveTree(v: unknown, key = "", depth = 0): boolean {
+  if (depth > 18) return false;
+  if (typeof v === "number") {
+    const cap = SAVE_NUMERIC_CAPS[key] ?? 1e15;
+    return Number.isFinite(v) && Math.abs(v) <= cap && (v >= 0 || SAVE_SIGNED_KEYS.has(key));
+  }
+  if (v === null || typeof v === "string" || typeof v === "boolean") return typeof v !== "string" || v.length <= 20000;
+  if (Array.isArray(v)) return v.length <= 10000 && v.every(x => validateSaveTree(x, key, depth + 1));
+  if (!saveRecord(v)) return false;
+  return Object.entries(v).every(([k, x]) => k.length <= 100 && validateSaveTree(x, k, depth + 1));
+}
+function capOfSave(level: number): number {
+  return 100000 + 50000 * Math.floor(Math.pow(1.6, level));
+}
+function saveResources(data: any): { metal: number; crystal: number; deuterium: number } {
+  return (data.planets || []).reduce((sum: any, p: any) => ({
+    metal: sum.metal + p.res.metal, crystal: sum.crystal + p.res.crystal, deuterium: sum.deuterium + p.res.deut,
+  }), { metal: 0, crystal: 0, deuterium: 0 });
+}
+function maxSaveProduction(data: any): { metal: number; crystal: number; deuterium: number } {
+  const pw = (n: number) => n * Math.pow(1.1, n);
+  return (data.planets || []).reduce((sum: any, p: any) => {
+    if (p.moon) return sum;
+    const l = p.lvl;
+    const bonus = 2.025; // alianza + clase + geólogo (35 %) y VIP (50 %)
+    return {
+      metal: sum.metal + (30 + 30 * pw(l.mm)) * bonus,
+      crystal: sum.crystal + (15 + 20 * pw(l.mc)) * bonus,
+      deuterium: sum.deuterium + (12 * pw(l.ds)) * (1 + 0.05 * l.cm) * bonus,
+    };
+  }, { metal: 0, crystal: 0, deuterium: 0 });
+}
+function stripAuthoritativeSaveFields(data: any): any {
+  delete data.dark;
+  delete data.token;
+  for (const p of data.planets || []) if (p.res) delete p.res.token;
+  return data;
+}
+function validateSaveStructure(data: any): string {
+  if (!saveRecord(data)) return "La partida debe ser un objeto JSON.";
+  const unknown = Object.keys(data).find(k => !SAVE_TOP_KEYS.includes(k));
+  if (unknown) return "Campo de partida desconocido: " + unknown;
+  if (data.v !== 2 || !Array.isArray(data.planets) || data.planets.length < 1 || data.planets.length > 20) return "Estructura de planetas no válida.";
+  if (!Number.isInteger(data.active) || data.active < 0 || data.active >= data.planets.length) return "Planeta activo no válido.";
+  if (data.speed !== 1) return "Velocidad de partida no válida.";
+  for (const p of data.planets) {
+    if (!saveRecord(p) || Object.keys(p).some(k => !SAVE_PLANET_KEYS.includes(k))) return "Estructura de planeta no válida.";
+    if (!saveRecord(p.res) || !saveRecord(p.lvl) || !saveRecord(p.fleet)) return "Recursos, niveles o flota no válidos.";
+    if (Object.keys(p.res).some(k => !["metal","crystal","deut","token"].includes(k))) return "Recurso desconocido.";
+    if (Object.keys(p.lvl).some(k => !SAVE_LEVEL_KEYS.includes(k))) return "Nivel desconocido.";
+    if (Object.keys(p.fleet).some(k => !SAVE_UNIT_KEYS.includes(k))) return "Unidad desconocida.";
+    if (typeof p.moon !== "boolean" || typeof p.name !== "string" || typeof p.coords !== "string") return "Identidad del planeta no válida.";
+    for (const k of ["metal","crystal","deut"]) if (typeof p.res[k] !== "number") return "Recurso con tipo incorrecto: " + k;
+    for (const k of SAVE_LEVEL_KEYS) if (p.lvl[k] === undefined) p.lvl[k] = 0;
+    for (const k of SAVE_UNIT_KEYS) if (p.fleet[k] === undefined) p.fleet[k] = 0;
+  }
+  if (!validateSaveTree(data)) return "La partida contiene valores numéricos o estructuras no válidos.";
+  for (const p of data.planets) {
+    for (const k of ["metal","crystal","deut"]) {
+      const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
+      const capacity = capOfSave(p.lvl[storageKey]) * 1.5;
+      p.res[k] = Math.min(p.res[k], capacity);
+    }
+  }
+  return "";
+}
+async function rejectSave(db: DB, userId: string, reason: string, status = 409): Promise<Response> {
+  await db.prepare("INSERT INTO save_rejects (user_id, reason, created_at) VALUES (?, ?, ?)")
+    .bind(userId, reason.slice(0, 240), now()).run();
+  return json({ error: reason, rejected: true }, status);
+}
+function firstSaveIsFresh(data: any): boolean {
+  if (data.planets.length !== 1) return false;
+  const p = data.planets[0];
+  const expected = { mm: 1, mc: 1, sol: 1 };
+  if (Object.entries(expected).some(([k,v]) => p.lvl[k] !== v)) return false;
+  if (SAVE_LEVEL_KEYS.some(k => !(k in expected) && p.lvl[k] !== 0)) return false;
+  if (SAVE_UNIT_KEYS.some(k => p.fleet[k] !== 0)) return false;
+  return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
+}
+function validateGrowth(previous: any, next: any, elapsed: number): string {
+  const oldRes = saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(previous);
+  for (const k of ["metal","crystal","deuterium"] as const) {
+    const increase = newRes[k] - oldRes[k];
+    if (increase > 0 && increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
+  }
+  const oldPlanets = previous.planets || [];
+  for (let i = 0; i < next.planets.length; i++) {
+    const p = next.planets[i], old = oldPlanets[i];
+    if (!old) {
+      if (Object.values(p.fleet).some((n: any) => n > 0)) return "No se permite crear flotas en planetas nuevos.";
+      continue;
+    }
+    const yard = Math.max(1, old.lvl.sy || 1);
+    for (const id of SAVE_UNIT_KEYS) {
+      const oldCount = old.fleet[id] || 0, newCount = p.fleet[id] || 0;
+      if (newCount <= oldCount) continue;
+      const catalog: Record<string, [number,number]> = {
+        nc:[2000,2000], ng:[6000,6000], cz:[3000,1000], ch:[6000,4000], cr:[20000,7000],
+        bt:[45000,15000], ac:[30000,40000], bm:[50000,25000], de:[60000,50000], dr:[5000000,4000000],
+        rc:[10000,6000], sp:[0,1000], co:[10000,20000], sat:[0,0], lm:[0,0], ll:[0,0], lg:[0,0],
+        gc:[0,0], ci:[0,0], cpl:[0,0], cs:[0,0], cg:[0,0], mi:[0,0],
+      };
+      const [metal, crystal] = catalog[id] || [0,0];
+      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
+      const maxUnits = Math.floor(elapsed / unitSeconds) * 3;
+      if (newCount - oldCount > maxUnits) return "Aumento de flota o defensas superior a la velocidad del astillero.";
+    }
+  }
+  return "";
+}
 const saveGet: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
-  const row = await db
-    .prepare("SELECT data, version FROM saves WHERE user_id = ?")
-    .bind(user.id)
+  const row = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
     .first<{ data: string; version: number }>();
-  return json({ data: row ? row.data : null, version: row ? row.version : 0 });
+  if (!row) return json({ data: null, version: 0 });
+  try {
+    const clean = stripAuthoritativeSaveFields(JSON.parse(row.data));
+    return json({ data: JSON.stringify(clean), version: row.version });
+  } catch { return json({ data: null, version: row.version }); }
 };
-
 const savePut: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
   const body = await readJson(request);
   const data = typeof body?.data === "string" ? body.data : "";
-  const version = Number(body?.version);
-  if (!data || data.length > MAX_SAVE_CHARS) return json({ error: "Partida no válida o demasiado grande" }, 400);
-  if (!Number.isInteger(version) || version < 0) return json({ error: "Versión no válida" }, 400);
-  let parsed: unknown;
-  try { parsed = JSON.parse(data); } catch { return json({ error: "Partida no válida" }, 400); }
-  if (!parsed || typeof parsed !== "object") return json({ error: "Partida no válida" }, 400);
-
-  const current = await db
-    .prepare("SELECT data, version FROM saves WHERE user_id = ?")
-    .bind(user.id)
+  const version = body?.version;
+  if (!data || data.length > MAX_SAVE_CHARS) return rejectSave(db, user.id, "Partida vacía o demasiado grande.", 400);
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 0) return rejectSave(db, user.id, "Versión no válida.", 400);
+  let parsed: any;
+  try { parsed = JSON.parse(data); } catch { return rejectSave(db, user.id, "JSON de partida no válido.", 400); }
+  const structuralError = validateSaveStructure(parsed);
+  if (structuralError) return rejectSave(db, user.id, structuralError, 400);
+  stripAuthoritativeSaveFields(parsed);
+  const cleanData = JSON.stringify(parsed);
+  if (cleanData.length > MAX_SAVE_CHARS) return rejectSave(db, user.id, "Partida demasiado grande después de normalizar.", 400);
+  const current = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
     .first<{ data: string; version: number }>();
+  const check = await db.prepare("SELECT metal, crystal, deuterium, checked_at FROM save_checks WHERE user_id = ?")
+    .bind(user.id).first<{ metal: number; crystal: number; deuterium: number; checked_at: number }>();
   if (!current) {
     if (version !== 0) return json({ error: "Conflicto", data: null, version: 0 }, 409);
+    if (!firstSaveIsFresh(parsed)) return rejectSave(db, user.id, "La primera partida debe partir del estado inicial.", 409);
     try {
       await db.prepare("INSERT INTO saves (user_id, data, version, updated_at) VALUES (?, ?, 1, ?)")
-        .bind(user.id, data, now()).run();
-    } catch {
-      return json({ error: "Conflicto" }, 409);
-    }
+        .bind(user.id, cleanData, now()).run();
+      const resources = saveResources(parsed);
+      await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?)")
+        .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
+    } catch { return rejectSave(db, user.id, "No se pudo crear la partida inicial.", 409); }
     return json({ ok: true, version: 1 });
   }
   if (current.version !== version) return json({ error: "Conflicto", data: current.data, version: current.version }, 409);
-  const result = await db
-    .prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
-    .bind(data, now(), user.id, version)
-    .run();
-  if (!result.meta || !result.meta.changes) {
+  let previous: any;
+  try { previous = JSON.parse(current.data); } catch { return rejectSave(db, user.id, "La copia guardada del servidor no es válida."); }
+  const elapsed = check ? Math.max(0, now() - check.checked_at) : 0;
+  const growthError = validateGrowth(previous, parsed, elapsed);
+  if (growthError) return rejectSave(db, user.id, growthError);
+  const resources = saveResources(parsed);
+  const updated = await db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
+    .bind(cleanData, now(), user.id, version).run();
+  if (!updated.meta || !updated.meta.changes) {
     const latest = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
       .first<{ data: string; version: number }>();
     return json({ error: "Conflicto", data: latest?.data ?? null, version: latest?.version ?? 0 }, 409);
   }
+  await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
+    .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
   return json({ ok: true, version: version + 1 });
 };
 
