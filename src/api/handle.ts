@@ -677,6 +677,34 @@ const walletSpend: Route = async (request, db) => {
   }
   return json({ ok: true, token: balance });
 };
+const walletDarkSpend: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const amount = Math.round(Number(body?.amount) * 1000000) / 1000000;
+  const reason = String(body?.reason ?? "").slice(0, MAX_REASON);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12 || !reason) return json({ error: "Cantidad o motivo no válido" }, 400);
+  await ensureWallet(db, user.id);
+  const upd = await db.prepare("UPDATE wallets SET dark = ROUND(dark - ?, 6), updated_at = ? WHERE user_id = ? AND dark >= ?")
+    .bind(amount, now(), user.id, amount).run();
+  const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
+  if (!upd.meta || !upd.meta.changes) return json({ error: "Materia oscura insuficiente", dark: row?.dark ?? 0 }, 409);
+  return json({ ok: true, dark: row?.dark ?? 0 });
+};
+const walletDarkBuy: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const usd = Number(body?.usd);
+  const boxes: Record<number, number> = {1:10, 5:55, 10:120, 25:325, 50:700, 100:1500};
+  if (!Number.isFinite(usd) || boxes[usd] === undefined) return json({ error: "Caja no válida" }, 400);
+  const cost = Math.round(usd / 0.000152);
+  const token = await spendToken(db, user.id, cost, "Caja de materia oscura");
+  if (token === null) return json({ error: "Saldo de TOKEN insuficiente", token: await ensureWallet(db, user.id) }, 409);
+  const dark = await creditDark(db, user.id, boxes[usd]);
+  return json({ ok: true, token, dark });
+};
+
 
 // Pase VIP en el servidor. Mismo precio y duración que el juego: 98.684 TOKEN por 30 días.
 const VIP_COST = 98684;
@@ -827,6 +855,8 @@ const reservesSet: Route = async (request, db, env) => {
 const ROUTES: Record<string, Route> = {
   "GET /api/wallet": walletGet,
   "POST /api/wallet/spend": walletSpend,
+  "POST /api/wallet/dark/spend": walletDarkSpend,
+  "POST /api/wallet/dark/buy": walletDarkBuy,
   "POST /api/vip/buy": vipBuy,
   "POST /api/expedition/roll": expeditionRoll,
   "GET /api/admin/reserves": reservesGet,
