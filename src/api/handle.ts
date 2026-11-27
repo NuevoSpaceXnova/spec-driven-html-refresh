@@ -393,6 +393,12 @@ function validateSaveStructure(data: any): string {
   for (const p of data.planets) {
     if (!saveRecord(p) || Object.keys(p).some(k => !SAVE_PLANET_KEYS.includes(k))) return "Estructura de planeta no válida.";
     if (!saveRecord(p.res) || !saveRecord(p.lvl) || !saveRecord(p.fleet)) return "Recursos, niveles o flota no válidos.";
+    if (p.queue !== undefined && p.queue !== null && !saveRecord(p.queue)) return "Cola de construcción no válida.";
+    if (p.queueExtra !== undefined && !Array.isArray(p.queueExtra)) return "Cola adicional no válida.";
+    if (p.shipQueue !== undefined && !Array.isArray(p.shipQueue)) return "Cola de naves no válida.";
+    if (p.parent !== undefined && typeof p.parent !== "string") return "Planeta padre no válido.";
+    if (p.queueExtra && p.queueExtra.some((q: any) => !saveRecord(q))) return "Elemento de cola no válido.";
+    if (p.shipQueue && p.shipQueue.some((q: any) => !saveRecord(q) || typeof q.id !== "string" || !Number.isInteger(q.n))) return "Orden de astillero no válida.";
     if (Object.keys(p.res).some(k => !["metal","crystal","deut","token"].includes(k))) return "Recurso desconocido.";
     if (Object.keys(p.lvl).some(k => !SAVE_LEVEL_KEYS.includes(k))) return "Nivel desconocido.";
     if (Object.keys(p.fleet).some(k => !SAVE_UNIT_KEYS.includes(k))) return "Unidad desconocida.";
@@ -413,6 +419,13 @@ function validateSaveStructure(data: any): string {
     const type = data[k] === null ? "null" : Array.isArray(data[k]) ? "array" : typeof data[k];
     if (!types.includes(type)) return "Tipo de dato incorrecto en " + k + ".";
   }
+  if (data.prod !== undefined && Object.entries(data.prod).some(([k,v]) => !["mm","mc","ds","sol","fus"].includes(k) || typeof v !== "number" || v < 0 || v > 100)) return "Porcentajes de producción no válidos.";
+  if (data.officers !== undefined) {
+    if (Object.keys(data.officers).some(k => !["geo","eng","adm","tec"].includes(k))) return "Oficial desconocido.";
+    for (const [k,v] of Object.entries(data.officers)) if ((k === "adm" || k === "tec") ? typeof v !== "boolean" : typeof v !== "number") return "Estado de oficial no válido.";
+  }
+  if (data.wallet !== undefined && (Object.keys(data.wallet).some(k => k !== "address") || typeof data.wallet.address !== "string")) return "Wallet no válida.";
+  if (data.stats !== undefined && (Object.keys(data.stats).some(k => !["wins","mined"].includes(k)) || typeof data.stats.wins !== "number" || typeof data.stats.mined !== "number")) return "Estadísticas no válidas.";
   for (const p of data.planets) {
     for (const k of SAVE_LEVEL_KEYS) if (!Number.isInteger(p.lvl[k]) || p.lvl[k] < 0) return "Los niveles deben ser enteros no negativos.";
     for (const k of SAVE_UNIT_KEYS) if (!Number.isInteger(p.fleet[k]) || p.fleet[k] < 0) return "Las unidades deben ser enteros no negativos.";
