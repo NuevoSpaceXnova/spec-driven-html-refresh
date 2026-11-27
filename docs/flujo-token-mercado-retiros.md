@@ -124,3 +124,23 @@ Estas ideas son propuestas. No están aprobadas:
 6. Base de la comisión de retiro por nivel: TOKEN o USDT/BNB (sección 4.1).
 7. Solicitudes fuera de horario y trazabilidad de pagos (sección 5.4).
 8. Aprobación de las propuestas de comunicación (sección 5.3).
+
+## 6. Cajas de materia oscura (idea del cliente, pendiente de aprobación)
+
+### 6.1 Aplicado en el juego (modo prueba)
+
+- Dentro de **Mercado** (antes "Mercado P2P"), nueva pestaña **Materia Oscura**.
+- Seis cajas con precio en USD pagado en TOKEN: 1, 5, 10, 25, 50 y 100 USD.
+- Cantidad de materia oscura por caja: **por definir**. El botón de compra está desactivado.
+
+### 6.2 Decidido por el cliente (pendiente de aplicar)
+
+- Las cajas se compran **solo a la administración**. No se venden ni se compran entre jugadores.
+- El TOKEN de cada venta se reparte **50 % al dueño** y **50 % a la reserva**.
+
+### 6.3 Pendiente
+
+- Cantidad de materia oscura por caja.
+- Consumo: si la materia oscura se gasta al usarla o solo es requisito.
+- Opción de escala elegida para subir de nivel (propuesta B: 5 × (N − 4) desde el nivel 5; investigaciones ×1, naves ×2, defensas ×3). Pendiente de aprobación.
+- Desde qué nivel se pide materia oscura en minas y almacenes (propuesta: desde el nivel 3).

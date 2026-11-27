@@ -1045,7 +1045,7 @@ const TABS = [
   {id:'shipyard',  label:'Astillero',      icon:'ship'},
   {id:'fleet',     label:'Flota',          icon:'rocket'},
   {id:'galaxy',    label:'Galaxia',        icon:'globe'},
-  {id:'market',    label:'Mercado P2P',    icon:'market'},
+  {id:'market',    label:'Mercado',    icon:'market'},
   {id:'expeditions', label:'Expediciones', icon:'rocket'},
   {id:'alliances',  label:'Alianzas',     icon:'people'},
   {id:'ranking',    label:'Ranking',      icon:'trophy'},
@@ -4791,7 +4791,7 @@ function sellShips(){
 }
 function viewMarket(){
   const M = mktState();
-  const subs = [['explore','Explorar'],['sell','Vender recursos'],['sellship','Vender naves'],['own','Mis listados']];
+  const subs = [['explore','Explorar'],['sell','Vender recursos'],['sellship','Vender naves'],['own','Mis listados'],['dark','Materia Oscura']];
   const subBtns = subs.map(([id, l]) =>
     `<button class="btn inline${M.sub === id ? '' : ' secondary'}" data-action="mkt-sub" data-sub="${id}" ${M.sub === id ? 'disabled' : ''}>${l}</button>`).join('');
   const filters = [['all','Todos'],['metal','Metal'],['crystal','Cristal'],['deut','Deuterio'],['ship','Naves']].map(([id, l]) =>
@@ -4822,7 +4822,21 @@ function viewMarket(){
     <p class="page-sub">Ofertas y compra de recursos entre jugadores. Tokens disponibles: <span class="mono" data-bind="res:token"></span></p>
     <p id="status" class="page-sub"></p>
     <div class="inline-form" style="margin-bottom:16px">${subBtns}</div>
-    ${M.sub === 'sell' ? sell : M.sub === 'sellship' ? sellShips() : explore}`;
+    ${M.sub === 'sell' ? sell : M.sub === 'sellship' ? sellShips() : M.sub === 'dark' ? darkMatterView() : explore}`;
+}
+// Materia Oscura: cajas que se compran a la administración con TOKEN. Cantidad aún por definir.
+const DARK_BOXES = [{usd:1},{usd:5},{usd:10},{usd:25},{usd:50},{usd:100}];
+function darkMatterView(){
+  const cards = DARK_BOXES.map(b => `
+    <section class="panel pad">
+      <h2 class="section-title" style="margin-top:0">Caja de ${b.usd} USD</h2>
+      <p class="muted" style="margin:0 0 6px">Precio: ${fmt(Math.round(b.usd / TOKEN_USD))} TOKEN</p>
+      <p class="muted" style="margin:0 0 12px">Materia oscura: por definir</p>
+      <button class="btn" disabled>Comprar caja</button>
+    </section>`).join('');
+  return `
+    <p class="page-sub">Cajas de materia oscura vendidas por la administración. No se compran ni se venden entre jugadores.</p>
+    <div class="grid3">${cards}</div>`;
 }
 
 const VIEWS = {
