@@ -538,9 +538,6 @@ body.anim-none *,body.anim-none *::before,body.anim-none *::after{animation:none
 .auth-tabs .btn:hover:not(:disabled),.auth-tabs .btn:active:not(:disabled){background:transparent;box-shadow:none;color:var(--text-primary)}
 #auth-submit{height:40px;font-size:14px}
 .start-card .input{font-family:var(--font-sans)}
-.btn-quick{height:34px;width:auto;background:transparent;border:1px dashed var(--border-subtle);border-radius:var(--r);color:var(--text-secondary);font:500 12px var(--font-title);letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-quick:hover{border-color:var(--accent-primary);color:var(--accent-text);box-shadow:0 0 12px var(--accent-glow)}
-.btn-quick:focus-visible{outline:1px solid var(--accent-primary);outline-offset:2px}
 .start-foot{font-size:12px!important;color:var(--text-secondary);margin:0;padding-top:14px;border-top:1px solid var(--border-subtle)}
 .btn.secondary{background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-subtle);font-weight:500}
 .btn.secondary:hover:not(:disabled){background:var(--bg-panel);border-color:var(--text-secondary)}
@@ -777,16 +774,12 @@ body.anim-none *,body.anim-none *::before,body.anim-none *::after{animation:none
       <button class="btn inline secondary" id="tab-reg" type="button">Registrarse</button>
     </div>
     <form id="auth-form" novalidate style="display:flex;flex-direction:column;gap:12px">
-      <label class="field">Usuario<input class="input" id="auth-user" maxlength="20" autocomplete="username"></label>
+      <label class="field">Correo<input class="input" id="auth-user" type="email" maxlength="254" autocomplete="email"></label>
       <label class="field">Contraseña<input class="input" id="auth-pass" type="password" autocomplete="current-password"></label>
       <label class="field" id="auth-pass2-wrap" hidden>Repetir contraseña<input class="input" id="auth-pass2" type="password" autocomplete="new-password"></label>
       <p id="auth-err" class="danger" style="margin:0;font-size:12px;min-height:16px"></p>
       <button class="btn" id="auth-submit" type="submit">Entrar</button>
     </form>
-    <button class="btn-quick" id="auth-quick" type="button" title="Entra con una cuenta de prueba sin registrarte">
-      <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 1.8 3.6 10.2h4.8l-.8 6 6.6-8.4H9.4z"/></svg>
-      Acceso rápido de prueba
-    </button>
     <p class="start-foot">Cada cuenta tiene su propia partida guardada en este navegador.</p>
   </section>
 </div>
@@ -5164,19 +5157,9 @@ function currentUser(){
   try { return localStorage.getItem('forja-astral-session') || ''; } catch (e) { return ''; }
 }
 function saveKeyFor(u){ return u ? 'forja-astral-save-v2:' + u : 'forja-astral-save-v2'; }
-function loadAccounts(){
-  try { return JSON.parse(localStorage.getItem('forja-astral-accounts') || '{}'); } catch (e) { return {}; }
-}
-function saveAccounts(a){ localStorage.setItem('forja-astral-accounts', JSON.stringify(a)); }
-function newSalt(){
-  return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-async function hashPass(salt, pass){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pass));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-function logout(){
+async function logout(){
   saveGame();
+  await fetch('/api/logout', {method:'POST', credentials:'same-origin'}).catch(() => {});
   localStorage.removeItem('forja-astral-session');
   location.reload();
 }
@@ -5195,36 +5178,20 @@ function setAuthMode(m){
 }
 async function submitAuth(){
   const err = document.getElementById('auth-err');
-  const user = (document.getElementById('auth-user').value || '').trim();
+  const email = (document.getElementById('auth-user').value || '').trim().toLowerCase();
   const pass = document.getElementById('auth-pass').value || '';
   const pass2 = document.getElementById('auth-pass2').value || '';
-  if (!/^[A-Za-z0-9_]{3,20}$/.test(user)){ err.textContent = 'Usuario: de 3 a 20 letras, números o guion bajo.'; return; }
-  if (pass.length < 6){ err.textContent = 'La contraseña necesita al menos 6 caracteres.'; return; }
-  const accounts = loadAccounts();
-  const key = user.toLowerCase();
-  if (authMode === 'register'){
-    if (pass !== pass2){ err.textContent = 'Las contraseñas no coinciden.'; return; }
-    if (accounts[key]){ err.textContent = 'Ese usuario ya existe. Inicia sesión.'; return; }
-    const salt = newSalt();
-    accounts[key] = {name:user, salt, hash:await hashPass(salt, pass), created:Date.now()};
-    saveAccounts(accounts);
-  } else {
-    const acc = accounts[key];
-    if (!acc || (await hashPass(acc.salt, pass)) !== acc.hash){ err.textContent = 'Usuario o contraseña incorrectos.'; return; }
-  }
-  localStorage.setItem('forja-astral-session', key);
-  location.reload();
-}
-/* Acceso rápido: cuenta local de prueba "Piloto_Prueba" (contraseña: prueba123) */
-async function quickAccess(){
-  const key = 'piloto_prueba';
-  const accounts = loadAccounts();
-  if (!accounts[key]){
-    const salt = newSalt();
-    accounts[key] = {name:'Piloto_Prueba', salt, hash:await hashPass(salt, 'prueba123'), created:Date.now(), test:true};
-    saveAccounts(accounts);
-  }
-  localStorage.setItem('forja-astral-session', key);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254){ err.textContent = 'Escribe un correo válido.'; return; }
+  if (pass.length < 8){ err.textContent = 'La contraseña necesita al menos 8 caracteres.'; return; }
+  if (authMode === 'register' && pass !== pass2){ err.textContent = 'Las contraseñas no coinciden.'; return; }
+  const res = await fetch(authMode === 'register' ? '/api/register' : '/api/login', {
+    method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email, password: pass})
+  }).catch(() => null);
+  if (!res){ err.textContent = 'Sin conexión con el servidor.'; return; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok){ err.textContent = data.error || 'No se pudo completar.'; return; }
+  localStorage.setItem('forja-astral-session', email);
   location.reload();
 }
 /* ---------- Precarga de TODAS las imágenes (fondo, minas, naves) ---------- */
@@ -5283,23 +5250,22 @@ async function runLoader(){
   hideLoader();
 }
 
-function initStart(){
+async function initStart(){
   const scr = document.getElementById('start');
   document.getElementById('tab-login').addEventListener('click', () => setAuthMode('login'));
   document.getElementById('tab-reg').addEventListener('click', () => setAuthMode('register'));
   document.getElementById('auth-form').addEventListener('submit', e => { e.preventDefault(); submitAuth(); });
-  document.getElementById('auth-quick').addEventListener('click', quickAccess);
-  const key = currentUser();
-  const acc = key ? loadAccounts()[key] : null;
-  if (acc){
+  const user = await fetch('/api/me', {credentials: 'same-origin'}).then(r => r.json()).then(d => d.user).catch(() => null);
+  if (user){
+    localStorage.setItem('forja-astral-session', user.email);
     hideStart();
-    if (state.profile) state.profile.name = acc.name;
+    if (state.profile) state.profile.name = user.email;
     saveGame();
     render();
     runLoader();   // cada arranque con sesión (login, recarga o F5) pasa por la pantalla de carga
     return;
   }
-  if (key) localStorage.removeItem('forja-astral-session');
+  localStorage.removeItem('forja-astral-session');
   hideLoader();    // sin sesión: se muestra el inicio de sesión, no la carga
   setAuthMode('login');
   scr.hidden = false;
