@@ -148,7 +148,11 @@ Estas ideas son propuestas. No están aprobadas:
 ### 6.2 Naves de ataque (aprobado, aplicado en modo prueba)
 
 - Se desbloquea **una sola vez por tipo de nave** con materia oscura. Si una nave se destruye en combate, no se paga de nuevo.
-- Nave de Batalla: 5. Bombardero: 7. Destructor: 30. Estrella de la Muerte: 150.
+- Nave de Batalla: 5. Acorazado: 12. Bombardero: 7. Destructor: 30. Estrella de la Muerte: 150.
+
+### 6.2b Defensas planetarias (aprobado, aplicado en modo prueba)
+
+- Solo las defensas más poderosas piden materia oscura, una sola vez por tipo: Cañón Gauss 10, Cañón de Plasma 40, Cúpula Grande 25. Las defensas básicas no piden materia oscura.
 
 ### 6.3 Decidido por el cliente (pendiente de aplicar)
 
@@ -157,5 +161,4 @@ Estas ideas son propuestas. No están aprobadas:
 ### 6.4 Pendiente
 
 - Defensas planetarias: cuáles y con qué costo (propuesta: ×3). Hoy no existen en el juego como ítems de nivel.
-- Defensas: aplicar la misma regla (propuesta anterior: ×3).
-- Desde qué nivel exacto se pide materia oscura en naves y defensas.
+- Desde qué nivel exacto se pide materia oscura en naves y defensas (hoy se pide solo por desbloqueo único).

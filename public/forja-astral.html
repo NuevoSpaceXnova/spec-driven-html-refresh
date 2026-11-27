@@ -3590,7 +3590,7 @@ function simDataOf(p){
 /* ----- Construcción de naves y defensas ----- */
 function unitOk(id){ return reqOk(unitReqs(id)); }
 // Materia oscura para desbloquear naves de ataque: se paga una sola vez por tipo de nave
-const DM_SHIP = {bt:5, bm:7, de:30, dr:150};
+const DM_SHIP = {bt:5, ac:12, bm:7, de:30, dr:150, gc:10, cpl:40, cg:25};
 // Datos de prueba de velocidad (unidades por hora de vuelo); reemplazar por los valores de diseño
 const SHIP_SPEED_TEST = {cz:12500, ch:10000, nc:7500, ng:7500, cr:15000, bt:10000, ac:6000, bm:4000, de:9000, dr:5000, rc:2000, sp:100000, co:2500};
 function shipSpeed(id){ return SHIP_SPEED_TEST[id] != null ? SHIP_SPEED_TEST[id] : 5000; }
