@@ -2982,7 +2982,6 @@ async function upgrade(id){
   }
   const P = activePlanet();
   RES.forEach(r => { state.res[r] -= c[r]; });
-  state.dark -= dmCost(id, N);
   state.spent += c.metal + c.crystal + c.deut;
   bumpMission('upgrade', 1);
   const total = buildSeconds(id, N);
@@ -2992,6 +2991,8 @@ async function upgrade(id){
     const last = ex.length ? ex[ex.length - 1] : P.queue;
     ex.push({id, total, end: last.end + total, darkSpendId});
   }
+  saveGame();
+  await pushCloud();
   setStatus('Construcción iniciada: ' + it.name + ' nivel ' + N + '.');
   refresh();
 }
@@ -3009,6 +3010,8 @@ async function cancelBuild(){
     P.queue = {id:nx.id, end: state.simSec + nx.total, total: nx.total};
     reflowQueue(P);
   }
+  saveGame();
+  await pushCloud();
   setStatus('Construcción cancelada. Recursos reembolsados.');
   refresh();
 }
@@ -3769,13 +3772,13 @@ async function buildShips(id, qtyOverride){
   if (!unitOk(id)) return setStatus('Requisitos no cumplidos: ' + reqText(unitReqs(id)) + '.', true);
   const dmUnlock = DM_SHIP[id] && !state.dmShips[id] ? DM_SHIP[id] : 0;
   if (dmUnlock && state.dark < dmUnlock) return setStatus('Necesitas ' + dmUnlock + ' de materia oscura para desbloquear ' + S.name + '.', true);
-  if (dmUnlock && !(await walletDarkUnlock(id))) return;
   if (id === 'mi'){
     const cap = 10 * (state.lvl.silo || 0);
     if ((state.fleet.mi || 0) + q > cap) return setStatus('Silo insuficiente: capacidad de ' + cap + ' misiles.', true);
   }
   const need = {metal:(S.cost.metal || 0) * q, crystal:(S.cost.crystal || 0) * q, deut:(S.cost.deut || 0) * q};
   if (!RES.every(r => state.res[r] >= need[r])) return setStatus('Recursos insuficientes para construir ' + q + ' × ' + S.name + '.', true);
+  if (dmUnlock && !(await walletDarkUnlock(id))) return;
   RES.forEach(r => { state.res[r] -= need[r]; });
   state.spent += need.metal + need.crystal + need.deut;
   if (dmUnlock) state.dmShips[id] = true;
