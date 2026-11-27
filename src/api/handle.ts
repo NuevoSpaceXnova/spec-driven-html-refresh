@@ -552,6 +552,53 @@ function validateResourceGrowth(previous: any, next: any, elapsed: number, basel
   }
   return "";
 }
+async function validateDarkProgression(db: DB, userId: string, previous: any, next: any): Promise<string> {
+  const techKeys = ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
+  const findSpend = async (spendId: number, id: string, level: number): Promise<boolean> => {
+    if (!Number.isInteger(spendId) || spendId <= 0) return false;
+    const cost = 10 * (level - 5);
+    const move = await db.prepare("SELECT delta, reason FROM dark_moves WHERE id = ? AND user_id = ? AND delta < 0")
+      .bind(spendId, userId).first<{delta:number; reason:string}>();
+    if (!move || move.reason !== `Mejora · ${id} nivel ${level}` || Math.abs(move.delta + cost) > 0.000001) return false;
+    const refunded = await db.prepare("SELECT id FROM dark_moves WHERE refund_of = ?").bind(spendId).first();
+    return !refunded;
+  };
+  for (let i = 0; i < next.planets.length; i++) {
+    const p = next.planets[i], old = previous.planets[i];
+    if (!old) continue;
+    for (const k of SAVE_LEVEL_KEYS) if (p.lvl[k] < (old.lvl[k] || 0)) return "Los niveles no pueden disminuir.";
+    for (const id of techKeys) {
+      const target = p.lvl[id];
+      if (target <= (old.lvl[id] || 0) || target < 6) continue;
+      const cost = 10 * (target - 5);
+      const move = await db.prepare("SELECT id FROM dark_moves WHERE user_id = ? AND reason = ? AND delta = ?")
+        .bind(userId, `Mejora · ${id} nivel ${target}`, -cost).first();
+      if (!move) return "Investigación sin gasto autoritativo de materia oscura.";
+    }
+    const oldQueue = [old.queue, ...(old.queueExtra || [])].filter(Boolean);
+    const newQueue = [p.queue, ...(p.queueExtra || [])].filter(Boolean);
+    for (const q of newQueue) {
+      const target = (p.lvl[q.id] || 0) + 1;
+      if (target >= 6 && 10 * (target - 5) > 0 && !(await findSpend(q.darkSpendId, q.id, target))) {
+        return "Cola de construcción sin gasto autoritativo de materia oscura.";
+      }
+    }
+    for (const q of oldQueue) {
+      const target = (old.lvl[q.id] || 0) + 1;
+      if (target < 6) continue;
+      const completed = (p.lvl[q.id] || 0) >= target;
+      const stillQueued = newQueue.some((n: any) => n.darkSpendId === q.darkSpendId);
+      if (completed && !(await findSpend(q.darkSpendId, q.id, target))) {
+        return "Construcción completada sin gasto autoritativo de materia oscura.";
+      }
+      if (!completed && !stillQueued && q.darkSpendId) {
+        const refunded = await db.prepare("SELECT id FROM dark_moves WHERE refund_of = ?").bind(q.darkSpendId).first();
+        if (!refunded) return "La cola de construcción desapareció sin reembolso válido.";
+      }
+    }
+  }
+  return "";
+}
 const saveGet: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
@@ -597,6 +644,8 @@ const savePut: Route = async (request, db) => {
   if (current.version !== version) return json({ error: "Conflicto", data: current.data, version: current.version }, 409);
   let previous: any;
   try { previous = JSON.parse(current.data); } catch { return rejectSave(db, user.id, "La copia guardada del servidor no es válida."); }
+  const darkError = await validateDarkProgression(db, user.id, previous, parsed);
+  if (darkError) return rejectSave(db, user.id, darkError);
   const elapsed = check ? Math.max(0, now() - check.checked_at) : 0;
   const baseline = check ? {metal:check.metal, crystal:check.crystal, deuterium:check.deuterium} : null;
   const growthError = validateGrowth(previous, parsed, elapsed, baseline);
