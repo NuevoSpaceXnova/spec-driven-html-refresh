@@ -351,8 +351,8 @@ const savePut: Route = async (request, db) => {
 };
 
 // Saldo de TOKEN de cada cuenta (etapa B1). Solo el servidor lo cambia.
-// WALLET_START es el saldo inicial de una cuenta nueva (pendiente de decisión; hoy es 500 como en el juego).
-const WALLET_START = 500;
+// WALLET_START es el saldo inicial de una cuenta nueva: 0 (decisión aprobada).
+const WALLET_START = 0;
 const MAX_REASON = 80;
 
 async function ensureWallet(db: DB, userId: string): Promise<number> {
@@ -362,10 +362,35 @@ async function ensureWallet(db: DB, userId: string): Promise<number> {
   return row ? row.token : 0;
 }
 
+// Gasta TOKEN de la cuenta. Devuelve el saldo nuevo, o null si no alcanza.
+async function spendToken(db: DB, userId: string, amount: number, reason: string): Promise<number | null> {
+  await ensureWallet(db, userId);
+  const upd = await db
+    .prepare("UPDATE wallets SET token = ROUND(token - ?, 6), updated_at = ? WHERE user_id = ? AND token >= ?")
+    .bind(amount, now(), userId, amount)
+    .run();
+  if (!upd.meta || !upd.meta.changes) return null;
+  const balance = await ensureWallet(db, userId);
+  await db.prepare("INSERT INTO wallet_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(userId, -amount, reason, balance, now()).run();
+  return balance;
+}
+
+// Suma TOKEN a la cuenta (hallazgos de expedición).
+async function creditToken(db: DB, userId: string, amount: number, reason: string): Promise<number> {
+  await ensureWallet(db, userId);
+  await db.prepare("UPDATE wallets SET token = ROUND(token + ?, 6), updated_at = ? WHERE user_id = ?")
+    .bind(amount, now(), userId).run();
+  const balance = await ensureWallet(db, userId);
+  await db.prepare("INSERT INTO wallet_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(userId, amount, reason, balance, now()).run();
+  return balance;
+}
+
 const walletGet: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
-  return json({ token: await ensureWallet(db, user.id) });
+  return json({ token: await ensureWallet(db, user.id), vipUntil: await vipUntilFor(db, user.id) });
 };
 
 const walletSpend: Route = async (request, db) => {
@@ -376,24 +401,113 @@ const walletSpend: Route = async (request, db) => {
   const reason = String(body?.reason ?? "").slice(0, MAX_REASON);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) return json({ error: "Cantidad no válida" }, 400);
   if (!reason) return json({ error: "Motivo no válido" }, 400);
-  await ensureWallet(db, user.id);
-  const upd = await db
-    .prepare("UPDATE wallets SET token = ROUND(token - ?, 6), updated_at = ? WHERE user_id = ? AND token >= ?")
-    .bind(amount, now(), user.id, amount)
-    .run();
-  if (!upd.meta || !upd.meta.changes) {
-    const bal = await ensureWallet(db, user.id);
-    return json({ error: "Saldo de TOKEN insuficiente", token: bal }, 409);
+  const balance = await spendToken(db, user.id, amount, reason);
+  if (balance === null) {
+    return json({ error: "Saldo de TOKEN insuficiente", token: await ensureWallet(db, user.id) }, 409);
   }
-  const balance = await ensureWallet(db, user.id);
-  await db.prepare("INSERT INTO wallet_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(user.id, -amount, reason, balance, now()).run();
   return json({ ok: true, token: balance });
+};
+
+// Pase VIP en el servidor. Mismo precio y duración que el juego: 98.684 TOKEN por 30 días.
+const VIP_COST = 98684;
+const VIP_MS = 30 * 86400000;
+
+async function vipUntilFor(db: DB, userId: string): Promise<number> {
+  const row = await db.prepare("SELECT until_ms FROM vip WHERE user_id = ?").bind(userId).first<{ until_ms: number }>();
+  return row ? row.until_ms : 0;
+}
+
+const vipBuy: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  if ((await vipUntilFor(db, user.id)) > Date.now()) return json({ error: "El VIP ya está activo" }, 409);
+  const balance = await spendToken(db, user.id, VIP_COST, "Pase VIP");
+  if (balance === null) {
+    return json({ error: "Saldo de TOKEN insuficiente", token: await ensureWallet(db, user.id) }, 409);
+  }
+  const until = Date.now() + VIP_MS;
+  await db.prepare("INSERT INTO vip (user_id, until_ms) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET until_ms = excluded.until_ms")
+    .bind(user.id, until).run();
+  return json({ ok: true, token: balance, vipUntil: until });
+};
+
+// Hallazgos de TOKEN y materia oscura en expediciones. Salen de reservas que carga el administrador.
+const EXP_CHANCE = { token: 0.03, dark: 0.01 }; // probabilidad base por expedición
+const VIP_CHANCE_MUL = 1.5;                      // VIP: +50 %
+
+// Saca de la reserva una cantidad dentro del rango configurado. Si la reserva no alcanza, saca lo que queda.
+async function takeFromReserve(db: DB, kind: "token" | "dark"): Promise<number> {
+  const row = await db.prepare("SELECT amount, min_amt, max_amt FROM reserves WHERE kind = ?")
+    .bind(kind).first<{ amount: number; min_amt: number; max_amt: number }>();
+  if (!row || row.amount <= 0 || row.max_amt <= 0) return 0;
+  const lo = Math.min(row.min_amt, row.max_amt);
+  const want = lo + Math.random() * (row.max_amt - lo);
+  const amount = Math.round(Math.min(want, row.amount) * 1000000) / 1000000;
+  if (amount <= 0) return 0;
+  const upd = await db
+    .prepare("UPDATE reserves SET amount = ROUND(amount - ?, 6), updated_at = ? WHERE kind = ? AND amount >= ?")
+    .bind(amount, now(), kind, amount)
+    .run();
+  return upd.meta && upd.meta.changes ? amount : 0;
+}
+
+const expeditionRoll: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const mul = (await vipUntilFor(db, user.id)) > Date.now() ? VIP_CHANCE_MUL : 1;
+  let token = 0;
+  let dark = 0;
+  if (Math.random() < EXP_CHANCE.token * mul) token = await takeFromReserve(db, "token");
+  if (Math.random() < EXP_CHANCE.dark * mul) dark = await takeFromReserve(db, "dark");
+  const balance = token > 0
+    ? await creditToken(db, user.id, token, "Hallazgo de expedición")
+    : await ensureWallet(db, user.id);
+  return json({ token, dark, balance });
+};
+
+// Reservas de expedición (solo administración). Cantidad disponible y rango de cada hallazgo.
+const RESERVE_KINDS = ["token", "dark"];
+
+const reservesGet: Route = async (request, db, env) => {
+  const gate = await adminGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const rows = await db.prepare("SELECT kind, amount, min_amt, max_amt FROM reserves").bind()
+    .all<{ kind: string; amount: number; min_amt: number; max_amt: number }>();
+  const reserves: Record<string, { amount: number; min: number; max: number }> = {
+    token: { amount: 0, min: 0, max: 0 },
+    dark: { amount: 0, min: 0, max: 0 },
+  };
+  for (const r of rows.results) reserves[r.kind] = { amount: r.amount, min: r.min_amt, max: r.max_amt };
+  return json({ reserves });
+};
+
+const reservesSet: Route = async (request, db, env) => {
+  const gate = await adminGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const body = await readJson(request);
+  const kind = String(body?.kind ?? "");
+  if (!RESERVE_KINDS.includes(kind)) return json({ error: "Reserva no válida" }, 400);
+  const amount = Number(body?.amount);
+  const min = Number(body?.min);
+  const max = Number(body?.max);
+  if (![amount, min, max].every((n) => Number.isFinite(n) && n >= 0 && n <= 1e12)) {
+    return json({ error: "Cantidades no válidas" }, 400);
+  }
+  if (min > max) return json({ error: "El mínimo no puede ser mayor que el máximo" }, 400);
+  await db.prepare(`INSERT INTO reserves (kind, amount, min_amt, max_amt, updated_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(kind) DO UPDATE SET amount = excluded.amount, min_amt = excluded.min_amt,
+        max_amt = excluded.max_amt, updated_at = excluded.updated_at`)
+    .bind(kind, Math.round(amount * 1000000) / 1000000, min, max, now()).run();
+  return json({ ok: true });
 };
 
 const ROUTES: Record<string, Route> = {
   "GET /api/wallet": walletGet,
   "POST /api/wallet/spend": walletSpend,
+  "POST /api/vip/buy": vipBuy,
+  "POST /api/expedition/roll": expeditionRoll,
+  "GET /api/admin/reserves": reservesGet,
+  "POST /api/admin/reserves": reservesSet,
   "GET /api/save": saveGet,
   "POST /api/save": savePut,
   "POST /api/register": register,

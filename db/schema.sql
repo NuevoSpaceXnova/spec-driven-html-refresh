@@ -48,3 +48,19 @@ CREATE TABLE IF NOT EXISTS wallet_moves (
   balance_after REAL NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+-- Pase VIP de cada cuenta, guardado en el servidor (hora de fin en milisegundos).
+CREATE TABLE IF NOT EXISTS vip (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  until_ms INTEGER NOT NULL
+);
+
+-- Reservas de expedición que carga el administrador: TOKEN y materia oscura.
+-- amount = cantidad disponible; min_amt y max_amt = rango de cada hallazgo.
+CREATE TABLE IF NOT EXISTS reserves (
+  kind TEXT PRIMARY KEY CHECK (kind IN ('token', 'dark')),
+  amount REAL NOT NULL,
+  min_amt REAL NOT NULL,
+  max_amt REAL NOT NULL,
+  updated_at INTEGER NOT NULL
+);

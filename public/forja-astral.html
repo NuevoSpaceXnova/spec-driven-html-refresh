@@ -1186,8 +1186,21 @@ async function pullCloud(){
 /* ---------- Saldo de TOKEN en el servidor (etapa B1) ---------- */
 async function walletPull(){
   const d = await fetch('/api/wallet', {credentials:'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
-  if (d && typeof d.token === 'number'){ state.res.token = d.token; return true; }
+  if (d && typeof d.token === 'number'){
+    state.res.token = d.token;
+    if (typeof d.vipUntil === 'number') state.vipUntil = d.vipUntil;   // el VIP también viene del servidor
+    return true;
+  }
   return false;
+}
+// Tirada de hallazgos de TOKEN y materia oscura en el servidor. Si falla, no hay hallazgos.
+async function expeditionRoll(){
+  const r = await fetch('/api/expedition/roll', {method:'POST', credentials:'same-origin'}).catch(() => null);
+  const d = r && r.ok ? await r.json().catch(() => null) : null;
+  if (!d) return {token:0, dark:0, failed:true};
+  if (typeof d.balance === 'number') state.res.token = d.balance;
+  if (typeof d.dark === 'number' && d.dark > 0) state.dark += d.dark;
+  return {token: d.token || 0, dark: d.dark || 0, failed:false};
 }
 async function walletSpend(amount, reason){
   const r = await fetch('/api/wallet/spend', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount, reason})}).catch(() => null);
@@ -1315,7 +1328,6 @@ function handleFase2Click(e){
       case 'rename-planet': renamePlanet(); return;
       case 'toggle-vacation': toggleVacation(); return;
       case 'toggle-test-mode': toggleTestMode(); return;
-      case 'toggle-vip-test': toggleVipTest(); return;
       case 'open-vip': openVip(); return;
       case 'buy-vip': buyVip(); return;
       case 'buy-dark': buyDark(Number(act.dataset.usd)); return;
@@ -1772,7 +1784,7 @@ function renderLog(){
 }
 
 /* Resultado ponderado por Astrofísica: más nivel, más hallazgos y menos eventos hostiles */
-function launchExpedition(){
+async function launchExpedition(){
   if (state.lvl.ap < 1) return setStatus('Requiere Astrofísica nivel 1.', true);
   const sel = {};
   let total = 0;
@@ -1786,23 +1798,24 @@ function launchExpedition(){
   if (total < 1) return setStatus('Selecciona al menos una nave del hangar.', true);
   EXP_SHIPS.forEach(k => { state.fleet[k] -= sel[k]; });        // las naves salen del hangar
   const L = state.lvl.ap;
-  const w = {res:35 + 2 * L, tok:20 + 2 * L, ship:10 + L, event:Math.max(10, 35 - 3 * L)};
-  let roll = Math.random() * (w.res + w.tok + w.ship + w.event);
+  const w = {res:35 + 2 * L, ship:10 + L, event:Math.max(10, 35 - 3 * L)};
+  let roll = Math.random() * (w.res + w.ship + w.event);
   let outcome = 'event';
-  for (const key of ['res','tok','ship','event']){
+  for (const key of ['res','ship','event']){
     roll -= w[key];
     if (roll < 0){ outcome = key; break; }
   }
+  const found = {metal:0, crystal:0, deut:0, ships:0};
   if (outcome === 'res'){
     const r = RES[Math.floor(Math.random() * RES.length)];
     const amount = Math.floor((2000 + Math.random() * 8000) * (1 + 0.1 * L) * (1 + total / 50) * expMult());
     addRes(r, amount);
+    found[r] = amount;
     pushLog('ok', 'Hallazgo: +' + fmt(amount) + ' de ' + RES_NAME[r] + ' en un asteroide a la deriva.');
-  } else if (outcome === 'tok'){
-    // Hallazgo de TOKEN retirado en la etapa B1 (pendiente de decisión)
   } else if (outcome === 'ship'){
     const k = Math.random() < 0.5 ? 'nc' : 'cz';
     state.fleet[k] = (state.fleet[k] || 0) + 1;
+    found.ships = 1;
     pushLog('ok', 'Hallazgo: una ' + SHIPS[k].name + ' abandonada se une a tu hangar.');
   } else if (Math.random() < 0.5){
     let left = Math.max(1, Math.round(total * 0.2));
@@ -1812,6 +1825,16 @@ function launchExpedition(){
     pushLog('warn', 'Anomalía espacial: sin hallazgos. Las naves regresan intactas.');
   }
   EXP_SHIPS.forEach(k => { state.fleet[k] = (state.fleet[k] || 0) + sel[k]; });   // regresan al hangar
+  // TOKEN y materia oscura: tirada en el servidor, con sus reservas
+  const hall = await expeditionRoll();
+  if (hall.failed) pushLog('warn', 'No se pudo consultar la reserva de TOKEN y materia oscura.');
+  else {
+    if (hall.token > 0) pushLog('ok', 'Hallazgo: +' + fmt(hall.token) + ' TOKEN de la reserva.');
+    if (hall.dark > 0) pushLog('ok', 'Hallazgo: +' + fmt(hall.dark) + ' de materia oscura de la reserva.');
+  }
+  pushLog(found.metal + found.crystal + found.deut + found.ships + hall.token + hall.dark > 0 ? 'ok' : 'warn',
+    'Resultado: Metal ' + fmt(found.metal) + ' · Cristal ' + fmt(found.crystal) + ' · Deuterio ' + fmt(found.deut) +
+    ' · Naves ' + fmt(found.ships) + ' · TOKEN ' + fmt(hall.token) + ' · Materia oscura ' + fmt(hall.dark));
   bumpMission('expe', 1);
   renderLog();
   refresh();
@@ -2543,10 +2566,6 @@ function viewLevel(){
 }
 function isVip(){ return state.vipUntil > Date.now(); }
 function vipMul(){ return isVip() ? 1.5 : 1; }   // VIP: +50 % producción y velocidad
-function toggleVipTest(){
-  state.vipUntil = isVip() ? 0 : Date.now() + VIP_DAYS_MS;
-  render();
-}
 function openVip(){
   const active = isVip();
   const missing = Math.max(0, VIP_COST - state.res.token);
@@ -2567,8 +2586,11 @@ function openVip(){
 }
 async function buyVip(){
   if (isVip() || state.res.token < VIP_COST) return refresh();
-  if (!(await walletSpend(VIP_COST, 'Pase VIP'))) return;
-  state.vipUntil = Date.now() + VIP_DAYS_MS;
+  const r = await fetch('/api/vip/buy', {method:'POST', credentials:'same-origin'}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (typeof d.token === 'number') state.res.token = d.token;
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo activar el VIP. Revisa tu conexión.', true); return; }
+  state.vipUntil = d.vipUntil;
   addTx('Pase VIP', -VIP_COST, 'Completado (simulado)');
   closeModal();
   render();

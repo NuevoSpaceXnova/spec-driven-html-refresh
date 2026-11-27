@@ -73,6 +73,7 @@
     <button type="button" data-tab="materia">Materia oscura (ventas de cajas)</button>
     <button type="button" data-tab="registro">Registro de acciones</button>
     <button type="button" data-tab="pruebas">Herramientas de prueba</button>
+    <button type="button" data-tab="reservas" hidden>Reservas de expedición</button>
     <button type="button" data-tab="ayudantes" hidden>Ayudantes</button>
   </nav>
   <main>
@@ -146,6 +147,12 @@
       <p>Herramientas temporales del modo prueba. Se quitan antes del lanzamiento oficial.</p>
       <div class="empty">Sin herramientas todavía.</div>
     </section>
+    <section id="reservas" hidden>
+      <h2>Reservas de expedición</h2>
+      <p>TOKEN y materia oscura que las expediciones pueden encontrar. Cada hallazgo sale de la reserva y se elige entre el mínimo y el máximo. Cuando la reserva llega a cero, las expediciones siguen, pero sin esos hallazgos.</p>
+      <div class="err" id="reserves-err"></div>
+      <div id="reserves-list"></div>
+    </section>
     <section id="ayudantes" hidden>
       <h2>Ayudantes</h2>
       <p>Asigna el rol de ayudante con el correo de la cuenta y elige qué secciones puede usar. Sin permisos, el ayudante no ve ninguna sección.</p>
@@ -193,6 +200,7 @@
     buttons.forEach(function (x) { x.classList.toggle('on', x.getAttribute('data-tab') === tab); });
     document.querySelectorAll('main section').forEach(function (s) { s.classList.toggle('on', s.id === tab); });
     if (tab === 'ayudantes' && isAdmin) loadAssistants();
+    if (tab === 'reservas' && isAdmin) loadReserves();
   }
 
   buttons.forEach(function (b) {
@@ -204,7 +212,7 @@
     isAdmin = role === 'admin';
     buttons.forEach(function (b) {
       var tab = b.getAttribute('data-tab');
-      var ok = tab === 'ayudantes' ? isAdmin : sections.indexOf(tab) !== -1;
+      var ok = (tab === 'ayudantes' || tab === 'reservas') ? isAdmin : sections.indexOf(tab) !== -1;
       b.hidden = !ok;
       document.getElementById(tab).hidden = !ok;
     });
@@ -321,6 +329,68 @@
       loadAssistants();
     }).catch(function () { setErr('Sin conexión con el servidor'); });
   });
+
+  // ---------- Reservas de expedición (solo administración) ----------
+  var RESERVE_LABELS = { token: 'TOKEN', dark: 'Materia oscura' };
+  var RESERVE_FIELDS = { amount: 'Cantidad disponible', min: 'Mínimo por hallazgo', max: 'Máximo por hallazgo' };
+  var resList = document.getElementById('reserves-list');
+  var resErr = document.getElementById('reserves-err');
+
+  function loadReserves() {
+    api('/api/admin/reserves').then(function (res) {
+      resList.textContent = '';
+      if (!res.ok) { resErr.textContent = res.d.error || 'No se pudo cargar las reservas'; return; }
+      resErr.textContent = '';
+      Object.keys(RESERVE_LABELS).forEach(function (kind) {
+        resList.appendChild(reserveCard(kind, res.d.reserves[kind]));
+      });
+    });
+  }
+
+  function reserveCard(kind, r) {
+    var card = document.createElement('div');
+    card.className = 'assist';
+    var title = document.createElement('strong');
+    title.textContent = RESERVE_LABELS[kind];
+    var status = document.createElement('p');
+    status.textContent = r.amount > 0 ? 'Disponible: ' + r.amount : 'Reserva en cero: hay que recargarla.';
+    var form = document.createElement('form');
+    form.className = 'row';
+    form.noValidate = true;
+    var inputs = {};
+    Object.keys(RESERVE_FIELDS).forEach(function (f) {
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = 'any';
+      input.placeholder = RESERVE_FIELDS[f];
+      input.title = RESERVE_FIELDS[f];
+      input.value = r[f];
+      inputs[f] = input;
+      form.appendChild(input);
+    });
+    var save = document.createElement('button');
+    save.className = 'btn';
+    save.type = 'submit';
+    save.textContent = 'Guardar';
+    form.appendChild(save);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/api/admin/reserves', {
+        kind: kind,
+        amount: Number(inputs.amount.value),
+        min: Number(inputs.min.value),
+        max: Number(inputs.max.value)
+      }).then(function (res) {
+        if (!res.ok) { resErr.textContent = res.d.error || 'No se pudo guardar'; return; }
+        loadReserves();
+      }).catch(function () { resErr.textContent = 'Sin conexión con el servidor'; });
+    });
+    card.appendChild(title);
+    card.appendChild(status);
+    card.appendChild(form);
+    return card;
+  }
 
   // ---------- Arranque ----------
   fetch('/api/me', { credentials: 'same-origin' })
