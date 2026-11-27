@@ -143,6 +143,7 @@ Estas ideas son propuestas. No están aprobadas:
 
 - **Subida de nivel:** desde el nivel 6, cada subida cuesta 10 más que la anterior (5→6 = 10, 6→7 = 20, 7→8 = 30...). Se aplica a edificios de recursos, instalaciones y lunas, e investigaciones.
 - La materia oscura se **gasta** al subir o al encolar la construcción. Si se cancela una construcción, se devuelve.
+- Cada tarjeta muestra una fila "Materia oscura" con el saldo y lo que pide la siguiente subida.
 
 ### 6.2 Naves de ataque (aprobado, aplicado en modo prueba)
 

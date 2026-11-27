@@ -2880,6 +2880,7 @@ function processQueues(){
     P.lvl[q.id] = (P.lvl[q.id] || 0) + 1;
     P.queue = null;
     if (P.queueExtra && P.queueExtra.length) P.queue = P.queueExtra.shift();
+    saveGame();
     toast((TECH_KEYS.includes(q.id) ? 'Investigación terminada: ' : 'Construcción terminada: ') + ITEMS[q.id].name + ' nivel ' + P.lvl[q.id] + '.');
   });
 }
@@ -4066,7 +4067,7 @@ function cardHTML(id){
     ${stats}
     ${bar}
     ${reqLine(it.reqs)}
-    <div class="cost">${rowsHTML}</div>
+    <div class="cost">${rowsHTML}${dmRow(id)}</div>
     <div class="bar" data-qwrap="${id}" hidden><span data-qbar="${id}"></span></div>
     <button class="btn" data-btn="${id}"></button>
   </article>`;
@@ -4387,7 +4388,7 @@ function techCard(id){
     ${sceneHTML(id)}
     <p class="desc">${it.desc}</p>
     ${reqLine(it.reqs)}
-    <div class="cost">${rows}</div>
+    <div class="cost">${rows}${dmRow(id)}</div>
     <button class="btn" data-btn="${id}"></button>
   </article>`;
 }
@@ -4851,6 +4852,7 @@ function viewMarket(){
 const DARK_BOXES = [{usd:1,dm:10},{usd:5,dm:55},{usd:10,dm:120},{usd:25,dm:325},{usd:50,dm:700},{usd:100,dm:1500}];
 // Materia oscura para subir de nivel: desde el nivel 6, 10 más que el nivel anterior (5→6 = 10, 6→7 = 20...)
 function dmCost(id, N){ return N < 6 ? 0 : 10 * (N - 5); }
+function dmRow(id){ return `<div class="cost-row" data-dmrow="${id}"><span>Materia oscura</span><span data-bind="dmcost:${id}"></span></div>`; }
 function darkMatterView(){
   const cards = DARK_BOXES.map(b => {
     const cost = Math.round(b.usd / TOKEN_USD);
@@ -4914,6 +4916,7 @@ function valueOf(key){
     case 'eCons':   return fmt(e.cons);
     case 'fields':  return fmt(usedFields(P)) + ' / ' + fmt(maxFields(P));
     case 'lvl':     return 'Nivel ' + (L[a] || 0);
+    case 'dmcost':  { const v = dmCost(a, (L[a] || 0) + 1); return v ? fmt(state.dark) + '/' + fmt(v) : '—'; }
     case 'cost':    return fmt(state.res[b] || 0) + '/' + fmt(costOf(a, (L[a] || 0) + 1)[b]);
     case 'hourly': {
       const r = rates();
@@ -5001,6 +5004,10 @@ function refresh(){
     const [id, r] = row.dataset.costrow.split('|');
     const c = costOf(id, (state.lvl[id] || 0) + 1);
     row.classList.toggle('lack', state.res[r] < c[r]);
+  });
+  document.querySelectorAll('[data-dmrow]').forEach(row => {
+    const id = row.dataset.dmrow;
+    row.classList.toggle('lack', state.dark < dmCost(id, (state.lvl[id] || 0) + 1));
   });
   refreshBuildButtons();
   const shq = document.getElementById('shipq');
@@ -5408,6 +5415,7 @@ render();
 initStart();
 setInterval(() => { tick(); checkMoves(); refresh(); if (++uiN % 5 === 0){ if (state.tab === 'overview'){ renderMoves(); renderCC(); } if (state.tab === 'fleet') renderMoves(); } if (state.tab === 'market' && state.dirtyMarket) renderBook(); if (state.tab === 'ranking') renderRanking(); if (state.tab === 'alliances' && state.wallDirty) renderWall(); }, 200);
 setInterval(saveGame, 30000);
+window.addEventListener('pagehide', saveGame);
 /* Si la página Swap cambia la partida guardada, el juego recarga esos saldos
    para no sobrescribirlos con su copia en memoria. */
 window.addEventListener('storage', e => {
