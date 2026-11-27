@@ -458,6 +458,29 @@ function firstSaveIsFresh(data: any): boolean {
 function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
   const oldRes = baseline || saveResources(previous), newRes = saveResources(next);
   const oldPlanets = previous.planets || [];
+  if (next.planets.length < oldPlanets.length) return "No se permite eliminar planetas desde el guardado.";
+  const newColonies = next.planets.slice(oldPlanets.length).filter((p: any) => !p.moon);
+  const oldColonizers = oldPlanets.reduce((n: number, p: any) => n + (p.fleet.co || 0), 0);
+  const newColonizers = next.planets.reduce((n: number, p: any) => n + (p.fleet.co || 0), 0);
+  if (newColonies.length > oldColonizers - newColonizers) return "Colonia nueva sin consumir una nave colonizadora.";
+  for (const p of next.planets.slice(oldPlanets.length)) {
+    if (Object.values(p.fleet).some((n: any) => n > 0)) return "Un planeta nuevo no puede traer flota.";
+    if (p.moon) {
+      if (p.res.metal !== 0 || p.res.crystal !== 0 || p.res.deut !== 0) return "Una luna nueva debe comenzar sin recursos.";
+      if (["lb","rf","sy","ph","jg"].some(k => p.lvl[k] !== 0)) return "Una luna nueva no puede traer edificios.";
+      const parent = oldPlanets.find((x: any) => x.coords === p.parent && !x.moon);
+      if (!parent || SAVE_LEVEL_KEYS.filter(k => ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].includes(k))
+        .some(k => p.lvl[k] > (parent.lvl[k] || 0))) return "Investigación de luna no válida.";
+    } else {
+      if (p.res.metal !== 500 || p.res.crystal !== 300 || p.res.deut !== 0) return "Una colonia nueva debe comenzar con recursos iniciales.";
+      if (SAVE_LEVEL_KEYS.some(k => !["mm","mc","sol"].includes(k) && !["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].includes(k) && p.lvl[k] !== 0)) return "Edificios iniciales de colonia no válidos.";
+      if (p.lvl.mm !== 1 || p.lvl.mc !== 1 || p.lvl.sol !== 1) return "Edificios iniciales de colonia no válidos.";
+      for (const k of ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"]) {
+        const maxResearch = oldPlanets.reduce((m: number, x: any) => Math.max(m, x.lvl[k] || 0), 0);
+        if (p.lvl[k] > maxResearch) return "Investigación heredada de colonia no válida.";
+      }
+    }
+  }
   const researchCosts: Record<string,[number,number,number,number]> = {
     en:[0,800,400,2], cm:[400,0,600,2], bl:[1000,0,0,2], es:[200,1000,200,2],
     cp:[0,400,600,2], ap:[4000,8000,4000,1.75], lz:[200,100,0,2], io:[300,400,0,2],
@@ -493,10 +516,7 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
   };
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = oldPlanets[i];
-    if (!old) {
-      if (Object.values(p.fleet).some((n: any) => n > 0)) return "No se permite crear flotas en planetas nuevos.";
-      continue;
-    }
+    if (!old) continue;
     let buildSeconds = 0;
     const buildKeys = p.moon ? ["lb","rf","sy","ph","jg"] : ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo"];
     for (const id of buildKeys) {
