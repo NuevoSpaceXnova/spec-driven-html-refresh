@@ -1219,6 +1219,7 @@ async function walletPull(){
   if (d && typeof d.token === 'number'){
     state.res.token = d.token;
     if (typeof d.dark === 'number') state.dark = d.dark;               // materia oscura autoritativa del servidor
+    state.dmShips = d.dmShips && typeof d.dmShips === 'object' ? d.dmShips : {};
     if (typeof d.vipUntil === 'number') state.vipUntil = d.vipUntil;   // el VIP también viene del servidor
     return true;
   }
@@ -1241,6 +1242,29 @@ async function walletSpend(amount, reason){
   state.res.token = d.token;
   return true;
 }
+async function walletDarkSpend(amount, reason){
+  const r = await fetch('/api/wallet/dark/spend', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount, reason})}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (typeof d.dark === 'number') state.dark = d.dark;
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo gastar materia oscura.', true); return null; }
+  return {spendId:d.spendId};
+}
+async function walletDarkRefund(spendId){
+  const r = await fetch('/api/wallet/dark/refund', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({spendId})}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (typeof d.dark === 'number') state.dark = d.dark;
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo devolver la materia oscura.', true); return false; }
+  return true;
+}
+async function walletDarkUnlock(shipId){
+  const r = await fetch('/api/wallet/dark/unlock', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({shipId})}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (typeof d.dark === 'number') state.dark = d.dark;
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo desbloquear la nave.', true); return false; }
+  state.dmShips[shipId] = true;
+  return true;
+}
+
 function loadGame(override){
   try {
     const raw = override || localStorage.getItem(SAVE_KEY);
@@ -2936,42 +2960,48 @@ function reflowQueue(P){
   (P.queueExtra || []).forEach(x => { x.end = t + x.total; t = x.end; });
 }
 
-function upgrade(id){
+async function upgrade(id){
   const it = ITEMS[id];
   if (!it || !canAfford(id)) return refresh();
   const N = state.lvl[id] + 1;
   const c = costOf(id, N);
+  const darkCost = dmCost(id, N);
+  let darkSpendId = null;
+  if (it.view !== 'research' && !queueFull(activePlanet())) return setStatus(isVip() ? 'La cola está llena: 4 de 4.' : 'Ya hay una construcción en curso en este planeta.', true);
+  if (it.view !== 'research' && queueIds(activePlanet()).includes(id)) return setStatus('Ese edificio ya está en la cola.', true);
+  if (darkCost){
+    const spend = await walletDarkSpend(darkCost, 'Mejora · ' + id + ' nivel ' + N);
+    if (!spend) return;
+    darkSpendId = spend.spendId;
+  }
   if (it.view === 'research'){
     RES.forEach(r => { state.res[r] -= c[r]; });
-    state.dark -= dmCost(id, N);
     state.lvl[id] = N;
     state.spent += c.metal + c.crystal + c.deut;
     return refresh();
   }
   const P = activePlanet();
-  if (queueFull(P)) return setStatus(isVip() ? 'La cola está llena: 4 de 4.' : 'Ya hay una construcción en curso en este planeta.', true);
-  if (queueIds(P).includes(id)) return setStatus('Ese edificio ya está en la cola.', true);
   RES.forEach(r => { state.res[r] -= c[r]; });
   state.dark -= dmCost(id, N);
   state.spent += c.metal + c.crystal + c.deut;
   bumpMission('upgrade', 1);
   const total = buildSeconds(id, N);
-  if (!P.queue) P.queue = {id, end: state.simSec + total, total};
+  if (!P.queue) P.queue = {id, end: state.simSec + total, total, darkSpendId};
   else {
     const ex = P.queueExtra || (P.queueExtra = []);
     const last = ex.length ? ex[ex.length - 1] : P.queue;
-    ex.push({id, total, end: last.end + total});
+    ex.push({id, total, end: last.end + total, darkSpendId});
   }
   setStatus('Construcción iniciada: ' + it.name + ' nivel ' + N + '.');
   refresh();
 }
 // Cancela la construcción en curso y devuelve los recursos
-function cancelBuild(){
+async function cancelBuild(){
   const P = activePlanet();
   if (!P.queue) return;
+  if (P.queue.darkSpendId && !(await walletDarkRefund(P.queue.darkSpendId))) return;
   const c = costOf(P.queue.id, P.lvl[P.queue.id] + 1);
   RES.forEach(r => { state.res[r] += c[r]; });
-  state.dark += dmCost(P.queue.id, P.lvl[P.queue.id] + 1);
   state.spent -= c.metal + c.crystal + c.deut;
   P.queue = null;
   if (P.queueExtra && P.queueExtra.length){
@@ -3729,7 +3759,7 @@ function durHMS(sec){
   sec = Math.max(0, Math.floor(sec));
   return [Math.floor(sec / 3600), Math.floor(sec % 3600 / 60), sec % 60].map(v => String(v).padStart(2, '0')).join(':');
 }
-function buildShips(id, qtyOverride){
+async function buildShips(id, qtyOverride){
   const inp = document.querySelector('[data-qty="' + id + '"]');
   const q = Math.max(1, Math.floor(Number(qtyOverride != null ? qtyOverride : (inp && inp.value)) || 1));
   if (inp) inp.value = q;
@@ -3739,6 +3769,7 @@ function buildShips(id, qtyOverride){
   if (!unitOk(id)) return setStatus('Requisitos no cumplidos: ' + reqText(unitReqs(id)) + '.', true);
   const dmUnlock = DM_SHIP[id] && !state.dmShips[id] ? DM_SHIP[id] : 0;
   if (dmUnlock && state.dark < dmUnlock) return setStatus('Necesitas ' + dmUnlock + ' de materia oscura para desbloquear ' + S.name + '.', true);
+  if (dmUnlock && !(await walletDarkUnlock(id))) return;
   if (id === 'mi'){
     const cap = 10 * (state.lvl.silo || 0);
     if ((state.fleet.mi || 0) + q > cap) return setStatus('Silo insuficiente: capacidad de ' + cap + ' misiles.', true);
@@ -3747,7 +3778,7 @@ function buildShips(id, qtyOverride){
   if (!RES.every(r => state.res[r] >= need[r])) return setStatus('Recursos insuficientes para construir ' + q + ' × ' + S.name + '.', true);
   RES.forEach(r => { state.res[r] -= need[r]; });
   state.spent += need.metal + need.crystal + need.deut;
-  if (dmUnlock){ state.dark -= dmUnlock; state.dmShips[id] = true; }
+  if (dmUnlock) state.dmShips[id] = true;
   // Cola por planeta: cada orden empieza cuando termina la anterior
   const queue = P.shipQueue || (P.shipQueue = []);
   const start = queue.length ? queue[queue.length - 1].end : state.simSec;
@@ -4993,11 +5024,12 @@ function darkMatterView(){
 async function buyDark(usd){
   const b = DARK_BOXES.find(x => x.usd === usd);
   if (!b) return;
-  const cost = Math.round(usd / TOKEN_USD);
-  if (state.res.token < cost) return refresh();
-  if (!(await walletSpend(cost, 'Caja de materia oscura'))) return;
-  state.dark += b.dm;
-  addTx('Caja de materia oscura', -cost, 'Completado (simulado)');
+  const r = await fetch('/api/wallet/dark/buy', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({usd})}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (typeof d.token === 'number') state.res.token = d.token;
+  if (typeof d.dark === 'number') state.dark = d.dark;
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo comprar la caja.', true); return; }
+  addTx('Caja de materia oscura', -Math.round(usd / TOKEN_USD), 'Completado');
   render();
 }
 
