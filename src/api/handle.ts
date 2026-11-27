@@ -303,6 +303,7 @@ const MAX_SAVE_CHARS = 1_500_000;
 const SAVE_TOP_KEYS = ["v","token","planets","active","moves","inbox","market","galaxy","debris","speed","testMode","vipUntil","dark","dmShips","animOff","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","daily","expLog","alliance","alliances","ranking","profile","wallet","txs","officers","empireClass","vacation","prod","stats","referrals"];
 const SAVE_LEVEL_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg","en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
 const SAVE_UNIT_KEYS = ["nc","ng","cz","ch","cr","bt","ac","bm","de","dr","rc","sp","co","sat","lm","ll","lg","gc","ci","cpl","cs","cg","mi"];
+const SAVE_BUILD_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg"];
 const SAVE_PLANET_KEYS = ["name","coords","parent","moon","queue","queueExtra","shipQueue","res","lvl","fleet"];
 const SAVE_SIGNED_KEYS = new Set(["amount","delta"]);
 const SAVE_NUMERIC_CAPS: Record<string, number> = {
@@ -405,8 +406,16 @@ function validateSaveStructure(data: any): string {
     if (p.queueExtra !== undefined && !Array.isArray(p.queueExtra)) return "Cola adicional no válida.";
     if (p.shipQueue !== undefined && !Array.isArray(p.shipQueue)) return "Cola de naves no válida.";
     if (p.parent !== undefined && typeof p.parent !== "string") return "Planeta padre no válido.";
-    if (p.queueExtra && p.queueExtra.some((q: any) => !saveRecord(q))) return "Elemento de cola no válido.";
-    if (p.shipQueue && p.shipQueue.some((q: any) => !saveRecord(q) || typeof q.id !== "string" || !Number.isInteger(q.n))) return "Orden de astillero no válida.";
+    const buildingQueue = [p.queue, ...(p.queueExtra || [])].filter(Boolean);
+    if (buildingQueue.length > 4 || (p.queueExtra || []).length > 3) return "Cola de construcción demasiado larga.";
+    for (const q of buildingQueue) {
+      if (!saveRecord(q) || typeof q.id !== "string" || !SAVE_BUILD_KEYS.includes(q.id)
+        || typeof q.end !== "number" || typeof q.total !== "number"
+        || (q.darkSpendId !== undefined && (!Number.isInteger(q.darkSpendId) || q.darkSpendId <= 0))) return "Elemento de cola no válido.";
+    }
+    if (p.shipQueue && (p.shipQueue.length > 1000 || p.shipQueue.some((q: any) => !saveRecord(q)
+      || typeof q.id !== "string" || !SAVE_UNIT_KEYS.includes(q.id) || !Number.isInteger(q.n) || q.n < 1
+      || typeof q.start !== "number" || typeof q.end !== "number" || typeof q.total !== "number"))) return "Orden de astillero no válida.";
     if (Object.keys(p.res).some(k => !["metal","crystal","deut","token"].includes(k))) return "Recurso desconocido.";
     if (Object.keys(p.lvl).some(k => !SAVE_LEVEL_KEYS.includes(k))) return "Nivel desconocido.";
     if (Object.keys(p.fleet).some(k => !SAVE_UNIT_KEYS.includes(k))) return "Unidad desconocida.";
@@ -469,6 +478,8 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
   const oldColonizers = oldPlanets.reduce((n: number, p: any) => n + (p.fleet.co || 0), 0);
   const newColonizers = next.planets.reduce((n: number, p: any) => n + (p.fleet.co || 0), 0);
   if (newColonies.length > oldColonizers - newColonizers) return "Colonia nueva sin consumir una nave colonizadora.";
+  const moonParents = next.planets.filter((p: any) => p.moon).map((p: any) => p.parent);
+  if (new Set(moonParents).size !== moonParents.length) return "Solo puede existir una luna por planeta.";
   for (const p of next.planets.slice(oldPlanets.length)) {
     if (Object.values(p.fleet).some((n: any) => n > 0)) return "Un planeta nuevo no puede traer flota.";
     if (p.moon) {
