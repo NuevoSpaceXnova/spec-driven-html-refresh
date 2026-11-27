@@ -1173,12 +1173,12 @@ function loadGame(override){
     if (d.market) state.market = d.market;
     if (d.galaxy) state.galaxy = {g:d.galaxy.g || 1, s:d.galaxy.s || 1, looted:d.galaxy.looted || {}, colonies:d.galaxy.colonies || {}, dmg:d.galaxy.dmg || {}};
     if (d.debris) state.debris = d.debris;
-    state.testMode = !!d.testMode;
+    state.testMode = false; // modo prueba retirado
     state.vipUntil = typeof d.vipUntil === 'number' ? d.vipUntil : 0;
     state.dark = typeof d.dark === 'number' ? d.dark : 0;
     state.dmShips = d.dmShips && typeof d.dmShips === 'object' ? d.dmShips : {};
     state.animOff = !!d.animOff;
-    if (d.speed && state.testMode) state.speed = d.speed;
+    state.speed = 1; // velocidad real
     if (typeof d.accountLevel === 'number') state.accountLevel = d.accountLevel;
     if (typeof d.seasonMax === 'number') state.seasonMax = d.seasonMax;
     if (typeof d.seasonStart === 'number') state.seasonStart = d.seasonStart;
@@ -2727,11 +2727,6 @@ function viewSettings(){
           <button class="btn" data-action="rename-planet">Renombrar planeta</button>
           <div class="rows"><div><span>Nivel de cuenta</span><span>${ACCOUNT_LEVELS[state.accountLevel].name}</span></div><div><span>Comisión de retiro</span><span>${ACCOUNT_LEVELS[state.accountLevel].fee} %</span></div><div><span>Fin de la temporada</span><span>${new Date(state.seasonStart + SEASON_MS).toLocaleDateString('es-ES')}</span></div></div>
           <div class="rows">${ACCOUNT_LEVELS.map(l => `<div><span>${l.name}</span><span>${l.fee} %</span></div>`).join('')}</div>
-          <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
-          ${state.testMode ? `<button class="btn" data-action="toggle-vip-test">${isVip() ? 'Desactivar VIP (prueba)' : 'Activar VIP (prueba)'}</button>` : ''}
-          ${state.testMode ? `<label class="field">Velocidad de simulación del universo
-            <select class="select full" id="speed">${[1, 10, 100, 1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}</select>
-          </label>` : ''}
           <div class="rows"><div><span>Modo Vacaciones</span><span class="${state.vacation ? 'tag-ok' : 'muted'}">${state.vacation ? 'Activo' : 'Inactivo'}</span></div></div>
           <button class="btn" data-action="toggle-vacation">${state.vacation ? 'Desactivar Modo Vacaciones' : 'Activar Modo Vacaciones'}</button>
           <p class="muted" style="font-size:12px;margin:0">El Modo Vacaciones pausa la producción y los ataques entrantes.</p>
@@ -4287,7 +4282,6 @@ function viewOverview(){
     body = `<div class="moves-box form-stack"></div>
       <div class="inline-form" style="margin-top:12px">
         <button class="btn inline" data-action="sim-attack">Simular Ataque Entrante</button>
-        <button class="btn inline" data-action="send-test">Enviar Flota de Prueba (60 s)</button>
       </div>`;
   }
   const resRows = ['metal','crystal','deut'].map(r => `
@@ -4354,15 +4348,6 @@ function viewOverview(){
           <div class="kpi"><div class="kpi-label">Energía consumida</div><div class="kpi-val" data-bind="eCons" data-danger></div></div>
         </div>
 
-        <div class="setting">
-          <label>Modo prueba</label>
-          <button class="btn" data-action="toggle-test-mode">${state.testMode ? 'Desactivar modo prueba' : 'Activar modo prueba'}</button>
-          ${state.testMode ? `<label for="speed">Factor de velocidad del universo</label>
-          <select class="select" id="speed" style="max-width:200px">
-            ${[1,10,100,1000].map(v => `<option value="${v}" ${v === state.speed ? 'selected' : ''}>x${v}</option>`).join('')}
-          </select>
-          <p>Multiplica toda la producción y los tiempos de construcción. Con x1 el juego corre a velocidad real.</p>` : ''}
-        </div>
         <div class="setting">
           <label>Partida</label>
           <p>Guarda el progreso de esta cuenta en este navegador. También se guarda sola cada 30 segundos.</p>
