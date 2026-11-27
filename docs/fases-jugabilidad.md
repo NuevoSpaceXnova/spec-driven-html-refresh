@@ -94,7 +94,8 @@ Ejemplo: Cazador Ligero con astillero nivel 1 tarda unas 1,6 h por unidad. Revis
 3. **Requisitos encadenados.** Una tecnología necesita un nivel de laboratorio. Una nave necesita tecnología y astillero. Nada se desbloquea solo con tiempo.
 4. **Rendimiento decreciente en las minas.** Cada mina extra produce menos que la anterior en niveles altos.
 5. **La progresión depende de construir y defender.** La puntuación y el nivel de cuenta deben depender de acciones dentro del juego, no solo de acumular recursos.
-6. **Colas limitadas en fases tempranas.** Aplicado en modo prueba: la cola de construcción tiene 1 orden para cuentas free y hasta 4 para VIP. Pendiente: si la cola de investigación también cambia por fase.
+6. **Costos de subida (aplicado en modo prueba):** edificios, almacenes, instalaciones e investigaciones ×10; naves y defensas ×5. Meta: nivel 20 en unos 3 meses sin VIP. El tiempo de construcción sigue el costo; un edificio de nivel 20 tarda unas 665 horas por subida, y en total unos 83 días solo en construir, sin VIP.
+7. **Colas limitadas en fases tempranas.** Aplicado en modo prueba: la cola de construcción tiene 1 orden para cuentas free y hasta 4 para VIP. Pendiente: si la cola de investigación también cambia por fase.
 
 ## 5. Pendiente
 

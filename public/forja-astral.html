@@ -1039,6 +1039,8 @@ const SHIPS = {
   mi: {name:'Misiles', icon:'rocket', cost:{metal:12500, deut:2500}, a:0, sh:0, s:0, cargo:0, fuel:0, reqs:{silo:1}, defense:true, noCombat:true,
        desc:'Misiles interplanetarios guardados en el Silo: máximo 10 por nivel de Silo.'}
 };
+// ×5: costos de naves y defensas
+for (const k in SHIPS) for (const r in SHIPS[k].cost) SHIPS[k].cost[r] *= 5;
 // Qué tecnología potencia cada defensa
 const TECH_UNIT = {ll:'lz', lg:'lz', ci:'io', cpl:'pl', bm:'pl'};
 // Requisitos de cualquier nave o defensa: Astillero Naval nivel 1 además de los propios
@@ -1330,7 +1332,7 @@ function handleFase2Click(e){
 function costOf(id, N){
   const out = {metal:0, crystal:0, deut:0};
   const c = ITEMS[id] ? ITEMS[id].cost : null;
-  if (c) for (const k in c) out[k] = c[k](N);
+  if (c) for (const k in c) out[k] = c[k](N) * 10;   // ×10: edificios, almacenes, instalaciones e investigaciones
   return out;
 }
 
