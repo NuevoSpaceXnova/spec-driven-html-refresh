@@ -7,10 +7,19 @@
 <title>XnovaEvolution · Panel administrativo</title>
 <style>
   *{box-sizing:border-box}
+  [hidden]{display:none !important}
   body{margin:0;min-height:100vh;background:#0b0d14;color:#e8eaf2;font-family:system-ui,sans-serif;display:flex;flex-direction:column}
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;background:#151927;border-bottom:1px solid #2a3044}
   header h1{font-size:18px;margin:0}
+  .head-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   #who{font-size:13px;color:#aab1c8}
+  header button{background:#222a40;color:#e8eaf2;border:1px solid #2a3044;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer}
+  .gate{margin:auto;width:min(340px,90vw);display:flex;flex-direction:column;gap:12px;background:#151927;padding:24px;border-radius:10px;border:1px solid #2a3044}
+  .gate h2{font-size:18px;margin:0}
+  .gate p{color:#aab1c8;font-size:14px;margin:0}
+  .gate input{padding:10px;border-radius:6px;border:1px solid #2a3044;background:#0b0d14;color:#e8eaf2;font-size:15px}
+  .gate button{padding:10px;border:0;border-radius:6px;background:#7c5cff;color:#fff;font-size:15px;cursor:pointer}
+  .err{color:#ff7a7a;font-size:13px;min-height:16px}
   .layout{display:flex;flex:1;min-height:0}
   nav{width:220px;background:#151927;border-right:1px solid #2a3044;padding:12px;display:flex;flex-direction:column;gap:4px}
   nav button{text-align:left;background:none;border:0;color:#aab1c8;padding:10px;border-radius:6px;font-size:14px;cursor:pointer}
@@ -27,8 +36,21 @@
 <body>
 <header>
   <h1>Panel administrativo</h1>
-  <div id="who">Comprobando la cuenta…</div>
+  <div class="head-right">
+    <div id="who">Comprobando la cuenta…</div>
+    <button type="button" id="lock" hidden>Salir del panel</button>
+    <button type="button" id="logout" hidden>Cerrar sesión</button>
+  </div>
 </header>
+
+<form class="gate" id="gate" hidden novalidate>
+  <h2>Contraseña del panel</h2>
+  <p>Escribe la contraseña del panel para continuar.</p>
+  <input type="password" id="panel-pass" autocomplete="off" required>
+  <div class="err" id="gate-err"></div>
+  <button type="submit">Entrar al panel</button>
+</form>
+
 <div class="layout" id="app" hidden>
   <nav>
     <button type="button" data-tab="retiros" class="on">Retiros</button>
@@ -71,11 +93,18 @@
     </section>
   </main>
 </div>
+
 <script>
 (function () {
   var who = document.getElementById('who');
   var app = document.getElementById('app');
+  var gate = document.getElementById('gate');
+  var gateErr = document.getElementById('gate-err');
+  var passInput = document.getElementById('panel-pass');
+  var lockBtn = document.getElementById('lock');
+  var logoutBtn = document.getElementById('logout');
   var buttons = document.querySelectorAll('nav button');
+
   buttons.forEach(function (b) {
     b.addEventListener('click', function () {
       buttons.forEach(function (x) { x.classList.toggle('on', x === b); });
@@ -84,16 +113,64 @@
       });
     });
   });
+
+  function showGate() {
+    app.hidden = true;
+    gate.hidden = false;
+    lockBtn.hidden = true;
+    passInput.value = '';
+    gateErr.textContent = '';
+    passInput.focus();
+  }
+  function showApp() {
+    gate.hidden = true;
+    app.hidden = false;
+    lockBtn.hidden = false;
+  }
+
+  gate.addEventListener('submit', function (e) {
+    e.preventDefault();
+    gateErr.textContent = '';
+    fetch('/api/panel/unlock', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: passInput.value })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+    }).then(function (res) {
+      if (res.ok) { showApp(); return; }
+      gateErr.textContent = res.d.error || 'No se pudo entrar';
+    }).catch(function () {
+      gateErr.textContent = 'Sin conexión con el servidor';
+    });
+  });
+
+  lockBtn.addEventListener('click', function () {
+    fetch('/api/panel/lock', { method: 'POST', credentials: 'same-origin' })
+      .finally(showGate);
+  });
+
+  logoutBtn.addEventListener('click', function () {
+    fetch('/api/logout', { method: 'POST', credentials: 'same-origin' })
+      .finally(function () { window.location.href = '/login.html'; });
+  });
+
   fetch('/api/me', { credentials: 'same-origin' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       var u = d && d.user;
       if (!u || (u.role !== 'admin' && u.role !== 'assistant')) {
         window.location.href = '/login.html';
-        return;
+        return null;
       }
       who.textContent = u.email + ' · ' + (u.role === 'admin' ? 'administración' : 'ayudante');
-      app.hidden = false;
+      logoutBtn.hidden = false;
+      return fetch('/api/panel/status', { credentials: 'same-origin' }).then(function (r) { return r.json(); });
+    })
+    .then(function (s) {
+      if (!s) return;
+      if (s.unlocked) showApp(); else showGate();
     })
     .catch(function () { window.location.href = '/login.html'; });
 })();

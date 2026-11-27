@@ -3,6 +3,8 @@
 const ITER = 100000; // máximo permitido por Cloudflare para PBKDF2
 const SESSION_DAYS = 30;
 const COOKIE = "xn_session";
+const PANEL_COOKIE = "xn_panel";
+const PANEL_HOURS = 8;
 const enc = new TextEncoder();
 
 type Stmt = {
@@ -11,10 +13,10 @@ type Stmt = {
     run(): Promise<{ meta?: { changes?: number } }>;
   };
 };
-export type ApiEnv = { DB?: { prepare(sql: string): Stmt } };
+export type ApiEnv = { DB?: { prepare(sql: string): Stmt }; PANEL_PASSWORD?: string };
 type DB = NonNullable<ApiEnv["DB"]>;
 type User = { id: string; email: string; role: string };
-type Route = (request: Request, db: DB) => Promise<Response>;
+type Route = (request: Request, db: DB, env: ApiEnv) => Promise<Response>;
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -100,6 +102,24 @@ function clearCookie(): string {
   return `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
+function panelCookie(value: string): string {
+  return `${PANEL_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${PANEL_HOURS * 3600}`;
+}
+
+function clearPanelCookie(): string {
+  return `${PANEL_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+}
+
+// El acceso al panel se liga a la sesión actual y a la contraseña: si cambia cualquiera, deja de valer.
+async function panelToken(request: Request, secret: string): Promise<string> {
+  return sha256Hex(`panel:${readCookie(request, COOKIE)}:${secret}`);
+}
+
+async function panelUnlocked(request: Request, env: ApiEnv): Promise<boolean> {
+  if (!env.PANEL_PASSWORD) return false;
+  return readCookie(request, PANEL_COOKIE) === (await panelToken(request, env.PANEL_PASSWORD));
+}
+
 function readCookie(request: Request, name: string): string {
   const header = request.headers.get("Cookie") || "";
   for (const part of header.split(";")) {
@@ -167,8 +187,29 @@ const logout: Route = async (request, db) => {
   if (/^[0-9a-f]{64}$/.test(token)) {
     await db.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await sha256Hex(token)).run();
   }
-  return json({ ok: true }, 200, { "Set-Cookie": clearCookie() });
+  const res = json({ ok: true }, 200, { "Set-Cookie": clearCookie() });
+  res.headers.append("Set-Cookie", clearPanelCookie());
+  return res;
 };
+
+const panelStatus: Route = async (request, db, env) => {
+  const user = await currentUser(request, db);
+  if (!user || (user.role !== "admin" && user.role !== "assistant")) return json({ error: "No autorizado" }, 403);
+  return json({ unlocked: await panelUnlocked(request, env) });
+};
+
+const panelUnlock: Route = async (request, db, env) => {
+  const user = await currentUser(request, db);
+  if (!user || (user.role !== "admin" && user.role !== "assistant")) return json({ error: "No autorizado" }, 403);
+  if (!env.PANEL_PASSWORD) return json({ error: "El panel todavía no tiene contraseña configurada" }, 503);
+  const body = await readJson(request);
+  const given = await sha256Hex(String(body?.password ?? ""));
+  const expected = await sha256Hex(env.PANEL_PASSWORD);
+  if (given !== expected) return json({ error: "Contraseña incorrecta" }, 401);
+  return json({ ok: true }, 200, { "Set-Cookie": panelCookie(await panelToken(request, env.PANEL_PASSWORD)) });
+};
+
+const panelLock: Route = async () => json({ ok: true }, 200, { "Set-Cookie": clearPanelCookie() });
 
 const me: Route = async (request, db) => {
   const user = await currentUser(request, db);
@@ -197,6 +238,9 @@ const ROUTES: Record<string, Route> = {
   "POST /api/login": login,
   "POST /api/logout": logout,
   "GET /api/me": me,
+  "GET /api/panel/status": panelStatus,
+  "POST /api/panel/unlock": panelUnlock,
+  "POST /api/panel/lock": panelLock,
   "POST /api/admin/set-role": setRole,
 };
 
@@ -208,7 +252,7 @@ export async function handleApi(request: Request, env: ApiEnv): Promise<Response
   if (!route) return json({ error: "No encontrado" }, 404);
   if (!env || !env.DB) return json({ error: "La base de datos todavía no está conectada" }, 503);
   try {
-    return await route(request, env.DB);
+    return await route(request, env.DB, env);
   } catch (error) {
     console.error(error);
     return json({ error: "Error interno" }, 500);
