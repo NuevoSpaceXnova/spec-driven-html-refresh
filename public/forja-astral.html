@@ -836,6 +836,7 @@ body.anim-none *,body.anim-none *::before,body.anim-none *::after{animation:none
     </div>
     <button type="button" class="vip-badge" data-action="open-vip" data-bind="vipLabel" title="Estado del pase VIP"></button>
     <a class="swap-open" href="swap.html" target="_blank" rel="noopener" title="Abrir Swap en una página nueva">Swap</a>
+    <a id="admin-link" class="swap-open" href="admin.html" hidden>Panel</a>
     <div id="notif-menu" class="notif-menu"></div>
     <div id="user-menu" class="user-menu"></div>
   </header>
@@ -5490,6 +5491,11 @@ window.addEventListener('storage', e => {
 });
 buildSky(document.getElementById('sky-start'),{tw:110,sh:7,sat:6,flare:true});
 buildSky(document.getElementById('sky-app'),{tw:40,sh:4,sat:3});
+// Botón "Panel": solo para la cuenta de administración y la de ayudante.
+fetch('/api/me',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+  const role = d && d.user && d.user.role;
+  if (role === 'admin' || role === 'assistant') document.getElementById('admin-link').hidden = false;
+}).catch(()=>{});
 </script>
 </body>
 </html>

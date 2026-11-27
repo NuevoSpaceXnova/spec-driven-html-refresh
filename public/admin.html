@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>XnovaEvolution · Panel administrativo</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0d14;color:#e8eaf2;font-family:system-ui,sans-serif}
+  .box{width:min(480px,90vw);background:#151927;padding:24px;border-radius:10px;border:1px solid #2a3044}
+  h1{font-size:20px;margin:0 0 8px}
+  p{color:#aab1c8;font-size:14px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Panel administrativo</h1>
+  <p id="who">Comprobando la cuenta…</p>
+</div>
+<script>
+(function () {
+  var who = document.getElementById('who');
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var u = d && d.user;
+      if (!u || (u.role !== 'admin' && u.role !== 'assistant')) {
+        window.location.href = '/login.html';
+        return;
+      }
+      who.textContent = 'Sesión: ' + u.email + ' (' + (u.role === 'admin' ? 'administración' : 'ayudante') + ')';
+    })
+    .catch(function () { window.location.href = '/login.html'; });
+})();
+</script>
+</body>
+</html>

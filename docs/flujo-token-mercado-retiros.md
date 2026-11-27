@@ -118,6 +118,7 @@ Estas ideas son propuestas. No están aprobadas:
 ## 6. Panel administrativo
 
 - Acceso protegido con contraseña, solo para el administrador.
+- **Estado (parte 1 aplicada en modo prueba):** la cuenta de administración y la cuenta de ayudante ven el botón Panel en el juego. La ayudante la asigna la administración por la ruta de roles. El contenido del panel se construye en la siguiente parte.
 - Funciones mínimas: ver solicitudes de retiro, aprobar o rechazar, ver saldos de la reserva, del respaldo y del saldo de retiro de la administración, y registrar cada pago.
 - Este panel requiere base de datos y servidor. Se implementa en la fase real del proyecto.
 
