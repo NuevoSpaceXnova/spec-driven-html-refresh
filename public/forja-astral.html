@@ -1149,11 +1149,18 @@ function saveGame(){
 }
 /* ---------- Partida en la base de datos (etapa A) ---------- */
 let cloudTimer = null, cloudBusy = false, cloudPending = false, cloudLast = null;
+let cloudBlockedUntil = 0, cloudRetryTimer = null;
 function cloudVerKey(){ return 'forja-astral-cloud-v:' + currentUser(); }
 function queueCloud(){ if (cloudTimer) return; cloudTimer = setTimeout(() => { cloudTimer = null; pushCloud(); }, 4000); }
+function retryCloudAfterBlock(){
+  if (cloudRetryTimer) return;
+  const wait = Math.max(0, cloudBlockedUntil - Date.now());
+  cloudRetryTimer = setTimeout(() => { cloudRetryTimer = null; pushCloud(); }, wait);
+}
 async function pushCloud(){
   const data = localStorage.getItem(SAVE_KEY);
   if (!data || !currentUser()) return;
+  if (Date.now() < cloudBlockedUntil){ retryCloudAfterBlock(); return; }
   if (cloudBusy){ cloudPending = true; return; }
   if (data === cloudLast){ return; }
   cloudBusy = true;
@@ -1162,11 +1169,23 @@ async function pushCloud(){
     const r = await fetch('/api/save', {method:'POST', credentials:'same-origin', keepalive:true, headers:{'Content-Type':'application/json'}, body:JSON.stringify({data, version})});
     const d = await r.json().catch(() => ({}));
     if (r.ok){ localStorage.setItem(cloudVerKey(), String(d.version)); cloudLast = data; }
-    else if (r.status === 409 && d.data){ localStorage.setItem(SAVE_KEY, d.data); localStorage.setItem(cloudVerKey(), String(d.version)); location.reload(); }
+    else if (r.status === 409 && d.rejected){
+      cloudBlockedUntil = Date.now() + 10000;
+      cloudPending = false;
+      setStatus(d.error || 'El servidor rechazó este guardado. Se volverá a intentar en 10 segundos.', true);
+      retryCloudAfterBlock();
+    }
+    else if (r.status === 409 && d.data){
+      localStorage.setItem(SAVE_KEY, d.data);
+      localStorage.setItem(cloudVerKey(), String(d.version));
+      location.reload();
+    } else if (!r.ok) {
+      setStatus(d.error || 'No se pudo guardar la partida. El juego seguirá funcionando.', true);
+    }
   } catch (e) { /* sin conexión: se intenta en el siguiente guardado */ }
   finally {
     cloudBusy = false;
-    if (cloudPending){ cloudPending = false; pushCloud(); }
+    if (cloudPending && Date.now() >= cloudBlockedUntil){ cloudPending = false; pushCloud(); }
   }
 }
 async function pullCloud(){
@@ -1188,6 +1207,7 @@ async function walletPull(){
   const d = await fetch('/api/wallet', {credentials:'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
   if (d && typeof d.token === 'number'){
     state.res.token = d.token;
+    if (typeof d.dark === 'number') state.dark = d.dark;               // materia oscura autoritativa del servidor
     if (typeof d.vipUntil === 'number') state.vipUntil = d.vipUntil;   // el VIP también viene del servidor
     return true;
   }
