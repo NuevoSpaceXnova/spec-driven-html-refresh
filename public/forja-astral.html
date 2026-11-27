@@ -73,6 +73,7 @@ button,select,input{font-family:inherit}
 .swap-open{height:34px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--accent-primary);border-radius:var(--r);background:linear-gradient(180deg,#2450C5,#1B3A99);color:#fff;font:600 12px var(--font-title);letter-spacing:.08em;text-decoration:none;flex:none}
 .swap-open:hover{background:var(--accent-hover)}
 .anim-off *,body.tab-hidden *{animation-play-state:paused!important}
+body.anim-none *,body.anim-none *::before,body.anim-none *::after{animation:none!important;transition:none!important}
 .usdt-box .usdt-icon{font:700 18px var(--font-mono);color:#3DDC84;margin-right:8px}
 .vip-badge{height:34px;display:inline-flex;align-items:center;padding:0 12px;margin-right:8px;border:1px solid var(--border-subtle);border-radius:var(--r);background:transparent;color:var(--text-secondary);font:700 11px var(--font-title);letter-spacing:.1em;cursor:pointer;flex:none}
 .vip-badge.is-vip{border-color:#D4A81F;color:#F5C84B;background:linear-gradient(180deg,#3a2c08,#211a05)}
@@ -1092,6 +1093,7 @@ const state = {
   vipUntil:0,
   dark:0,
   dmShips:{},
+  animOff:false,
   accountLevel:0,
   seasonMax:0,
   seasonStart:Date.now(),
@@ -1142,7 +1144,7 @@ const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales de
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     return true;
   } catch (err) { return false; }
 }
@@ -1175,6 +1177,7 @@ function loadGame(override){
     state.vipUntil = typeof d.vipUntil === 'number' ? d.vipUntil : 0;
     state.dark = typeof d.dark === 'number' ? d.dark : 0;
     state.dmShips = d.dmShips && typeof d.dmShips === 'object' ? d.dmShips : {};
+    state.animOff = !!d.animOff;
     if (d.speed && state.testMode) state.speed = d.speed;
     if (typeof d.accountLevel === 'number') state.accountLevel = d.accountLevel;
     if (typeof d.seasonMax === 'number') state.seasonMax = d.seasonMax;
@@ -1265,6 +1268,7 @@ function handleFase2Click(e){
       case 'open-vip': openVip(); return;
       case 'buy-vip': buyVip(); return;
       case 'buy-dark': buyDark(Number(act.dataset.usd)); return;
+      case 'toggle-anim': toggleAnim(); return;
       case 'export-save': exportSave(); return;
       case 'copy-json': copyText(document.getElementById('cfg-json').value, 'JSON copiado al portapapeles.'); return;
       case 'import-save': importSave(); return;
@@ -2678,11 +2682,16 @@ function viewProfile(){
     </div>`;
 }
 
+function toggleAnim(){
+  state.animOff = !state.animOff;
+  render();
+  saveGame();
+}
 function viewSettings(){
   const pl = state.planets[state.active];
   return `
     <h1 class="page-title">Configuración</h1>
-    <p class="page-sub">Ajustes del imperio y gestión de datos.</p>
+    <p class="page-sub">Ajustes del imperio.</p>
     <p id="status" class="page-sub"></p>
     <div class="market-grid">
       <section class="panel pad">
@@ -2703,19 +2712,10 @@ function viewSettings(){
         </div>
       </section>
       <section class="panel pad">
-        <h2 class="section-title" style="margin-top:0">Gestión de Datos</h2>
+        <h2 class="section-title" style="margin-top:0">Opciones</h2>
         <div class="form-stack">
-          <label class="field">Partida en JSON<textarea class="input" id="cfg-json" rows="6" style="height:auto;font-size:11px;resize:vertical" placeholder="Exporta o pega aquí una partida"></textarea></label>
-          <div class="inline-form">
-            <button class="btn inline" data-action="export-save">Exportar Partida (JSON)</button>
-            <button class="btn inline" data-action="copy-json">Copiar JSON</button>
-          </div>
-          <label class="field">Importar archivo .json<input class="input" id="cfg-file" type="file" accept=".json,application/json"></label>
-          <div class="inline-form">
-            <button class="btn inline" data-action="import-save">Importar Partida</button>
-            <button class="btn inline" data-action="reset-ask" style="background:var(--status-danger)">Reiniciar Universo</button>
-          </div>
-          <p class="muted" style="font-size:12px;margin:0">Este visor no permite descargas directas: usa "Copiar JSON" para guardar tu partida.</p>
+          <button class="btn" data-action="toggle-anim">${state.animOff ? 'Encender animaciones' : 'Apagar animaciones'}</button>
+          <button class="btn" data-action="reset-ask" style="background:var(--status-danger)">Reiniciar Universo</button>
         </div>
       </section>
     </div>`;
@@ -5336,6 +5336,7 @@ function observeAnimCards(){
 }
 document.addEventListener('visibilitychange', () => document.body.classList.toggle('tab-hidden', document.hidden));
 function render(){
+  document.body.classList.toggle('anim-none', !!state.animOff);
   renderNav();
   renderUserMenu();
   renderNotifMenu();
