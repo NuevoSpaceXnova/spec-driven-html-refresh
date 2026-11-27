@@ -12,7 +12,7 @@ Hoy todo corre en **modo demo** con datos ficticios. Cuando se configure la econ
 
 | Activo | Descripción | Red |
 |---|---|---|
-| TOKEN | Token del juego. Se usa en el mercado, en el swap y en el pase VIP. | BNB Smart Chain (pendiente de listar) |
+| TOKEN | Token interno del juego. Se usa en el mercado, en el swap y en el pase VIP. No tiene contrato. | No aplica (interno) |
 | USDT, USDC, BNB, BTCB, ETH, CAKE, XRP, ADA, DOGE, LINK, DOT, LTC, TRX, UNI, MATIC | Criptos de referencia para el intercambio | BNB Smart Chain |
 
 - Los **recursos del juego** (metal, cristal, deuterio) **no** entran en el swap. Solo se venden en el mercado P2P interno, pagando TOKEN.
@@ -70,10 +70,10 @@ Hoy todo corre en **modo demo** con datos ficticios. Cuando se configure la econ
 
 ## 7. Qué cambiar al pasar a economía real
 
-1. **Contrato del token en BNB Chain:** completar `TOKEN.contract` y `CRYPTOS[].contract`.
+1. **Contrato del TOKEN:** no aplica. El TOKEN es interno del juego y no tiene contrato. Las direcciones de las criptos de referencia (`CRYPTOS[].contract`) siguen pendientes.
 2. **Precios reales:** reemplazar `genPath` por una fuente de precios para las criptos. El precio del TOKEN lo mueve la administración.
 3. **Saldos reales:** leer balances de la billetera conectada.
 4. **Ejecución on-chain:** definir el router de intercambio y el flujo de aprobación de tokens.
 5. **Comisión variable:** implementar el mecanismo de presión de compras y ventas entre 3 % y 12 % (`docs/economia-niveles-puntos.md`, sección 11.2).
-6. **Revisión de seguridad:** auditoría de contratos antes de activar dinero real.
+6. **Revisión de seguridad:** auditoría del servidor de saldos y de los retiros antes de activar dinero real.
 7. **Parámetros:** `FEE`, `LIQ_USD` y `TOKEN.start` se cambian en `public/swap.html`.

@@ -303,10 +303,10 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 29. Duración y tramos de la liberación gradual (sección 11.2).
 30. Monto del piso de precio y reserva destinada a sostenerlo (sección 11.2).
 31. Regla de reserva mínima cuando la reserva se acerca a cero (sección 11.2).
-32. Direcciones de contrato del TOKEN y de las criptos en BNB Chain (`docs/reglas-swap-y-staking.md`, sección 7).
+32. Direcciones de contrato de las criptos de referencia en BNB Chain. El TOKEN no tiene contrato (`docs/reglas-swap-y-staking.md`, sección 7).
 33. Fuente de precios de las criptos para la fase real: API o contrato oráculo (`docs/reglas-swap-y-staking.md`, secciones 2 y 7).
 34. Router de intercambio y flujo de aprobación de tokens (`docs/reglas-swap-y-staking.md`, sección 7).
-35. Auditoría de seguridad de los contratos antes de activar dinero real (`docs/reglas-swap-y-staking.md`, sección 7).
+35. Auditoría de seguridad del servidor de saldos y de los retiros antes de activar dinero real (`docs/reglas-swap-y-staking.md`, sección 7).
 
 ### 13.5 Pool free, respaldo y otros ingresos
 36. Límite diario de las misiones de la pool free, en TOKEN por día y por jugador (`docs/flujo-token-mercado-retiros.md`, sección 3.3).
