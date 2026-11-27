@@ -30,6 +30,12 @@ Las secciones marcadas como **Pendiente** no deben implementarse hasta confirmar
 
 - La comisión se calcula sobre el precio total de la venta y se cobra en TOKEN al publicar el aviso.
 
+### 2.1b Precio por unidad (aplicado en modo prueba)
+
+- El vendedor escribe el valor por unidad en TOKEN y el juego calcula el total (cantidad × valor por unidad).
+- Mínimo por unidad: el valor de la última oferta publicada de ese recurso. Si no hay ninguna, 0,10 metal, 0,20 cristal y 0,50 deuterio. Las ofertas vendidas o canceladas cuentan.
+- Sin máximo.
+
 ### 2.2 Pendiente
 
 - Si la venta de naves también paga la comisión de publicación (hoy solo se cobra en recursos).
