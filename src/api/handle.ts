@@ -411,7 +411,7 @@ function validateSaveStructure(data: any): string {
     for (const q of buildingQueue) {
       if (!saveRecord(q) || typeof q.id !== "string" || !SAVE_BUILD_KEYS.includes(q.id)
         || typeof q.end !== "number" || typeof q.total !== "number"
-        || (q.darkSpendId !== undefined && (!Number.isInteger(q.darkSpendId) || q.darkSpendId <= 0))) return "Elemento de cola no válido.";
+        || (q.darkSpendId !== undefined && q.darkSpendId !== null && (!Number.isInteger(q.darkSpendId) || q.darkSpendId <= 0))) return "Elemento de cola no válido.";
     }
     if (p.shipQueue && (p.shipQueue.length > 1000 || p.shipQueue.some((q: any) => !saveRecord(q)
       || typeof q.id !== "string" || !SAVE_UNIT_KEYS.includes(q.id) || !Number.isInteger(q.n) || q.n < 1
