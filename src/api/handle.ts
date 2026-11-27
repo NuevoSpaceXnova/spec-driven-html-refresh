@@ -320,6 +320,8 @@ function saveRecord(v: unknown): v is Record<string, any> {
 }
 function validateSaveTree(v: unknown, key = "", depth = 0): boolean {
   if (depth > 18) return false;
+  const numericKeys = new Set(["v","token","dark","active","speed","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","metal","crystal","deut","wins","mined","amount","delta","pts","rate","t","start","end","total","n","day","fortressNext","checked_at","price","qty","count","level"]);
+  if (numericKeys.has(key) && v !== undefined && v !== null && typeof v !== "number") return false;
   if (typeof v === "number") {
     const cap = SAVE_NUMERIC_CAPS[key] ?? 1e15;
     return Number.isFinite(v) && Math.abs(v) <= cap && (v >= 0 || SAVE_SIGNED_KEYS.has(key));
@@ -443,6 +445,30 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
     if (increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
   }
   const oldPlanets = previous.planets || [];
+  const researchCosts: Record<string,[number,number,number,number]> = {
+    en:[0,800,400,2], cm:[400,0,600,2], bl:[1000,0,0,2], es:[200,1000,200,2],
+    cp:[0,400,600,2], ap:[4000,8000,4000,1.75], lz:[200,100,0,2], io:[300,400,0,2],
+    pl:[2000,4000,1000,2], im:[800,0,400,2], hd:[1500,800,600,2], hy:[4000,4000,2000,2], gv:[0,20000,10000,2],
+  };
+  let researchSpend = {metal:0, crystal:0, deut:0};
+  for (let i = 0; i < next.planets.length; i++) {
+    const old = oldPlanets[i];
+    if (!old) continue;
+    for (const [id, c] of Object.entries(researchCosts)) {
+      const increase = next.planets[i].lvl[id] - (old.lvl[id] || 0);
+      for (let n = 1; n <= increase; n++) {
+        const factor = Math.pow(c[3], (old.lvl[id] || 0) + n - 1);
+        researchSpend.metal += Math.floor(c[0] * factor);
+        researchSpend.crystal += Math.floor(c[1] * factor);
+        researchSpend.deut += Math.floor(c[2] * factor);
+      }
+    }
+  }
+  for (const k of ["metal","crystal","deut"] as const) {
+    const allowedSpend = oldRes[k] + rates[k] * elapsed / 3600 * 3 - newRes[k === "deut" ? "deuterium" : k];
+    const required = researchSpend[k === "deut" ? "deut" : k];
+    if (!Number.isFinite(required) || required > allowedSpend + 1) return "Aumento de investigación sin recursos suficientes.";
+  }
   const shipCosts: Record<string,[number,number]> = {
     nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
     bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
