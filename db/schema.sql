@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS saves (
 CREATE TABLE IF NOT EXISTS wallets (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   token REAL NOT NULL,
+  dark REAL NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
 
@@ -64,3 +65,16 @@ CREATE TABLE IF NOT EXISTS reserves (
   max_amt REAL NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- Expediciones de un solo uso: una abierta por cuenta.
+CREATE TABLE IF NOT EXISTS expeditions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  ends_at INTEGER NOT NULL,
+  rolled_at INTEGER,
+  UNIQUE(id)
+);
+CREATE INDEX IF NOT EXISTS idx_expeditions_user ON expeditions (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_expeditions_one_open_per_user
+  ON expeditions (user_id) WHERE rolled_at IS NULL;

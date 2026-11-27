@@ -434,8 +434,10 @@ const vipBuy: Route = async (request, db) => {
 // Hallazgos de TOKEN y materia oscura en expediciones. Salen de reservas que carga el administrador.
 const EXP_CHANCE = { token: 0.03, dark: 0.01 }; // probabilidad base por expedición
 const VIP_CHANCE_MUL = 1.5;                      // VIP: +50 %
+const EXPEDITION_DURATION_SECONDS = 30;
+const EXPEDITION_EXPIRY_SECONDS = 10 * 60;
+const EXPEDITION_CLAIM_COOLDOWN_SECONDS = 30;
 
-// Saca de la reserva una cantidad dentro del rango configurado. Si la reserva no alcanza, saca lo que queda.
 async function takeFromReserve(db: DB, kind: "token" | "dark"): Promise<number> {
   const row = await db.prepare("SELECT amount, min_amt, max_amt FROM reserves WHERE kind = ?")
     .bind(kind).first<{ amount: number; min_amt: number; max_amt: number }>();
@@ -444,25 +446,74 @@ async function takeFromReserve(db: DB, kind: "token" | "dark"): Promise<number> 
   const want = lo + Math.random() * (row.max_amt - lo);
   const amount = Math.round(Math.min(want, row.amount) * 1000000) / 1000000;
   if (amount <= 0) return 0;
-  const upd = await db
-    .prepare("UPDATE reserves SET amount = ROUND(amount - ?, 6), updated_at = ? WHERE kind = ? AND amount >= ?")
-    .bind(amount, now(), kind, amount)
-    .run();
+  const upd = await db.prepare("UPDATE reserves SET amount = ROUND(amount - ?, 6), updated_at = ? WHERE kind = ? AND amount >= ?")
+    .bind(amount, now(), kind, amount).run();
   return upd.meta && upd.meta.changes ? amount : 0;
+}
+
+async function creditDark(db: DB, userId: string, amount: number): Promise<number> {
+  await ensureWallet(db, userId);
+  await db.prepare("UPDATE wallets SET dark = ROUND(dark + ?, 6), updated_at = ? WHERE user_id = ?")
+    .bind(amount, now(), userId).run();
+  const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(userId)
+    .first<{ dark: number }>();
+  return row?.dark ?? 0;
 }
 
 const expeditionRoll: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const action = String(body?.action ?? "");
+  const current = now();
+
+  if (action === "start") {
+    await db.prepare("DELETE FROM expeditions WHERE user_id = ? AND rolled_at IS NULL AND started_at <= ?")
+      .bind(user.id, current - EXPEDITION_EXPIRY_SECONDS).run();
+    const open = await db.prepare("SELECT id FROM expeditions WHERE user_id = ? AND rolled_at IS NULL")
+      .bind(user.id).first<{ id: string }>();
+    if (open) return json({ error: "Ya tienes una expedición sin reclamar." }, 429);
+    const id = crypto.randomUUID();
+    const endsAt = current + EXPEDITION_DURATION_SECONDS;
+    try {
+      await db.prepare("INSERT INTO expeditions (id, user_id, started_at, ends_at, rolled_at) VALUES (?, ?, ?, ?, NULL)")
+        .bind(id, user.id, current, endsAt).run();
+    } catch {
+      return json({ error: "Ya tienes una expedición sin reclamar." }, 429);
+    }
+    return json({ ok: true, expeditionId: id, endsAt: endsAt * 1000 }, 201);
+  }
+
+  if (action !== "claim") return json({ error: "Acción no válida" }, 400);
+  const expeditionId = String(body?.expeditionId ?? "");
+  if (!expeditionId || expeditionId.length > 64) return json({ error: "Expedición no válida" }, 400);
+  const expedition = await db.prepare("SELECT id, started_at, ends_at, rolled_at FROM expeditions WHERE id = ? AND user_id = ?")
+    .bind(expeditionId, user.id)
+    .first<{ id: string; started_at: number; ends_at: number; rolled_at: number | null }>();
+  if (!expedition) return json({ error: "Expedición no encontrada" }, 404);
+  if (expedition.rolled_at !== null) return json({ error: "La expedición ya fue reclamada." }, 409);
+  if (expedition.ends_at > current) return json({ error: "La expedición todavía está en curso." }, 425);
+  if (expedition.started_at <= current - EXPEDITION_EXPIRY_SECONDS) return json({ error: "La expedición caducó." }, 410);
+
+  const lastClaim = await db.prepare("SELECT MAX(rolled_at) AS rolled_at FROM expeditions WHERE user_id = ?")
+    .bind(user.id).first<{ rolled_at: number | null }>();
+  if (lastClaim?.rolled_at != null && current - lastClaim.rolled_at < EXPEDITION_CLAIM_COOLDOWN_SECONDS) {
+    return json({ error: "Debes esperar 30 segundos entre reclamaciones." }, 429);
+  }
+
+  const consumed = await db.prepare("UPDATE expeditions SET rolled_at = ? WHERE id = ? AND user_id = ? AND rolled_at IS NULL AND ends_at <= ? AND started_at > ?")
+    .bind(current, expeditionId, user.id, current, current - EXPEDITION_EXPIRY_SECONDS).run();
+  if (!consumed.meta || !consumed.meta.changes) return json({ error: "La expedición ya fue reclamada o caducó." }, 409);
+
   const mul = (await vipUntilFor(db, user.id)) > Date.now() ? VIP_CHANCE_MUL : 1;
   let token = 0;
   let dark = 0;
   if (Math.random() < EXP_CHANCE.token * mul) token = await takeFromReserve(db, "token");
   if (Math.random() < EXP_CHANCE.dark * mul) dark = await takeFromReserve(db, "dark");
-  const balance = token > 0
-    ? await creditToken(db, user.id, token, "Hallazgo de expedición")
-    : await ensureWallet(db, user.id);
-  return json({ token, dark, balance });
+  const balance = token > 0 ? await creditToken(db, user.id, token, "Hallazgo de expedición") : await ensureWallet(db, user.id);
+  const darkBalance = dark > 0 ? await creditDark(db, user.id, dark) :
+    (await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{ dark: number }>())?.dark ?? 0;
+  return json({ token, dark, balance, darkBalance });
 };
 
 // Reservas de expedición (solo administración). Cantidad disponible y rango de cada hallazgo.

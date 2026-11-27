@@ -1796,6 +1796,8 @@ async function launchExpedition(){
     total += q;
   });
   if (total < 1) return setStatus('Selecciona al menos una nave del hangar.', true);
+  const pending = await expeditionStart();
+  if (!pending) return;
   EXP_SHIPS.forEach(k => { state.fleet[k] -= sel[k]; });        // las naves salen del hangar
   const L = state.lvl.ap;
   const w = {res:35 + 2 * L, ship:10 + L, event:Math.max(10, 35 - 3 * L)};
