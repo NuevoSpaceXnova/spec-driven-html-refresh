@@ -24,3 +24,11 @@ CREATE TABLE IF NOT EXISTS assistant_permissions (
   section TEXT NOT NULL, -- las secciones válidas se validan en el código (SECTIONS en src/api/handle.ts)
   PRIMARY KEY (user_id, section)
 );
+
+-- Partida de cada cuenta (fase 5, parte 2, etapa A). version evita que dos pestañas se pisen.
+CREATE TABLE IF NOT EXISTS saves (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  data TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);

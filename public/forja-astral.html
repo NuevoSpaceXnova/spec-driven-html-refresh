@@ -1143,8 +1143,45 @@ let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    queueCloud();
     return true;
   } catch (err) { return false; }
+}
+/* ---------- Partida en la base de datos (etapa A) ---------- */
+let cloudTimer = null, cloudBusy = false, cloudPending = false, cloudLast = null;
+function cloudVerKey(){ return 'forja-astral-cloud-v:' + currentUser(); }
+function queueCloud(){ if (cloudTimer) return; cloudTimer = setTimeout(() => { cloudTimer = null; pushCloud(); }, 4000); }
+async function pushCloud(){
+  const data = localStorage.getItem(SAVE_KEY);
+  if (!data || !currentUser()) return;
+  if (cloudBusy){ cloudPending = true; return; }
+  if (data === cloudLast){ return; }
+  cloudBusy = true;
+  try {
+    const version = Number(localStorage.getItem(cloudVerKey()) || 0);
+    const r = await fetch('/api/save', {method:'POST', credentials:'same-origin', keepalive:true, headers:{'Content-Type':'application/json'}, body:JSON.stringify({data, version})});
+    const d = await r.json().catch(() => ({}));
+    if (r.ok){ localStorage.setItem(cloudVerKey(), String(d.version)); cloudLast = data; }
+    else if (r.status === 409 && d.data){ localStorage.setItem(SAVE_KEY, d.data); localStorage.setItem(cloudVerKey(), String(d.version)); location.reload(); }
+  } catch (e) { /* sin conexión: se intenta en el siguiente guardado */ }
+  finally {
+    cloudBusy = false;
+    if (cloudPending){ cloudPending = false; pushCloud(); }
+  }
+}
+async function pullCloud(){
+  const cloud = await fetch('/api/save', {credentials:'same-origin'}).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!cloud) return;   // sin conexión: se usa la copia del navegador
+  if (cloud.data){
+    localStorage.setItem(SAVE_KEY, cloud.data);
+    localStorage.setItem(cloudVerKey(), String(cloud.version));
+    cloudLast = cloud.data;
+    loadGame(cloud.data);
+    return;
+  }
+  // La cuenta no tiene partida en la base: empieza de cero. Las partidas del navegador eran de prueba.
+  if (localStorage.getItem(SAVE_KEY)){ localStorage.removeItem(SAVE_KEY); location.reload(); return; }
+  localStorage.setItem(cloudVerKey(), '0');
 }
 function loadGame(override){
   try {
@@ -5140,6 +5177,7 @@ function currentUser(){
 function saveKeyFor(u){ return u ? 'forja-astral-save-v2:' + u : 'forja-astral-save-v2'; }
 async function logout(){
   saveGame();
+  await pushCloud();
   await fetch('/api/logout', {method:'POST', credentials:'same-origin'}).catch(() => {});
   localStorage.removeItem('forja-astral-session');
   location.reload();
@@ -5239,6 +5277,7 @@ async function initStart(){
   const user = await fetch('/api/me', {credentials: 'same-origin'}).then(r => r.json()).then(d => d.user).catch(() => null);
   if (user){
     localStorage.setItem('forja-astral-session', user.email);
+    await pullCloud();
     hideStart();
     if (state.profile) state.profile.name = user.email;
     saveGame();
@@ -5429,7 +5468,7 @@ render();
 initStart();
 setInterval(() => { tick(); checkMoves(); refresh(); if (++uiN % 5 === 0){ if (state.tab === 'overview'){ renderMoves(); renderCC(); } if (state.tab === 'fleet') renderMoves(); } if (state.tab === 'market' && state.dirtyMarket) renderBook(); if (state.tab === 'ranking') renderRanking(); if (state.tab === 'alliances' && state.wallDirty) renderWall(); }, 200);
 setInterval(saveGame, 30000);
-window.addEventListener('pagehide', saveGame);
+window.addEventListener('pagehide', () => { saveGame(); pushCloud(); });
 /* Si la página Swap cambia la partida guardada, el juego recarga esos saldos
    para no sobrescribirlos con su copia en memoria. */
 window.addEventListener('storage', e => {

@@ -298,7 +298,61 @@ const permissionSet: Route = async (request, db, env) => {
   return json({ ok: true, email, section, granted });
 };
 
+// Partida de la cuenta. Control de versión: si otra pestaña guardó antes, responde 409 con la copia actual.
+const MAX_SAVE_CHARS = 1_500_000;
+
+const saveGet: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const row = await db
+    .prepare("SELECT data, version FROM saves WHERE user_id = ?")
+    .bind(user.id)
+    .first<{ data: string; version: number }>();
+  return json({ data: row ? row.data : null, version: row ? row.version : 0 });
+};
+
+const savePut: Route = async (request, db) => {
+  const user = await currentUser(request, db);
+  if (!user) return json({ error: "No autorizado" }, 401);
+  const body = await readJson(request);
+  const data = typeof body?.data === "string" ? body.data : "";
+  const version = Number(body?.version);
+  if (!data || data.length > MAX_SAVE_CHARS) return json({ error: "Partida no válida o demasiado grande" }, 400);
+  if (!Number.isInteger(version) || version < 0) return json({ error: "Versión no válida" }, 400);
+  let parsed: unknown;
+  try { parsed = JSON.parse(data); } catch { return json({ error: "Partida no válida" }, 400); }
+  if (!parsed || typeof parsed !== "object") return json({ error: "Partida no válida" }, 400);
+
+  const current = await db
+    .prepare("SELECT data, version FROM saves WHERE user_id = ?")
+    .bind(user.id)
+    .first<{ data: string; version: number }>();
+  if (!current) {
+    if (version !== 0) return json({ error: "Conflicto", data: null, version: 0 }, 409);
+    try {
+      await db.prepare("INSERT INTO saves (user_id, data, version, updated_at) VALUES (?, ?, 1, ?)")
+        .bind(user.id, data, now()).run();
+    } catch {
+      return json({ error: "Conflicto" }, 409);
+    }
+    return json({ ok: true, version: 1 });
+  }
+  if (current.version !== version) return json({ error: "Conflicto", data: current.data, version: current.version }, 409);
+  const result = await db
+    .prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
+    .bind(data, now(), user.id, version)
+    .run();
+  if (!result.meta || !result.meta.changes) {
+    const latest = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
+      .first<{ data: string; version: number }>();
+    return json({ error: "Conflicto", data: latest?.data ?? null, version: latest?.version ?? 0 }, 409);
+  }
+  return json({ ok: true, version: version + 1 });
+};
+
 const ROUTES: Record<string, Route> = {
+  "GET /api/save": saveGet,
+  "POST /api/save": savePut,
   "POST /api/register": register,
   "POST /api/login": login,
   "POST /api/logout": logout,
