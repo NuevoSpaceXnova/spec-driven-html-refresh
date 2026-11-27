@@ -1245,7 +1245,6 @@ function handleFase2Click(e){
       case 'post-msg': postMessage(); return;
       case 'claim-tribute': claimTribute(); return;
       case 'leave-alliance': leaveAlliance(); return;
-      case 'sim-attack': simulateIncoming(); return;
       case 'send-test': sendTestFleet(); return;
       case 'sim-from-report': simFromReport(act); return;
       case 'run-sim': runSim(); return;
@@ -4279,10 +4278,7 @@ function viewOverview(){
     const rows = UNIT_KEYS.map(k => `<div><span>${SHIPS[k].name}</span><span data-bind="hangar:${k}"></span></div>`).join('');
     body = `<div class="rows" style="max-height:260px;overflow:auto">${rows}</div>`;
   } else {
-    body = `<div class="moves-box form-stack"></div>
-      <div class="inline-form" style="margin-top:12px">
-        <button class="btn inline" data-action="sim-attack">Simular Ataque Entrante</button>
-      </div>`;
+    body = `<div class="moves-box form-stack"></div>`;
   }
   const resRows = ['metal','crystal','deut'].map(r => `
     <tr>
