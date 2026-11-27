@@ -72,6 +72,7 @@ button,select,input{font-family:inherit}
 .res-box:last-child{border-right:1px solid var(--border-subtle)}
 .swap-open{height:34px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--accent-primary);border-radius:var(--r);background:linear-gradient(180deg,#2450C5,#1B3A99);color:#fff;font:600 12px var(--font-title);letter-spacing:.08em;text-decoration:none;flex:none}
 .swap-open:hover{background:var(--accent-hover)}
+.anim-off *,body.tab-hidden *{animation-play-state:paused!important}
 .usdt-box .usdt-icon{font:700 18px var(--font-mono);color:#3DDC84;margin-right:8px}
 .vip-badge{height:34px;display:inline-flex;align-items:center;padding:0 12px;margin-right:8px;border:1px solid var(--border-subtle);border-radius:var(--r);background:transparent;color:var(--text-secondary);font:700 11px var(--font-title);letter-spacing:.1em;cursor:pointer;flex:none}
 .vip-badge.is-vip{border-color:#D4A81F;color:#F5C84B;background:linear-gradient(180deg,#3a2c08,#211a05)}
@@ -5323,6 +5324,17 @@ function renderNav(){
   }).join('');
 }
 
+// Pausa las animaciones de las tarjetas que no se ven y de toda la página cuando la pestaña del navegador está oculta
+const animIO = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(entries => {
+  entries.forEach(en => en.target.classList.toggle('anim-off', !en.isIntersecting));
+}, {rootMargin:'120px'}) : null;
+function observeAnimCards(){
+  if (!animIO) return;
+  document.querySelectorAll('#view article.card, #view article[data-info], #view article.mk-card, #view article.fleet-ship').forEach(el => {
+    if (!el.dataset.animIo){ el.dataset.animIo = '1'; animIO.observe(el); }
+  });
+}
+document.addEventListener('visibilitychange', () => document.body.classList.toggle('tab-hidden', document.hidden));
 function render(){
   renderNav();
   renderUserMenu();
@@ -5332,6 +5344,7 @@ function render(){
   document.getElementById('view').classList.toggle('view-dark-hex', ['fleet','expeditions'].includes(state.tab));
   document.getElementById('view').classList.toggle('view-dark-flat', state.tab === 'galaxy');
   afterRender();
+  observeAnimCards();
   refresh();
 }
 
