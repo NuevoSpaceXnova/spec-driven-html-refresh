@@ -21,6 +21,6 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 -- Permisos de los ayudantes por sección del panel (fase 5, parte 2)
 CREATE TABLE IF NOT EXISTS assistant_permissions (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  section TEXT NOT NULL CHECK (section IN ('retiros', 'trazabilidad', 'saldos', 'precio', 'temporadas', 'jugadores', 'movimientos', 'mercado', 'limites', 'multicuentas', 'materia', 'registro', 'pruebas')),
+  section TEXT NOT NULL, -- las secciones válidas se validan en el código (SECTIONS en src/api/handle.ts)
   PRIMARY KEY (user_id, section)
 );

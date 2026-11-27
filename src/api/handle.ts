@@ -22,7 +22,7 @@ type Route = (request: Request, db: DB, env: ApiEnv) => Promise<Response>;
 const now = () => Math.floor(Date.now() / 1000);
 
 // Secciones del panel. El administrador las tiene todas; el ayudante solo las que se le den.
-export const SECTIONS = ["retiros", "trazabilidad", "saldos", "precio", "temporadas", "jugadores", "movimientos", "mercado", "limites", "multicuentas", "materia", "registro", "pruebas"];
+export const SECTIONS = ["retiros", "trazabilidad", "saldos", "precio", "temporadas", "jugadores", "premios", "movimientos", "mercado", "limites", "multicuentas", "materia", "registro", "pruebas"];
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
