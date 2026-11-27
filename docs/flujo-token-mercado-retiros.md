@@ -32,6 +32,7 @@ Las secciones marcadas como **Pendiente** no deben implementarse hasta confirmar
 
 ### 2.2 Pendiente
 
+- Si la venta de naves también paga la comisión de publicación (hoy solo se cobra en recursos).
 - Qué pasa si el vendedor cancela el aviso después de pagar la comisión.
 
 ## 3. Distribución de ingresos

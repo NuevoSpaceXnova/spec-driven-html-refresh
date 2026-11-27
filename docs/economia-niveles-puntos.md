@@ -323,7 +323,7 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 43. Factores de crecimiento de costo y tiempo por edificio, investigación, nave y defensa (sección 2.1).
 44. Requisitos exactos de cada desbloqueo por fase (sección 2.1).
 45. Duración esperada de cada fase para un jugador gratuito (sección 2.1).
-46. Si el beneficio de velocidad aplica a la cola de naves (sección 3.2).
+46. ~~Si el beneficio de velocidad aplica a la cola de naves~~ **Resuelto:** sí, el VIP da +50 % también a la construcción de naves (`docs/progresion-lenta-y-vip.md`, sección 3).
 47. Compensación para jugadores free frente al VIP (riesgo 2).
 48. Vigilancia de la presión de oferta de la producción VIP sobre el precio (riesgo 1).
 
@@ -333,6 +333,6 @@ Esta lista reúne todas las decisiones pendientes de los documentos de `docs/`. 
 51. Revisión del tiempo de construcción de naves por fase (sección 3.3).
 52. Lista completa de edificios, investigaciones y naves con costo, tiempo y requisito (`docs/fases-jugabilidad.md`, sección 5).
 53. Consumo de energía en la recuperación de minas (`docs/fases-jugabilidad.md`, sección 5).
-54. Número de colas de construcción por fase (`docs/fases-jugabilidad.md`, sección 5).
+54. ~~Número de colas de construcción por fase~~ **Resuelto en el juego (modo prueba):** 1 orden para cuentas free y hasta 4 para VIP (`docs/progresion-lenta-y-vip.md`, sección 3).
 55. Requisitos exactos de nivel de edificio para cada fase (`docs/fases-jugabilidad.md`, sección 5).
 56. Quitar las configuraciones de prueba antes del lanzamiento (`docs/fases-jugabilidad.md`, sección 1).

@@ -94,7 +94,7 @@ Ejemplo: Cazador Ligero con astillero nivel 1 tarda unas 1,6 h por unidad. Revis
 3. **Requisitos encadenados.** Una tecnología necesita un nivel de laboratorio. Una nave necesita tecnología y astillero. Nada se desbloquea solo con tiempo.
 4. **Rendimiento decreciente en las minas.** Cada mina extra produce menos que la anterior en niveles altos.
 5. **La progresión depende de construir y defender.** La puntuación y el nivel de cuenta deben depender de acciones dentro del juego, no solo de acumular recursos.
-6. **Colas limitadas en fases tempranas.** Más colas activas solo en fases avanzadas.
+6. **Colas limitadas en fases tempranas.** Aplicado en modo prueba: la cola de construcción tiene 1 orden para cuentas free y hasta 4 para VIP. Pendiente: si la cola de investigación también cambia por fase.
 
 ## 5. Pendiente
 
@@ -102,7 +102,7 @@ Ejemplo: Cazador Ligero con astillero nivel 1 tarda unas 1,6 h por unidad. Revis
 - Revisar el tiempo de construcción de naves (sección 3.3) por fase.
 - Lista completa de edificios, investigaciones y naves con sus valores de costo, tiempo y requisito.
 - Incluir el consumo de energía en la recuperación de minas. Hoy la cifra de recuperación no lo incluye.
-- Número de colas de construcción por fase.
+- Cola de investigación: número de órdenes por fase (la cola de construcción ya está decidida: 1 free, 4 VIP).
 - Requisitos exactos de nivel de edificio para cada fase.
 - Quitar las configuraciones de prueba de la sección 1 antes del lanzamiento.
 

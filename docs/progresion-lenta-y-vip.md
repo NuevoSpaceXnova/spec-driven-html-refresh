@@ -78,6 +78,6 @@ Estas decisiones tienen efectos que deben revisarse antes de implementarse:
 1. Porcentaje exacto de ventaja VIP en puntos (sección 3.2).
 2. Factores de crecimiento y requisitos de cada desbloqueo (sección 2.1).
 3. Duración de fases para un jugador gratuito.
-4. Alcance del beneficio de velocidad: producción, mejora y cola de naves (sección 3.2).
+4. Alcance del beneficio de velocidad: resuelto, aplica a producción, mejora, construcción de naves y cola de construcción (sección 3.2).
 5. Compensación para jugadores free (riesgo 2).
 6. Vigilancia de la presión de oferta de la producción VIP sobre el precio (riesgo 1).

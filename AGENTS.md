@@ -35,5 +35,6 @@ use the editor.
 - Shipyard ship images live as optimized WebP files in `public/assets/<shipId>.webp` (user-uploaded via the repo; PNG originals kept). Why: the user edits the repo from Codespaces, so local paths work outside Lovable.
 - All work is done directly on `main`. Do not use test branches.
 - Every finished phase or update gets a commit and a push to `main`. Report the commit name to the user.
+- Decided rules currently in the game (test mode): the building queue allows 1 order for free accounts and up to 4 for VIP; VIP gives +50 % to production, building, ship construction and queue speed; publishing a resource offer charges the seller 15 % (free) or 5 % (VIP) of the total price in TOKEN; the USDT balance uses 0.000152 USDT per TOKEN until the real economy phase.
 - The test-mode button, the speed selector and the "Activar VIP (prueba)" button in `public/forja-astral.html` are temporary. Remove them before the official launch. The VIP purchase and the wallet equivalent (0,000152 USD per TOKEN) are simulated until the real economy phase.
 - Every time the game is updated or a phase is completed, update the rules and status in `README.md`, in this file, and in the affected documents in `docs/`, so the order of the work is kept.
