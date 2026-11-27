@@ -125,22 +125,31 @@ Estas ideas son propuestas. No están aprobadas:
 7. Solicitudes fuera de horario y trazabilidad de pagos (sección 5.4).
 8. Aprobación de las propuestas de comunicación (sección 5.3).
 
-## 6. Cajas de materia oscura (idea del cliente, pendiente de aprobación)
+## 6. Materia oscura y cajas (aprobado por el cliente, modo prueba)
 
-### 6.1 Aplicado en el juego (modo prueba)
+### 6.1 Aplicado en el juego
 
-- Dentro de **Mercado** (antes "Mercado P2P"), nueva pestaña **Materia Oscura**.
-- Seis cajas con precio en USD pagado en TOKEN: 1, 5, 10, 25, 50 y 100 USD.
-- Cantidad de materia oscura por caja: **por definir**. El botón de compra está desactivado.
+- Saldo de **materia oscura** junto a metal (primera caja de la barra superior).
+- Dentro de **Mercado**, pestaña **Materia Oscura** con seis cajas. Se compran a la administración con TOKEN (precio en USD convertido a TOKEN). No se venden ni se compran entre jugadores.
+
+| Caja | Materia oscura | Por dólar |
+|---|---|---|
+| 1 USD | 10 | 10 |
+| 5 USD | 55 | 11 |
+| 10 USD | 120 | 12 |
+| 25 USD | 325 | 13 |
+| 50 USD | 700 | 14 |
+| 100 USD | 1.500 | 15 |
+
+- **Subida de nivel:** desde el nivel 6, cada subida cuesta 10 más que la anterior (5→6 = 10, 6→7 = 20, 7→8 = 30...). Se aplica a edificios de recursos, instalaciones y lunas, e investigaciones.
+- La materia oscura se **gasta** al subir o al encolar la construcción. Si se cancela una construcción, se devuelve.
 
 ### 6.2 Decidido por el cliente (pendiente de aplicar)
 
-- Las cajas se compran **solo a la administración**. No se venden ni se compran entre jugadores.
-- El TOKEN de cada venta se reparte **50 % al dueño** y **50 % a la reserva**.
+- El TOKEN de cada venta de caja se reparte **50 % al dueño** y **50 % a la reserva**.
 
 ### 6.3 Pendiente
 
-- Cantidad de materia oscura por caja.
-- Consumo: si la materia oscura se gasta al usarla o solo es requisito.
-- Opción de escala elegida para subir de nivel (propuesta B: 5 × (N − 4) desde el nivel 5; investigaciones ×1, naves ×2, defensas ×3). Pendiente de aprobación.
-- Desde qué nivel se pide materia oscura en minas y almacenes (propuesta: desde el nivel 3).
+- Naves: cuáles se desbloquean con materia oscura y con qué costo (propuesta: ×2).
+- Defensas planetarias: cuáles y con qué costo (propuesta: ×3). Hoy no existen en el juego como ítems de nivel.
+- Desde qué nivel exacto se pide materia oscura en naves y defensas.
