@@ -381,13 +381,6 @@ function saveResources(data: any): { metal: number; crystal: number; deuterium: 
     metal: sum.metal + p.res.metal, crystal: sum.crystal + p.res.crystal, deuterium: sum.deuterium + p.res.deut,
   }), { metal: 0, crystal: 0, deuterium: 0 });
 }
-function saveResourcesCapped(data: any): { metal: number; crystal: number; deuterium: number } {
-  return (data.planets || []).reduce((sum: any, p: any) => ({
-    metal: sum.metal + Math.min(p.res.metal, capOfSave(p.lvl.sm)),
-    crystal: sum.crystal + Math.min(p.res.crystal, capOfSave(p.lvl.sc)),
-    deuterium: sum.deuterium + Math.min(p.res.deut, capOfSave(p.lvl.tk)),
-  }), { metal: 0, crystal: 0, deuterium: 0 });
-}
 function maxSaveProduction(data: any): { metal: number; crystal: number; deuterium: number } {
   const pw = (n: number) => n * Math.pow(1.1, n);
   return (data.planets || []).reduce((sum: any, p: any) => {
@@ -492,7 +485,7 @@ function firstSaveIsFresh(data: any): boolean {
   if (SAVE_UNIT_KEYS.some(k => p.fleet[k] !== 0)) return false;
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
-function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
+function validateGrowth(previous: any, next: any, elapsed: number): string {
   const oldRes = saveResources(previous);
   const oldPlanets = previous.planets || [];
   if (next.planets.length < oldPlanets.length) return "No se permite eliminar planetas desde el guardado.";
@@ -600,13 +593,6 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
   return "";
 }
 async function validateTimedGrowth(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<string> {
-  const shipCosts: Record<string,[number,number]> = {
-    nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
-    bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
-    rc:[50000,30000], sp:[0,5000], co:[50000,100000], sat:[0,10000],
-    lm:[10000,0], ll:[7500,2500], lg:[30000,10000], gc:[100000,75000], ci:[10000,30000],
-    cpl:[250000,250000], cs:[0,100000], cg:[100000,100000], mi:[62500,0],
-  };
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = previous.planets[i];
     if (!old) continue;
@@ -685,14 +671,6 @@ async function syncQueueChecks(db: DB, userId: string, previous: any, next: any,
       await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ? AND queue_key = ?").bind(userId, "s:" + i).run();
     }
   }
-}
-function validateResourceGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
-  const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(next);
-  for (const k of ["metal","crystal","deuterium"] as const) {
-    const increase = newRes[k] - oldRes[k];
-    if (increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
-  }
-  return "";
 }
 async function validateDarkProgression(db: DB, userId: string, previous: any, next: any): Promise<string> {
   const techKeys = ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
