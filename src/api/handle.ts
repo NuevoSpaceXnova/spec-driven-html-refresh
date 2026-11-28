@@ -1197,7 +1197,7 @@ async function takeFromReserve(db: DB, kind: "token" | "dark"): Promise<number> 
   return upd.meta && upd.meta.changes ? amount : 0;
 }
 
-async function creditDark(db: DB, userId: string, amount: number): Promise<number> {
+async function creditDark(db: DB, userId: string, amount: number, reason = "Crédito de materia oscura"): Promise<number> {
   await ensureWallet(db, userId);
   await db.prepare("UPDATE wallets SET dark = ROUND(dark + ?, 6), updated_at = ? WHERE user_id = ?")
     .bind(amount, now(), userId).run();
@@ -1205,7 +1205,7 @@ async function creditDark(db: DB, userId: string, amount: number): Promise<numbe
     .first<{ dark: number }>();
   const balance = row?.dark ?? 0;
   await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(userId, amount, "Crédito de materia oscura", balance, now()).run();
+    .bind(userId, amount, reason, balance, now()).run();
   return balance;
 }
 
@@ -1311,6 +1311,191 @@ const reservesSet: Route = async (request, db, env) => {
   return json({ ok: true });
 };
 
+// ----- Premios del panel: saldos de la cuenta, almacén y VIP. Solo administración o ayudantes con permiso. -----
+const PRIZE_KINDS = ["metal", "crystal", "deut", "token", "dark", "vip"];
+const PRIZE_RES_KEYS = ["metal", "crystal", "deut"];
+const PRIZE_STORE_KEY: Record<string, string> = { metal: "sm", crystal: "sc", deut: "tk" };
+const PRIZE_MAX_AMOUNT = 1_000_000_000;
+const PRIZE_MAX_DAYS = 3650;
+const PRIZE_MAX_LEVEL = 200;
+const PRIZE_NOTE_MAX = 120;
+const DAY_MS = 86400000;
+
+// Misma fórmula que el juego para la capacidad de un almacén.
+function storageCap(level: number): number {
+  return 100000 + 50000 * Math.floor(Math.pow(1.6, level));
+}
+
+async function prizeGate(request: Request, db: DB, env: ApiEnv): Promise<{ user: User } | { res: Response }> {
+  const user = await currentUser(request, db);
+  if (!user || (user.role !== "admin" && user.role !== "assistant")) return { res: json({ error: "No autorizado" }, 403) };
+  if (!(await panelUnlocked(request, env))) return { res: json({ error: "Panel bloqueado" }, 403) };
+  if (user.role === "assistant") {
+    const perm = await db.prepare("SELECT section FROM assistant_permissions WHERE user_id = ? AND section = 'premios'")
+      .bind(user.id).first();
+    if (!perm) return { res: json({ error: "No tienes permiso para asignar premios" }, 403) };
+  }
+  return { user };
+}
+
+async function prizesEnabled(db: DB): Promise<boolean> {
+  const row = await db.prepare("SELECT value FROM app_flags WHERE key = 'prizes_enabled'").bind()
+    .first<{ value: string }>();
+  return !row || row.value === "1";
+}
+
+async function prizeTarget(db: DB, email: string): Promise<{ id: string; email: string } | null> {
+  if (!email) return null;
+  const row = await db.prepare("SELECT id, email FROM users WHERE email = ?").bind(email)
+    .first<{ id: string; email: string }>();
+  return row ?? null;
+}
+
+async function readPrizeSave(db: DB, userId: string): Promise<{ data: any; version: number } | null> {
+  const row = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(userId)
+    .first<{ data: string; version: number }>();
+  if (!row) return null;
+  return { data: JSON.parse(row.data), version: row.version };
+}
+
+async function writePrizeSave(db: DB, userId: string, data: any, version: number): Promise<boolean> {
+  const upd = await db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
+    .bind(JSON.stringify(data), now(), userId, version).run();
+  return !!(upd.meta && upd.meta.changes);
+}
+
+async function logPrize(db: DB, userId: string, kind: string, amount: number, note: string, givenBy: string): Promise<void> {
+  await db.prepare("INSERT INTO prizes (user_id, kind, amount, note, given_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(userId, kind, amount, note, givenBy, now()).run();
+}
+
+const prizeLookup: Route = async (request, db, env) => {
+  const gate = await prizeGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const body = await readJson(request);
+  const email = normEmail(body?.email);
+  if (!email) return json({ error: "Correo no válido" }, 400);
+  const target = await prizeTarget(db, email);
+  if (!target) return json({ error: "No hay ninguna cuenta con ese correo" }, 404);
+  const token = await ensureWallet(db, target.id);
+  const darkRow = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(target.id).first<{ dark: number }>();
+  const save = await readPrizeSave(db, target.id);
+  let planet: Record<string, unknown> | null = null;
+  if (save && Array.isArray(save.data.planets) && save.data.planets[0]) {
+    const p = save.data.planets[0];
+    const res = p.res || {};
+    const lvl = p.lvl || {};
+    planet = {
+      name: p.name,
+      stock: { metal: Number(res.metal || 0), crystal: Number(res.crystal || 0), deut: Number(res.deut || 0) },
+      storage: Object.fromEntries(PRIZE_RES_KEYS.map((k) => {
+        const level = Number(lvl[PRIZE_STORE_KEY[k]] || 0);
+        return [k, { level, cap: storageCap(level) }];
+      })),
+    };
+  }
+  return json({
+    account: { email: target.email },
+    token,
+    dark: darkRow?.dark ?? 0,
+    vipUntil: await vipUntilFor(db, target.id),
+    hasSave: !!save,
+    planet,
+    enabled: await prizesEnabled(db),
+  });
+};
+
+const prizeGrant: Route = async (request, db, env) => {
+  const gate = await prizeGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  if (!(await prizesEnabled(db))) return json({ error: "Los premios están desactivados" }, 403);
+  const body = await readJson(request);
+  const target = await prizeTarget(db, normEmail(body?.email));
+  if (!target) return json({ error: "No hay ninguna cuenta con ese correo" }, 404);
+  const kind = String(body?.kind ?? "");
+  const amount = Number(body?.amount);
+  const note = String(body?.note ?? "").trim().slice(0, PRIZE_NOTE_MAX);
+  if (!PRIZE_KINDS.includes(kind)) return json({ error: "Premio no válido" }, 400);
+  const max = kind === "vip" ? PRIZE_MAX_DAYS : PRIZE_MAX_AMOUNT;
+  if (!Number.isInteger(amount) || amount < 1 || amount > max) return json({ error: "Cantidad no válida" }, 400);
+
+  if (PRIZE_RES_KEYS.includes(kind)) {
+    const save = await readPrizeSave(db, target.id);
+    if (!save) return json({ error: "La cuenta todavía no tiene partida: el jugador debe entrar al juego una vez." }, 409);
+    const planet = save.data.planets?.[0];
+    if (!planet) return json({ error: "La partida no tiene planeta." }, 409);
+    const current = Number(planet.res?.[kind] || 0);
+    const cap = storageCap(Number(planet.lvl?.[PRIZE_STORE_KEY[kind]] || 0));
+    if (current + amount > cap) {
+      return json({ error: `Supera la capacidad del almacén. Lo máximo que puedes dar ahora es ${Math.max(0, cap - current)}.` }, 409);
+    }
+    planet.res = { ...(planet.res || {}), [kind]: current + amount };
+    if (!(await writePrizeSave(db, target.id, save.data, save.version))) {
+      return json({ error: "La partida del jugador cambió al mismo tiempo. Inténtalo de nuevo." }, 409);
+    }
+  } else if (kind === "token") {
+    await creditToken(db, target.id, amount, `Premio: ${note || "sin nota"}`.slice(0, MAX_REASON));
+  } else if (kind === "dark") {
+    await creditDark(db, target.id, amount, `Premio: ${note || "sin nota"}`.slice(0, MAX_REASON));
+  } else {
+    const start = Math.max(await vipUntilFor(db, target.id), Date.now());
+    await db.prepare("INSERT INTO vip (user_id, until_ms) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET until_ms = excluded.until_ms")
+      .bind(target.id, start + amount * DAY_MS).run();
+  }
+  await logPrize(db, target.id, kind, amount, note, gate.user.email);
+  return json({ ok: true });
+};
+
+// Sube o baja el nivel del almacén del planeta principal. Si baja, lo que pase del nuevo límite se recorta.
+const prizeStorage: Route = async (request, db, env) => {
+  const gate = await prizeGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  if (!(await prizesEnabled(db))) return json({ error: "Los premios están desactivados" }, 403);
+  const body = await readJson(request);
+  const target = await prizeTarget(db, normEmail(body?.email));
+  if (!target) return json({ error: "No hay ninguna cuenta con ese correo" }, 404);
+  const kind = String(body?.kind ?? "");
+  const level = Number(body?.level);
+  const note = String(body?.note ?? "").trim().slice(0, PRIZE_NOTE_MAX);
+  if (!PRIZE_RES_KEYS.includes(kind)) return json({ error: "Almacén no válido" }, 400);
+  if (!Number.isInteger(level) || level < 0 || level > PRIZE_MAX_LEVEL) return json({ error: "Nivel no válido" }, 400);
+  const save = await readPrizeSave(db, target.id);
+  if (!save) return json({ error: "La cuenta todavía no tiene partida: el jugador debe entrar al juego una vez." }, 409);
+  const planet = save.data.planets?.[0];
+  if (!planet) return json({ error: "La partida no tiene planeta." }, 409);
+  const cap = storageCap(level);
+  planet.lvl = { ...(planet.lvl || {}), [PRIZE_STORE_KEY[kind]]: level };
+  const current = Number(planet.res?.[kind] || 0);
+  const clipped = current > cap;
+  if (clipped) planet.res = { ...(planet.res || {}), [kind]: cap };
+  if (!(await writePrizeSave(db, target.id, save.data, save.version))) {
+    return json({ error: "La partida del jugador cambió al mismo tiempo. Inténtalo de nuevo." }, 409);
+  }
+  await logPrize(db, target.id, "almacen:" + kind, level, note, gate.user.email);
+  return json({ ok: true, cap, clipped });
+};
+
+const prizeLog: Route = async (request, db, env) => {
+  const gate = await prizeGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const rows = await db.prepare(`SELECT u.email AS email, p.kind AS kind, p.amount AS amount, p.note AS note,
+      p.given_by AS given_by, p.created_at AS created_at FROM prizes p JOIN users u ON u.id = p.user_id
+      ORDER BY p.id DESC LIMIT 100`).bind()
+    .all<{ email: string; kind: string; amount: number; note: string; given_by: string; created_at: number }>();
+  return json({ enabled: await prizesEnabled(db), prizes: rows.results });
+};
+
+// Interruptor de premios (modo prueba). Solo el administrador.
+const prizeToggle: Route = async (request, db, env) => {
+  const gate = await adminGate(request, db, env);
+  if ("res" in gate) return gate.res;
+  const body = await readJson(request);
+  const enabled = body?.enabled === true;
+  await db.prepare("INSERT INTO app_flags (key, value) VALUES ('prizes_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+    .bind(enabled ? "1" : "0").run();
+  return json({ ok: true, enabled });
+};
+
 const ROUTES: Record<string, Route> = {
   "GET /api/wallet": walletGet,
   "POST /api/wallet/spend": walletSpend,
@@ -1321,6 +1506,11 @@ const ROUTES: Record<string, Route> = {
   "POST /api/vip/buy": vipBuy,
   "POST /api/expedition/roll": expeditionRoll,
   "GET /api/admin/reserves": reservesGet,
+  "POST /api/prizes/lookup": prizeLookup,
+  "POST /api/prizes/grant": prizeGrant,
+  "POST /api/prizes/storage": prizeStorage,
+  "GET /api/prizes/log": prizeLog,
+  "POST /api/prizes/toggle": prizeToggle,
   "POST /api/admin/reserves": reservesSet,
   "GET /api/save": saveGet,
   "POST /api/save": savePut,

@@ -109,8 +109,16 @@
     </section>
     <section id="premios">
       <h2>Asignar premios</h2>
-      <p>Dar VIP, recursos, naves, materia oscura o niveles de edificios e investigaciones a una cuenta por correo. Cada premio queda registrado.</p>
-      <div class="empty">Sin premios todavía.</div>
+      <p>Busca una cuenta por correo, revisa su almacén y da TOKEN, materia oscura, metal, cristal, deuterio o VIP. Los metales no pueden pasar la capacidad del almacén de esa cuenta. El jugador debe hacer F5 para ver el premio.</p>
+      <label class="row"><input type="checkbox" id="prize-enabled"> Premios activos (apágalo antes del lanzamiento)</label>
+      <div class="err" id="prize-err"></div>
+      <form class="row" id="prize-search" novalidate>
+        <input type="email" id="prize-email" placeholder="Correo de la cuenta">
+        <button class="btn" type="submit">Buscar cuenta</button>
+      </form>
+      <div id="prize-card"></div>
+      <h3>Últimos premios</h3>
+      <div id="prize-log"></div>
     </section>
     <section id="movimientos">
       <h2>Movimientos de TOKEN</h2>
@@ -201,6 +209,7 @@
     document.querySelectorAll('main section').forEach(function (s) { s.classList.toggle('on', s.id === tab); });
     if (tab === 'ayudantes' && isAdmin) loadAssistants();
     if (tab === 'reservas' && isAdmin) loadReserves();
+    if (tab === 'premios') loadPrizeLog();
   }
 
   buttons.forEach(function (b) {
@@ -390,6 +399,138 @@
     card.appendChild(status);
     card.appendChild(form);
     return card;
+  }
+
+  // ---------- Premios (saldos de la cuenta, almacén y VIP) ----------
+  var PRIZE_RES = { metal: 'Metal', crystal: 'Cristal', deut: 'Deuterio' };
+  var PRIZE_KINDS = { metal: 'Metal', crystal: 'Cristal', deut: 'Deuterio', token: 'TOKEN', dark: 'Materia oscura', vip: 'VIP (días)' };
+  var prizeErr = document.getElementById('prize-err');
+  var prizeCard = document.getElementById('prize-card');
+  var prizeLogEl = document.getElementById('prize-log');
+  var prizeEnabled = document.getElementById('prize-enabled');
+  var prizeEmail = '';
+
+  function prizeMsg(text) { prizeErr.textContent = text || ''; }
+  function fmtNum(n) { return Number(n || 0).toLocaleString('es-CO'); }
+
+  function prizeText(x) {
+    if (x.kind.indexOf('almacen:') === 0) return 'Almacén de ' + PRIZE_RES[x.kind.slice(8)] + ' nivel ' + x.amount;
+    if (x.kind === 'vip') return 'VIP ' + x.amount + ' días';
+    return PRIZE_KINDS[x.kind] + ' ' + fmtNum(x.amount) + (x.note ? ' · ' + x.note : '');
+  }
+
+  function loadPrizeLog() {
+    api('/api/prizes/log').then(function (res) {
+      if (!res.ok) { prizeMsg(res.d.error || 'No se pudo cargar el registro'); return; }
+      prizeEnabled.checked = !!res.d.enabled;
+      prizeEnabled.disabled = !isAdmin;
+      prizeLogEl.textContent = '';
+      if (!res.d.prizes.length) { prizeLogEl.textContent = 'Sin premios todavía.'; return; }
+      res.d.prizes.forEach(function (x) {
+        var line = document.createElement('p');
+        line.textContent = new Date(x.created_at * 1000).toLocaleString('es-CO') + ' · ' + x.email + ' · ' + prizeText(x) + ' · por ' + x.given_by;
+        prizeLogEl.appendChild(line);
+      });
+    }).catch(function () { prizeMsg('Sin conexión con el servidor'); });
+  }
+
+  prizeEnabled.addEventListener('change', function () {
+    api('/api/prizes/toggle', { enabled: prizeEnabled.checked }).then(function (res) {
+      if (!res.ok) { prizeMsg(res.d.error || 'No se pudo cambiar'); prizeEnabled.checked = !prizeEnabled.checked; return; }
+      prizeMsg('');
+    });
+  });
+
+  document.getElementById('prize-search').addEventListener('submit', function (e) {
+    e.preventDefault();
+    prizeMsg('');
+    prizeEmail = document.getElementById('prize-email').value.trim().toLowerCase();
+    if (!prizeEmail) { prizeMsg('Escribe un correo.'); return; }
+    loadAccount();
+  });
+
+  function loadAccount() {
+    api('/api/prizes/lookup', { email: prizeEmail }).then(function (res) {
+      prizeCard.textContent = '';
+      if (!res.ok) { prizeMsg(res.d.error || 'No se pudo buscar la cuenta'); return; }
+      prizeMsg('');
+      renderAccount(res.d);
+    }).catch(function () { prizeMsg('Sin conexión con el servidor'); });
+  }
+
+  function infoRow(card, label, value) {
+    var p = document.createElement('p');
+    p.textContent = label + ': ' + value;
+    card.appendChild(p);
+  }
+
+  function renderAccount(d) {
+    var card = document.createElement('div');
+    card.className = 'assist';
+    var title = document.createElement('strong');
+    title.textContent = d.account.email;
+    card.appendChild(title);
+    infoRow(card, 'TOKEN', fmtNum(d.token));
+    infoRow(card, 'Materia oscura', fmtNum(d.dark));
+    infoRow(card, 'VIP', d.vipUntil > Date.now() ? 'activo hasta ' + new Date(d.vipUntil).toLocaleString('es-CO') : 'sin VIP');
+    if (!d.hasSave || !d.planet) {
+      infoRow(card, 'Partida', 'la cuenta todavía no tiene partida: el jugador debe entrar al juego una vez');
+      prizeCard.appendChild(card);
+      return;
+    }
+    infoRow(card, 'Planeta principal', d.planet.name);
+    Object.keys(PRIZE_RES).forEach(function (k) {
+      var st = d.planet.storage[k];
+      infoRow(card, PRIZE_RES[k], fmtNum(d.planet.stock[k]) + ' de ' + fmtNum(st.cap) + ' (almacén nivel ' + st.level + ')');
+    });
+
+    var storeForm = document.createElement('form');
+    storeForm.className = 'row';
+    storeForm.noValidate = true;
+    var storeKind = document.createElement('select');
+    Object.keys(PRIZE_RES).forEach(function (k) {
+      var o = document.createElement('option'); o.value = k; o.textContent = 'Almacén de ' + PRIZE_RES[k]; storeKind.appendChild(o);
+    });
+    var storeLevel = document.createElement('input');
+    storeLevel.type = 'number'; storeLevel.min = '0'; storeLevel.max = '200'; storeLevel.step = '1';
+    storeLevel.placeholder = 'Nivel nuevo';
+    var storeBtn = document.createElement('button');
+    storeBtn.className = 'btn'; storeBtn.type = 'submit'; storeBtn.textContent = 'Cambiar nivel del almacén';
+    storeForm.appendChild(storeKind); storeForm.appendChild(storeLevel); storeForm.appendChild(storeBtn);
+    storeForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/api/prizes/storage', { email: prizeEmail, kind: storeKind.value, level: Number(storeLevel.value) }).then(function (res) {
+        if (!res.ok) { prizeMsg(res.d.error || 'No se pudo cambiar el almacén'); return; }
+        prizeMsg(res.d.clipped ? 'Almacén cambiado. Se recortó lo que pasaba del nuevo límite. El jugador debe hacer F5.' : 'Almacén cambiado. El jugador debe hacer F5.');
+        loadAccount(); loadPrizeLog();
+      }).catch(function () { prizeMsg('Sin conexión con el servidor'); });
+    });
+    card.appendChild(storeForm);
+
+    var giveForm = document.createElement('form');
+    giveForm.className = 'row';
+    giveForm.noValidate = true;
+    var giveKind = document.createElement('select');
+    Object.keys(PRIZE_KINDS).forEach(function (k) {
+      var o = document.createElement('option'); o.value = k; o.textContent = PRIZE_KINDS[k]; giveKind.appendChild(o);
+    });
+    var giveAmount = document.createElement('input');
+    giveAmount.type = 'number'; giveAmount.min = '1'; giveAmount.step = '1'; giveAmount.placeholder = 'Cantidad';
+    var giveNote = document.createElement('input');
+    giveNote.type = 'text'; giveNote.maxLength = 120; giveNote.placeholder = 'Motivo (opcional)';
+    var giveBtn = document.createElement('button');
+    giveBtn.className = 'btn'; giveBtn.type = 'submit'; giveBtn.textContent = 'Dar premio';
+    giveForm.appendChild(giveKind); giveForm.appendChild(giveAmount); giveForm.appendChild(giveNote); giveForm.appendChild(giveBtn);
+    giveForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/api/prizes/grant', { email: prizeEmail, kind: giveKind.value, amount: Number(giveAmount.value), note: giveNote.value }).then(function (res) {
+        if (!res.ok) { prizeMsg(res.d.error || 'No se pudo dar el premio'); return; }
+        prizeMsg('Premio entregado. El jugador debe hacer F5 para verlo.');
+        loadAccount(); loadPrizeLog();
+      }).catch(function () { prizeMsg('Sin conexión con el servidor'); });
+    });
+    card.appendChild(giveForm);
+    prizeCard.appendChild(card);
   }
 
   // ---------- Arranque ----------
