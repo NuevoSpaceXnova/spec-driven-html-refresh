@@ -3022,11 +3022,14 @@ async function cancelBuild(){
 // Completa las construcciones cuyo tiempo simulado ha pasado, en todos los planetas y lunas
 function processQueues(){
   state.planets.forEach(P => {
+    let shipsCompleted = false;
     while (P.shipQueue && P.shipQueue.length && state.simSec >= P.shipQueue[0].end){
       const it = P.shipQueue.shift();
       P.fleet[it.id] = (P.fleet[it.id] || 0) + it.n;
+      shipsCompleted = true;
       toast('Naves terminadas: ' + it.n + ' × ' + SHIPS[it.id].name + '.');
     }
+    if (shipsCompleted){ saveGame(); pushCloud(); }
     const q = P.queue;
     if (!q || state.simSec < q.end) return;
     P.lvl[q.id] = (P.lvl[q.id] || 0) + 1;
