@@ -3793,6 +3793,8 @@ async function buildShips(id, qtyOverride){
   const total = shipBuildSeconds(id, q);
   queue.push({id, n:q, start, end:start + total, total});
   bumpMission('ships', q);
+  saveGame();
+  await pushCloud();
   setStatus('En cola: ' + q + ' × ' + S.name + ' · ' + durHMS(start + total - state.simSec) + ' restantes.');
   refresh();
 }
