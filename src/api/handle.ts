@@ -745,16 +745,9 @@ async function syncQueueChecks(db: DB, userId: string, previous: any, next: any,
       await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ? AND queue_key = ?").bind(userId, "b:" + i).run();
     }
     for (const id of ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"]) {
-      const oldLevel = old?.lvl?.[id] || 0;
-      const newLevel = p.lvl[id] || 0;
       const key = "r:" + i + ":" + id;
-      if (oldLevel !== newLevel) {
-        await db.prepare("INSERT INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?) ON CONFLICT(user_id, queue_key) DO UPDATE SET started_at=excluded.started_at")
-          .bind(userId, key, currentTime).run();
-      } else {
-        await db.prepare("INSERT OR IGNORE INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?)")
-          .bind(userId, key, currentTime).run();
-      }
+      await db.prepare("INSERT INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?) ON CONFLICT(user_id, queue_key) DO UPDATE SET started_at=excluded.started_at")
+        .bind(userId, key, currentTime).run();
     }
     const oldShip = old?.shipQueue?.[0], newShip = p.shipQueue?.[0];
     const sameShip = oldShip && newShip && oldShip.id === newShip.id && oldShip.n === newShip.n
