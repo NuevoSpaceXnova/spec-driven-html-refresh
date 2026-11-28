@@ -1402,6 +1402,21 @@ async function writePrizeSave(db: DB, userId: string, data: any, version: number
     .bind(JSON.stringify(data), now(), userId, version).run();
   return !!(upd.meta && upd.meta.changes);
 }
+async function writePrizeSaveAndLog(
+  db: DB, userId: string, data: any, version: number, kind: string, amount: number, note: string, givenBy: string
+): Promise<boolean> {
+  const createdAt = now();
+  const result = await db.batch([
+    db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
+      .bind(JSON.stringify(data), createdAt, userId, version),
+    db.prepare(`INSERT INTO prizes (user_id, kind, amount, note, given_by, created_at)
+      SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (
+        SELECT 1 FROM saves WHERE user_id = ? AND version = ?
+      )`)
+      .bind(userId, kind, amount, note, givenBy, createdAt, userId, version + 1),
+  ]);
+  return !!(result[0]?.meta?.changes && result[1]?.meta?.changes);
+}
 
 async function logPrize(db: DB, userId: string, kind: string, amount: number, note: string, givenBy: string): Promise<void> {
   await db.prepare("INSERT INTO prizes (user_id, kind, amount, note, given_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
@@ -1467,7 +1482,7 @@ const prizeGrant: Route = async (request, db, env) => {
       return json({ error: `Supera la capacidad global de almacenamiento. Lo máximo que puedes dar ahora es ${Math.max(0, empire.cap - empire.stock)}.` }, 409);
     }
     normalizePrizeEmpireResource(save.data, kind, empire.stock + amount);
-    if (!(await writePrizeSave(db, target.id, save.data, save.version))) {
+    if (!(await writePrizeSaveAndLog(db, target.id, save.data, save.version, kind, amount, note, gate.user.email))) {
       return json({ error: "La partida del jugador cambió al mismo tiempo. Inténtalo de nuevo." }, 409);
     }
   } else if (kind === "token") {
@@ -1479,7 +1494,7 @@ const prizeGrant: Route = async (request, db, env) => {
     await db.prepare("INSERT INTO vip (user_id, until_ms) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET until_ms = excluded.until_ms")
       .bind(target.id, start + amount * DAY_MS).run();
   }
-  await logPrize(db, target.id, kind, amount, note, gate.user.email);
+  if (!PRIZE_RES_KEYS.includes(kind)) await logPrize(db, target.id, kind, amount, note, gate.user.email);
   return json({ ok: true });
 };
 
@@ -1506,10 +1521,9 @@ const prizeStorage: Route = async (request, db, env) => {
   const clipped = before.stock > after.cap;
   normalizePrizeEmpireResource(save.data, kind, Math.min(before.stock, after.cap));
   const cap = after.cap;
-  if (!(await writePrizeSave(db, target.id, save.data, save.version))) {
+  if (!(await writePrizeSaveAndLog(db, target.id, save.data, save.version, "almacen:" + kind, level, note, gate.user.email))) {
     return json({ error: "La partida del jugador cambió al mismo tiempo. Inténtalo de nuevo." }, 409);
   }
-  await logPrize(db, target.id, "almacen:" + kind, level, note, gate.user.email);
   return json({ ok: true, cap, clipped });
 };
 
