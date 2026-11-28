@@ -614,7 +614,7 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
 function saveCheckPlanetId(p: any): string {
   return String(p.coords || "") + "|" + (p.moon ? "moon" : "planet");
 }
-async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: any, next: any, checks: Map<string, any>, currentTime: number): Promise<string> {
+async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: any, next: any, checks: Map<string, any>, currentTime: number, fallbackElapsed: number): Promise<string> {
   const shipCosts: Record<string,[number,number]> = {
     nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
     bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
@@ -629,13 +629,13 @@ async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: a
     if (row) {
       try { historical = JSON.parse(row.max_ships || "{}"); } catch { return "Historial de flota corrupto."; }
     }
-    const elapsed = row ? Math.max(0, currentTime - row.checked_at) : 0;
+    const elapsed = row ? Math.max(0, currentTime - row.checked_at) : Math.max(0, fallbackElapsed);
     const yard = old?.lvl?.sy || 0;
     let totalBuildSeconds = 0;
     for (const id of SAVE_UNIT_KEYS) {
       const [metal, crystal] = shipCosts[id] || [0,0];
       const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * Math.max(0, yard - 1)))) / 1.5));
-      const previousMaximum = Math.max(historical[id] || 0, old?.fleet?.[id] || 0);
+      const previousMaximum = row ? Math.max(historical[id] || 0, old?.fleet?.[id] || 0) : 0;
       const newUnits = Math.max(0, (p.fleet[id] || 0) - previousMaximum);
       totalBuildSeconds += newUnits * unitSeconds;
     }
@@ -791,7 +791,7 @@ const savePut: Route = async (request, db) => {
   if (timedError) return rejectSave(db, user.id, timedError);
   const growthError = validateGrowth(previous, parsed, elapsed);
   if (growthError) return rejectSave(db, user.id, growthError);
-  const fleetError = await validateHistoricalFleetGrowth(db, user.id, previous, parsed, checks, currentTime);
+  const fleetError = await validateHistoricalFleetGrowth(db, user.id, previous, parsed, checks, currentTime, elapsed);
   if (fleetError) return rejectSave(db, user.id, fleetError);
   const clipped = clipSaveResources(parsed);
   const cleanAfterClip = JSON.stringify(parsed);
