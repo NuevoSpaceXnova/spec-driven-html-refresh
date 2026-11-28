@@ -2986,15 +2986,12 @@ function energy(){
 }
 // Producción por hora efectiva (sin factor de velocidad). Las lunas no producen recursos.
 function rates(){
-  const P = activePlanet(), L = state.lvl, e = energy();
-  if (P && P.moon) return {metal:0, crystal:0, deut:0, fusCons:0, e};
-  return {
-    metal:   F.hourlyMetal(L.mm) * e.eff * (1 + allianceBonus()) * prodFactor('mm') * vipMul(),
-    crystal: F.hourlyCrystal(L.mc) * e.eff * (1 + allianceBonus()) * prodFactor('mc') * vipMul(),
-    deut:    F.hourlyDeut(L.ds) * (1 + 0.05 * L.cm) * e.eff * (1 + allianceBonus()) * prodFactor('ds') * vipMul(),
-    fusCons: F.fusD(L.fus || 0),
-    e
-  };
+  const total = state.planets.reduce((sum, P) => {
+    const r = ratesForPlanet(P);
+    sum.metal += r.metal; sum.crystal += r.crystal; sum.deut += r.deut; sum.fusCons += r.fusCons;
+    return sum;
+  }, {metal:0, crystal:0, deut:0, fusCons:0});
+  return {...total, e:energy()};
 }
 function ratesForPlanet(P){
   const L = P.lvl || {}, FLEET = P.fleet || {};
