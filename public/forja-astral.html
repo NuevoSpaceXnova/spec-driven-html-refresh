@@ -2215,7 +2215,7 @@ const mmss = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s %
 // Las referencias de estado apuntan al planeta activo; los Tokens y la investigación se mantienen comunes
 function sharedResourceCapacity(resource){
   const key = CAP_KEY[resource];
-  return state.planets.reduce((total, p) => total + capOf((p.lvl || {})[key] || 0), 0);
+  return state.planets.reduce((total, p) => total + (p.moon ? 0 : capOf((p.lvl || {})[key] || 0)), 0);
 }
 function bindActive(){
   const P = state.planets[state.active] || state.planets[0];
@@ -2996,6 +2996,20 @@ function rates(){
     e
   };
 }
+function ratesForPlanet(P){
+  const L = P.lvl || {}, FLEET = P.fleet || {};
+  if (P.moon) return {metal:0, crystal:0, deut:0, fusCons:0};
+  const solar = F.solar(L.sol || 0) * (1 + 0.05 * (L.en || 0)) * (1 + (officerOn('eng') ? 0.20 : 0)) * prodFactor('sol');
+  const energyProd = solar + F.fusE(L.fus || 0) * prodFactor('fus') + 5 * (FLEET.sat || 0);
+  const energyCons = F.consMetal(L.mm || 0) * prodFactor('mm') + F.consCrystal(L.mc || 0) * prodFactor('mc') + F.consDeut(L.ds || 0) * prodFactor('ds');
+  const eff = energyCons > energyProd ? energyProd / energyCons : 1;
+  return {
+    metal:F.hourlyMetal(L.mm || 0) * eff * (1 + allianceBonus()) * prodFactor('mm') * vipMul(),
+    crystal:F.hourlyCrystal(L.mc || 0) * eff * (1 + allianceBonus()) * prodFactor('mc') * vipMul(),
+    deut:F.hourlyDeut(L.ds || 0) * (1 + 0.05 * (L.cm || 0)) * eff * (1 + allianceBonus()) * prodFactor('ds') * vipMul(),
+    fusCons:F.fusD(L.fus || 0)
+  };
+}
 function reqMet(id){ return reqOk(ITEMS[id] && ITEMS[id].reqs); }
 function canAfford(id){
   const it = ITEMS[id];
@@ -3161,13 +3175,17 @@ function tick(){
   let dt = (now - state.last) / 1000;
   state.last = now;
   dt = Math.min(dt, 5);
-  const r = rates();
+  const r = state.planets.reduce((sum, P) => {
+    const pr = ratesForPlanet(P);
+    sum.metal += pr.metal; sum.crystal += pr.crystal; sum.deut += pr.deut; sum.fusCons += pr.fusCons;
+    return sum;
+  }, {metal:0, crystal:0, deut:0, fusCons:0});
   const k = state.vacation ? 0 : state.speed / 3600 * dt;
   state.stats.mined += (r.metal + r.crystal + r.deut) * k;
   const capM = sharedResourceCapacity('metal'), capC = sharedResourceCapacity('crystal'), capD = sharedResourceCapacity('deut');
   if (state.res.metal < capM) state.res.metal = Math.min(capM, state.res.metal + r.metal * k);
   if (state.res.crystal < capC) state.res.crystal = Math.min(capC, state.res.crystal + r.crystal * k);
-  // El deuterio neto descuenta el consumo del Reactor de Fusión y nunca baja de cero
+  // El deuterio neto descuenta el consumo de todos los reactores de fusión y nunca baja de cero.
   const netD = (r.deut - r.fusCons) * k;
   const nd = state.res.deut + netD;
   state.res.deut = netD < 0 ? Math.max(0, nd) : (state.res.deut < capD ? Math.min(capD, nd) : state.res.deut);
