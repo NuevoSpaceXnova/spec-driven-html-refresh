@@ -3008,7 +3008,7 @@ async function upgrade(id){
   const c = costOf(id, N);
   const darkCost = dmCost(id, N);
   let darkSpendId = null;
-  if (it.view !== 'research' && !queueFull(activePlanet())) return setStatus(isVip() ? 'La cola está llena: 4 de 4.' : 'Ya hay una construcción en curso en este planeta.', true);
+  if (it.view !== 'research' && queueFull(activePlanet())) return setStatus(isVip() ? 'La cola está llena: 4 de 4.' : 'Ya hay una construcción en curso en este planeta.', true);
   if (it.view !== 'research' && queueIds(activePlanet()).includes(id)) return setStatus('Ese edificio ya está en la cola.', true);
   if (darkCost){
     const spend = await walletDarkSpend(darkCost, 'Mejora · ' + id + ' nivel ' + N);
