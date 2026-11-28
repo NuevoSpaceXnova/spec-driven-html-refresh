@@ -417,6 +417,8 @@ function validateSaveStructure(data: any): string {
   if (data.speed !== 1) return "Velocidad de partida no válida.";
   const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
   for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
+  const planetIds = data.planets.map((p: any) => saveCheckPlanetId(p));
+  if (planetIds.some((id: string) => id.startsWith("|")) || new Set(planetIds).size !== planetIds.length) return "Identificadores de planeta no válidos o duplicados.";
   for (const p of data.planets) {
     if (!saveRecord(p) || Object.keys(p).some(k => !SAVE_PLANET_KEYS.includes(k))) return "Estructura de planeta no válida.";
     if (!saveRecord(p.res) || !saveRecord(p.lvl) || !saveRecord(p.fleet)) return "Recursos, niveles o flota no válidos.";
@@ -634,6 +636,36 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
   }
   return "";
 }
+function saveCheckPlanetId(p: any): string {
+  return String(p.coords || "") + "|" + (p.moon ? "moon" : "planet");
+}
+async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: any, next: any, checks: Map<string, any>, currentTime: number): Promise<string> {
+  const shipCosts: Record<string,[number,number]> = {
+    nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
+    bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
+    rc:[50000,30000], sp:[0,5000], co:[50000,100000], sat:[0,10000],
+    lm:[10000,0], ll:[7500,2500], lg:[30000,10000], gc:[100000,75000], ci:[10000,30000],
+    cpl:[250000,250000], cs:[0,100000], cg:[100000,100000], mi:[62500,0],
+  };
+  for (let i = 0; i < next.planets.length; i++) {
+    const p = next.planets[i], old = previous.planets[i];
+    if (!old) continue;
+    const row = checks.get(saveCheckPlanetId(p));
+    if (!row) return "No existe historial de flota para el planeta.";
+    let historical: Record<string,number>;
+    try { historical = JSON.parse(row.max_ships || "{}"); } catch { return "Historial de flota corrupto."; }
+    const elapsed = Math.max(0, currentTime - row.checked_at);
+    const yard = Math.max(1, old.lvl.sy || 1);
+    for (const id of SAVE_UNIT_KEYS) {
+      const [metal, crystal] = shipCosts[id] || [0,0];
+      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
+      const maxBuildable = Math.floor(elapsed * 3 / unitSeconds);
+      const allowed = Math.max(historical[id] || 0, old.fleet[id] || 0) + maxBuildable;
+      if ((p.fleet[id] || 0) > allowed) return "Flota o defensas superiores al máximo histórico y a la producción posible del astillero.";
+    }
+  }
+  return "";
+}
 async function syncQueueChecks(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<void> {
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = previous?.planets?.[i];
@@ -757,17 +789,20 @@ const savePut: Route = async (request, db) => {
   if (cleanData.length > MAX_SAVE_CHARS) return rejectSave(db, user.id, "Partida demasiado grande después de normalizar.", 400);
   const current = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
     .first<{ data: string; version: number }>();
-  const check = await db.prepare("SELECT metal, crystal, deuterium, checked_at FROM save_checks WHERE user_id = ?")
-    .bind(user.id).first<{ metal: number; crystal: number; deuterium: number; checked_at: number }>();
+  const checkRows = await db.prepare("SELECT planet_id, metal, crystal, deuterium, max_ships, checked_at FROM save_checks WHERE user_id = ?")
+    .bind(user.id).all<{ planet_id: string; metal: number; crystal: number; deuterium: number; max_ships: string; checked_at: number }>();
+  const checks = new Map((checkRows.results || []).map((row: any) => [row.planet_id, row]));
   if (!current) {
     if (version !== 0) return json({ error: "Conflicto", data: null, version: 0 }, 409);
     if (!firstSaveIsFresh(parsed)) return rejectSave(db, user.id, "La primera partida debe partir del estado inicial.", 409);
     try {
       await db.prepare("INSERT INTO saves (user_id, data, version, updated_at) VALUES (?, ?, 1, ?)")
         .bind(user.id, cleanData, now()).run();
-      const resources = saveResources(parsed);
-      await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
-        .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
+      for (const p of parsed.planets) {
+        const maxShips = JSON.stringify(Object.fromEntries(SAVE_UNIT_KEYS.map((id: string) => [id, p.fleet[id] || 0])));
+        await db.prepare("INSERT INTO save_checks (user_id, planet_id, metal, crystal, deuterium, max_ships, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, planet_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, max_ships=excluded.max_ships, checked_at=excluded.checked_at")
+          .bind(user.id, saveCheckPlanetId(p), p.res.metal, p.res.crystal, p.res.deut, maxShips, now()).run();
+      }
       await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ?").bind(user.id).run();
       await syncQueueChecks(db, user.id, null, parsed, now());
     } catch { return rejectSave(db, user.id, "No se pudo crear la partida inicial.", 409); }
@@ -778,26 +813,32 @@ const savePut: Route = async (request, db) => {
   try { previous = JSON.parse(current.data); } catch { return rejectSave(db, user.id, "La copia guardada del servidor no es válida."); }
   const darkError = await validateDarkProgression(db, user.id, previous, parsed);
   if (darkError) return rejectSave(db, user.id, darkError);
-  const elapsed = check ? Math.max(0, now() - check.checked_at) : 0;
-  const baseline = check ? {metal:check.metal, crystal:check.crystal, deuterium:check.deuterium} : null;
-  const growthError = validateGrowth(previous, parsed, elapsed, baseline);
+  const currentTime = now();
+  const elapsed = checkRows.results?.length ? Math.max(0, currentTime - Math.min(...checkRows.results.map((r: any) => r.checked_at))) : 0;
+  const growthError = validateGrowth(previous, parsed, elapsed);
   if (growthError) return rejectSave(db, user.id, growthError);
-  const timedError = await validateTimedGrowth(db, user.id, previous, parsed, now());
+  const timedError = await validateTimedGrowth(db, user.id, previous, parsed, currentTime);
   if (timedError) return rejectSave(db, user.id, timedError);
+  const fleetError = await validateHistoricalFleetGrowth(db, user.id, previous, parsed, checks, currentTime);
+  if (fleetError) return rejectSave(db, user.id, fleetError);
   const clipped = clipSaveResources(parsed);
-  const resourceError = validateResourceGrowth(previous, parsed, elapsed, baseline);
-  if (resourceError) return rejectSave(db, user.id, resourceError);
   const cleanAfterClip = JSON.stringify(parsed);
-  const resources = saveResources(parsed);
   const updated = await db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
-    .bind(cleanAfterClip, now(), user.id, version).run();
+    .bind(cleanAfterClip, currentTime, user.id, version).run();
   if (!updated.meta || !updated.meta.changes) {
     const latest = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
       .first<{ data: string; version: number }>();
     return json({ error: "Conflicto", data: latest?.data ?? null, version: latest?.version ?? 0 }, 409);
   }
-  await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
-    .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
+  for (const p of parsed.planets) {
+    const planetId = saveCheckPlanetId(p);
+    const oldCheck = checks.get(planetId);
+    let historical: Record<string,number> = {};
+    try { historical = oldCheck ? JSON.parse(oldCheck.max_ships || "{}") : {}; } catch { historical = {}; }
+    for (const id of SAVE_UNIT_KEYS) historical[id] = Math.max(historical[id] || 0, p.fleet[id] || 0);
+    await db.prepare("INSERT INTO save_checks (user_id, planet_id, metal, crystal, deuterium, max_ships, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, planet_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, max_ships=excluded.max_ships, checked_at=excluded.checked_at")
+      .bind(user.id, planetId, p.res.metal, p.res.crystal, p.res.deut, JSON.stringify(historical), currentTime).run();
+  }
   await syncQueueChecks(db, user.id, previous, parsed, now());
   return json({ ok: true, version: version + 1, clipped, resources: parsed.planets.map((p: any) => ({metal:p.res.metal, crystal:p.res.crystal, deut:p.res.deut})) });
 };
