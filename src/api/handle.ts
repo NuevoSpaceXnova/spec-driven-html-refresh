@@ -7,14 +7,19 @@ const PANEL_COOKIE = "xn_panel";
 const PANEL_HOURS = 8;
 const enc = new TextEncoder();
 
-type Stmt = {
-  bind(...args: unknown[]): {
-    first<T = Record<string, unknown>>(): Promise<T | null>;
-    all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
-    run(): Promise<{ meta?: { changes?: number } }>;
-  };
+type BoundStmt = {
+  first<T = Record<string, unknown>>(): Promise<T | null>;
+  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
+  run(): Promise<{ meta?: { changes?: number } }>;
 };
-export type ApiEnv = { DB?: { prepare(sql: string): Stmt }; PANEL_PASSWORD?: string };
+type Stmt = { bind(...args: unknown[]): BoundStmt };
+export type ApiEnv = {
+  DB?: {
+    prepare(sql: string): Stmt;
+    batch(statements: BoundStmt[]): Promise<Array<{ meta?: { changes?: number } }>>;
+  };
+  PANEL_PASSWORD?: string;
+};
 type DB = NonNullable<ApiEnv["DB"]>;
 type User = { id: string; email: string; role: string };
 type Route = (request: Request, db: DB, env: ApiEnv) => Promise<Response>;
@@ -422,17 +427,21 @@ function capOfSave(level: number): number {
   return Number.isFinite(cap) ? Math.min(cap, 1e15) : 1e15;
 }
 function clipSaveResources(data: any): boolean {
-  let clipped = false;
+  let normalized = false;
   const first = data.planets[0];
   for (const k of ["metal","crystal","deut"]) {
     const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
     const capacity = data.planets.reduce((sum: number, p: any) => sum + (p.moon ? 0 : capOfSave(p.lvl[storageKey])), 0);
     let total = data.planets.reduce((sum: number, p: any) => sum + p.res[k], 0);
-    if (total > capacity) { total = capacity; clipped = true; }
+    if (total > capacity) total = capacity;
+    if (first.res[k] !== total) normalized = true;
     first.res[k] = total;
-    for (let i = 1; i < data.planets.length; i++) data.planets[i].res[k] = 0;
+    for (let i = 1; i < data.planets.length; i++) {
+      if (data.planets[i].res[k] !== 0) normalized = true;
+      data.planets[i].res[k] = 0;
+    }
   }
-  return clipped;
+  return normalized;
 }
 function saveBuildingCost(id: string, level: number): {metal:number; crystal:number; deut:number} {
   const costs: Record<string,[number,number,number,number]> = {
@@ -959,21 +968,30 @@ const savePut: Route = async (request, db) => {
   if (fleetError) return rejectSave(db, user.id, fleetError);
   const clipped = clipSaveResources(parsed);
   const cleanAfterClip = JSON.stringify(parsed);
-  const updated = await db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
-    .bind(cleanAfterClip, currentTime, user.id, version).run();
-  if (!updated.meta || !updated.meta.changes) {
-    const latest = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
-      .first<{ data: string; version: number }>();
-    return json({ error: "Conflicto", data: latest?.data ?? null, version: latest?.version ?? 0 }, 409);
-  }
+  const statements: BoundStmt[] = [
+    db.prepare("UPDATE saves SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ? AND version = ?")
+      .bind(cleanAfterClip, currentTime, user.id, version),
+  ];
   for (const p of parsed.planets) {
     const planetId = saveCheckPlanetId(p);
     const oldCheck = checks.get(planetId);
     let historical: Record<string,number> = {};
     try { historical = oldCheck ? JSON.parse(oldCheck.max_ships || "{}") : {}; } catch { historical = {}; }
     for (const id of SAVE_UNIT_KEYS) historical[id] = Math.max(historical[id] || 0, p.fleet[id] || 0);
-    await db.prepare("INSERT INTO save_checks (user_id, planet_id, metal, crystal, deuterium, max_ships, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, planet_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, max_ships=excluded.max_ships, checked_at=excluded.checked_at")
-      .bind(user.id, planetId, p.res.metal, p.res.crystal, p.res.deut, JSON.stringify(historical), currentTime).run();
+    statements.push(db.prepare(`INSERT INTO save_checks (user_id, planet_id, metal, crystal, deuterium, max_ships, checked_at)
+      SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (
+        SELECT 1 FROM saves WHERE user_id = ? AND version = ?
+      )
+      ON CONFLICT(user_id,planet_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal,
+        deuterium=excluded.deuterium, max_ships=excluded.max_ships, checked_at=excluded.checked_at`)
+      .bind(user.id, planetId, p.res.metal, p.res.crystal, p.res.deut, JSON.stringify(historical),
+        currentTime, user.id, version + 1));
+  }
+  const batch = await db.batch(statements);
+  if (!batch[0]?.meta?.changes) {
+    const latest = await db.prepare("SELECT data, version FROM saves WHERE user_id = ?").bind(user.id)
+      .first<{ data: string; version: number }>();
+    return json({ error: "Conflicto", data: latest?.data ?? null, version: latest?.version ?? 0 }, 409);
   }
   await syncResearchQueue(db, user.id, previous, parsed, currentTime);
   await syncQueueChecks(db, user.id, previous, parsed, now());
