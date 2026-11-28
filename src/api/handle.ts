@@ -491,8 +491,7 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
       if (p.res.metal !== 0 || p.res.crystal !== 0 || p.res.deut !== 0) return "Una luna nueva debe comenzar sin recursos.";
       if (["lb","rf","sy","ph","jg"].some(k => p.lvl[k] !== 0)) return "Una luna nueva no puede traer edificios.";
       const parent = oldPlanets.find((x: any) => x.coords === p.parent && !x.moon);
-      if (!parent || SAVE_LEVEL_KEYS.filter(k => ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].includes(k))
-        .some(k => p.lvl[k] > (parent.lvl[k] || 0))) return "Investigación de luna no válida.";
+      if (!parent || ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].some(k => p.lvl[k] > (parent.lvl[k] || 0))) return "Investigación de luna no válida.";
     } else {
       if (p.res.metal !== 500 || p.res.crystal !== 300 || p.res.deut !== 0) return "Una colonia nueva debe comenzar con recursos iniciales.";
       if (SAVE_LEVEL_KEYS.some(k => !["mm","mc","sol"].includes(k) && !["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].includes(k) && p.lvl[k] !== 0)) return "Edificios iniciales de colonia no válidos.";
@@ -525,10 +524,11 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
   const rates = maxSaveProduction(next);
   for (const [resource, field] of [["metal","metal"],["crystal","crystal"],["deuterium","deut"]] as const) {
     const allowedSpend = oldRes[resource] + rates[resource] * elapsed / 3600 * 3 - newRes[resource];
-    if (!Number.isFinite(researchSpend[field]) || researchSpend[field] > allowedSpend + 1) {
-      return "Aumento de investigación sin recursos suficientes.";
-    }
+    if (!Number.isFinite(researchSpend[field]) || researchSpend[field] > allowedSpend + 1) return "Aumento de investigación sin recursos suficientes.";
   }
+  return "";
+}
+async function validateTimedGrowth(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<string> {
   const shipCosts: Record<string,[number,number]> = {
     nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
     bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
@@ -537,28 +537,68 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
     cpl:[250000,250000], cs:[0,100000], cg:[100000,100000], mi:[62500,0],
   };
   for (let i = 0; i < next.planets.length; i++) {
-    const p = next.planets[i], old = oldPlanets[i];
+    const p = next.planets[i], old = previous.planets[i];
     if (!old) continue;
-    let buildSeconds = 0;
     const buildKeys = p.moon ? ["lb","rf","sy","ph","jg"] : ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo"];
-    for (const id of buildKeys) {
-      const increase = p.lvl[id] - (old.lvl[id] || 0);
-      for (let n = 1; n <= increase; n++) buildSeconds += saveLevelBuildSeconds(id, (old.lvl[id] || 0) + n, old.lvl);
+    const changedBuildings = buildKeys.filter(id => p.lvl[id] > (old.lvl[id] || 0));
+    if (changedBuildings.length) {
+      if (changedBuildings.length !== 1 || !old.queue || old.queue.id !== changedBuildings[0]
+        || p.lvl[changedBuildings[0]] !== (old.lvl[changedBuildings[0]] || 0) + 1) return "Aumento de edificios sin una cola de construcción válida.";
+      const row = await db.prepare("SELECT started_at FROM save_queue_checks WHERE user_id = ? AND queue_key = ?")
+        .bind(userId, "b:" + i).first<{started_at:number}>();
+      if (!row) return "No existe reloj de servidor para la construcción.";
+      const seconds = saveLevelBuildSeconds(changedBuildings[0], p.lvl[changedBuildings[0]], old.lvl);
+      if (seconds > Math.max(0, currentTime - row.started_at) * 3) return "Construcción completada antes del tiempo permitido por el servidor.";
     }
-    if (buildSeconds > elapsed * 12) return "Aumento de edificios superior al tiempo de construcción permitido.";
+    let shipSeconds = 0;
     const yard = Math.max(1, old.lvl.sy || 1);
     for (const id of SAVE_UNIT_KEYS) {
-      const oldCount = old.fleet[id] || 0, newCount = p.fleet[id] || 0;
-      if (newCount <= oldCount) continue;
+      const increase = (p.fleet[id] || 0) - (old.fleet[id] || 0);
+      if (increase <= 0) continue;
       const [metal, crystal] = shipCosts[id] || [0,0];
       const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
-      if (newCount - oldCount > Math.floor(elapsed / unitSeconds) * 3) {
-        return "Aumento de flota o defensas superior a la velocidad del astillero.";
-      }
+      shipSeconds += unitSeconds * increase;
     }
-    if ((p.fleet.mi || 0) > 10 * (p.lvl.silo || 0)) return "Los misiles superan la capacidad del silo.";
+    if (shipSeconds > 0) {
+      if ((old.lvl.sy || 0) < 1) return "No se pueden construir unidades sin astillero.";
+      const row = await db.prepare("SELECT started_at FROM save_queue_checks WHERE user_id = ? AND queue_key = ?")
+        .bind(userId, "s:" + i).first<{started_at:number}>();
+      if (!row) return "No existe reloj de servidor para la cola de astillero.";
+      if (shipSeconds > Math.max(0, currentTime - row.started_at) * 3) return "Flota o defensas completadas antes del tiempo permitido por el servidor.";
+    }
   }
   return "";
+}
+async function syncQueueChecks(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<void> {
+  for (let i = 0; i < next.planets.length; i++) {
+    const p = next.planets[i], old = previous?.planets?.[i];
+    const oldBuild = old?.queue, newBuild = p.queue;
+    if (newBuild) {
+      if (!oldBuild || oldBuild.id !== newBuild.id || oldBuild.darkSpendId !== newBuild.darkSpendId) {
+        await db.prepare("INSERT INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?) ON CONFLICT(user_id, queue_key) DO UPDATE SET started_at=excluded.started_at")
+          .bind(userId, "b:" + i, currentTime).run();
+      } else {
+        await db.prepare("INSERT OR IGNORE INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?)")
+          .bind(userId, "b:" + i, currentTime).run();
+      }
+    } else {
+      await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ? AND queue_key = ?").bind(userId, "b:" + i).run();
+    }
+    const oldShip = old?.shipQueue?.[0], newShip = p.shipQueue?.[0];
+    const sameShip = oldShip && newShip && oldShip.id === newShip.id && oldShip.n === newShip.n
+      && oldShip.total === newShip.total && oldShip.start === newShip.start && oldShip.end === newShip.end;
+    if (newShip) {
+      if (!sameShip) {
+        await db.prepare("INSERT INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?) ON CONFLICT(user_id, queue_key) DO UPDATE SET started_at=excluded.started_at")
+          .bind(userId, "s:" + i, currentTime).run();
+      } else {
+        await db.prepare("INSERT OR IGNORE INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?)")
+          .bind(userId, "s:" + i, currentTime).run();
+      }
+    } else {
+      await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ? AND queue_key = ?").bind(userId, "s:" + i).run();
+    }
+  }
 }
 function validateResourceGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
   const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(next);
@@ -663,6 +703,7 @@ const savePut: Route = async (request, db) => {
       const resources = saveResources(parsed);
       await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
         .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
+      await syncQueueChecks(db, user.id, null, parsed, now());
     } catch { return rejectSave(db, user.id, "No se pudo crear la partida inicial.", 409); }
     return json({ ok: true, version: 1 });
   }
@@ -675,6 +716,8 @@ const savePut: Route = async (request, db) => {
   const baseline = check ? {metal:check.metal, crystal:check.crystal, deuterium:check.deuterium} : null;
   const growthError = validateGrowth(previous, parsed, elapsed, baseline);
   if (growthError) return rejectSave(db, user.id, growthError);
+  const timedError = await validateTimedGrowth(db, user.id, previous, parsed, now());
+  if (timedError) return rejectSave(db, user.id, timedError);
   const clipped = clipSaveResources(parsed);
   const resourceError = validateResourceGrowth(previous, parsed, elapsed, baseline);
   if (resourceError) return rejectSave(db, user.id, resourceError);
@@ -689,6 +732,7 @@ const savePut: Route = async (request, db) => {
   }
   await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
     .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
+  await syncQueueChecks(db, user.id, previous, parsed, now());
   return json({ ok: true, version: version + 1, clipped, resources: parsed.planets.map((p: any) => ({metal:p.res.metal, crystal:p.res.crystal, deut:p.res.deut})) });
 };
 
