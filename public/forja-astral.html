@@ -1186,7 +1186,10 @@ async function pushCloud(){
           saveGame();
         }
       }
-      cloudLast = localStorage.getItem(SAVE_KEY) || data;
+      // Solo se marca como sincronizada la copia exacta enviada; nunca una edición posterior.
+      cloudLast = data;
+      const latest = localStorage.getItem(SAVE_KEY) || '';
+      if (latest !== data) cloudPending = true;
     }
     else if (r.status === 409 && d.rejected){
       cloudBlockedUntil = Date.now() + 10000;
