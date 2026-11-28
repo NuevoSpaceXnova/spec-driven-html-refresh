@@ -795,15 +795,15 @@ const walletDarkRefund: Route = async (request, db) => {
       && (p.lvl?.[match[1]] || 0) + 1 === Number(match[2]));
   } catch { queued = false; }
   if (!queued) return json({ error: "La construcción ya no está pendiente en el servidor" }, 409);
-  const prior = await db.prepare("SELECT id FROM dark_moves WHERE refund_of = ?").bind(spendId).first();
-  if (prior) return json({ error: "Este gasto ya fue reembolsado" }, 409);
   const amount = -spend.delta;
   await ensureWallet(db, user.id);
+  const refundMove = await db.prepare("INSERT OR IGNORE INTO dark_moves (user_id, delta, reason, balance_after, created_at, refund_of) VALUES (?, ?, ?, 0, ?, ?) RETURNING id")
+    .bind(user.id, amount, "Reembolso · " + spend.reason, now(), spendId).first<{id:number}>();
+  if (!refundMove) return json({ error: "Este gasto ya fue reembolsado" }, 409);
   await db.prepare("UPDATE wallets SET dark = ROUND(dark + ?, 6), updated_at = ? WHERE user_id = ?")
     .bind(amount, now(), user.id).run();
   const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
-  await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at, refund_of) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(user.id, amount, "Reembolso · " + spend.reason, row?.dark ?? 0, now(), spendId).run();
+  await db.prepare("UPDATE dark_moves SET balance_after = ? WHERE id = ?").bind(row?.dark ?? 0, refundMove.id).run();
   return json({ ok: true, dark: row?.dark ?? 0 });
 };
 const walletDarkUnlock: Route = async (request, db) => {
