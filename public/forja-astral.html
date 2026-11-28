@@ -2986,7 +2986,7 @@ function energy(){
 }
 // Producción por hora efectiva (sin factor de velocidad). Las lunas no producen recursos.
 function rates(){
-  const total = state.planets.reduce((sum, P) => {
+  const total = (state.planets || []).reduce((sum, P) => {
     const r = ratesForPlanet(P);
     sum.metal += r.metal; sum.crystal += r.crystal; sum.deut += r.deut; sum.fusCons += r.fusCons;
     return sum;
