@@ -694,6 +694,8 @@ body.anim-none *,body.anim-none *::before,body.anim-none *::after{animation:none
 .res-val{font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:1400px){.res-box{width:auto;min-width:0;max-width:none;padding:0 8px;gap:6px}}
 @media (max-width:1100px){.res-box{width:auto;min-width:0;max-width:none}}
+/* A zoom alto reduce el viewport CSS: separar recursos del grupo de acciones antes de que se oculten */
+@media (max-width:1450px){.topbar{height:auto;min-height:64px;flex-wrap:wrap;row-gap:6px}.resources{order:3;flex:1 1 100%;min-width:0;max-width:100%}.topbar>.vip-badge,.topbar>.swap-open,.topbar>#notif-menu,.topbar>#user-menu{flex:none}}
 @media (max-width:1100px){.topbar{height:auto;flex-wrap:wrap;row-gap:6px}.resources{order:3;flex:1 1 100%;min-width:0}}
 @media (max-width:767px){
   .resources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding-top:6px;overflow:visible}
