@@ -180,9 +180,6 @@ const register: Route = async (request, db) => {
 
   const current = now();
   const ip = requestIp(request);
-  await db.prepare("DELETE FROM register_attempts WHERE created_at < ?")
-    .bind(current - 30 * 24 * 60 * 60).run();
-
   const ipCount = await db.prepare(
     "SELECT COUNT(*) AS total FROM register_attempts WHERE ip = ? AND created_at > ?",
   ).bind(ip, current - REGISTER_IP_WINDOW).first<{ total: number }>();
@@ -233,6 +230,8 @@ const login: Route = async (request, db) => {
   const current = now();
 
   await db.prepare("DELETE FROM login_attempts WHERE created_at < ?")
+    .bind(current - 30 * 24 * 60 * 60).run();
+  await db.prepare("DELETE FROM register_attempts WHERE created_at < ?")
     .bind(current - 30 * 24 * 60 * 60).run();
 
   const ipFailures = await db.prepare(
