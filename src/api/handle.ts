@@ -564,26 +564,26 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
     const oldShipCounts = new Map<string,number>(), newShipCounts = new Map<string,number>();
     for (const q of oldShips) oldShipCounts.set(shipKey(q), (oldShipCounts.get(shipKey(q)) || 0) + 1);
     for (const q of newShips) newShipCounts.set(shipKey(q), (newShipCounts.get(shipKey(q)) || 0) + 1);
-    for (const q of newShips) {
-      const key = shipKey(q), extra = (newShipCounts.get(key) || 0) - (oldShipCounts.get(key) || 0);
-      if (extra > 0) {
-        const c = shipCosts[q.id] || [0,0,0];
-        add(required, {metal:c[0], crystal:c[1], deut:c[2]}, q.n * extra);
-        newShipCounts.set(key, (newShipCounts.get(key) || 0) - 1);
-      }
+    const shipKeys = new Set([...oldShipCounts.keys(), ...newShipCounts.keys()]);
+    for (const key of shipKeys) {
+      const delta = (newShipCounts.get(key) || 0) - (oldShipCounts.get(key) || 0);
+      const sample = newShips.find(q => shipKey(q) === key) || oldShips.find(q => shipKey(q) === key);
+      if (!sample || delta === 0) continue;
+      const c = shipCosts[sample.id] || [0,0,0];
+      if (delta > 0) add(required, {metal:c[0], crystal:c[1], deut:c[2]}, sample.n * delta);
     }
     const fleetIncrease: Record<string,number> = {};
     for (const id of SAVE_UNIT_KEYS) fleetIncrease[id] = Math.max(0, (p.fleet[id] || 0) - (old.fleet[id] || 0));
-    for (const q of oldShips) {
-      const key = shipKey(q), remaining = (oldShipCounts.get(key) || 0) - (newShipCounts.get(key) || 0);
-      if (remaining <= 0) { oldShipCounts.set(key, (oldShipCounts.get(key) || 0) - 1); continue; }
-      const completed = Math.min(q.n, fleetIncrease[q.id] || 0);
-      fleetIncrease[q.id] = Math.max(0, (fleetIncrease[q.id] || 0) - completed);
-      if (completed < q.n) {
-        const c = shipCosts[q.id] || [0,0,0];
-        add(refunds, {metal:c[0], crystal:c[1], deut:c[2]}, q.n);
+    for (const key of shipKeys) {
+      const removed = (oldShipCounts.get(key) || 0) - (newShipCounts.get(key) || 0);
+      if (removed <= 0) continue;
+      const sample = oldShips.find(q => shipKey(q) === key);
+      if (!sample) continue;
+      const c = shipCosts[sample.id] || [0,0,0];
+      for (let n = 0; n < removed; n++) {
+        if ((fleetIncrease[sample.id] || 0) >= sample.n) fleetIncrease[sample.id] -= sample.n;
+        else add(refunds, {metal:c[0], crystal:c[1], deut:c[2]}, sample.n);
       }
-      oldShipCounts.set(key, (oldShipCounts.get(key) || 0) - 1);
     }
   }
   const rates = maxSaveProduction(next);
