@@ -1177,12 +1177,14 @@ async function pushCloud(){
     if (r.ok){
       localStorage.setItem(cloudVerKey(), String(d.version));
       if (d.clipped && Array.isArray(d.resources)){
-        d.resources.forEach((res, i) => {
-          const P = state.planets && state.planets[i];
-          if (!P || !P.res) return;
-          P.res.metal = res.metal; P.res.crystal = res.crystal; P.res.deut = res.deut;
-        });
-        saveGame();
+        const res = d.resources[0];
+        if (res && state.planets && state.planets[0]){
+          state.planets[0].res.metal = res.metal;
+          state.planets[0].res.crystal = res.crystal;
+          state.planets[0].res.deut = res.deut;
+          bindActive();
+          saveGame();
+        }
       }
       cloudLast = localStorage.getItem(SAVE_KEY) || data;
     }
@@ -3208,7 +3210,7 @@ function createMoon(idx){
   if (state.planets.some(x => x.moon && x.parent === P.coords)) return false;
   const base = P.name.split(' [')[0];
   const moon = {name:'Luna · ' + base, coords:P.coords + 'L', parent:P.coords, moon:true, queue:null,
-                res:{metal:0, crystal:0, deut:0, token:0}, lvl:makeLvl(false), fleet:makeFleet()};
+                res:state.res, lvl:makeLvl(false), fleet:makeFleet()};
   TECH_KEYS.forEach(k => { moon.lvl[k] = P.lvl[k] || 0; });
   state.planets.push(moon);
   renderPlanetSelect();
@@ -3556,7 +3558,7 @@ function colonize(id){
   const lvl = makeLvl(false);
   TECH_KEYS.forEach(k => { lvl[k] = state.lvl[k] || 0; });
   lvl.mm = 1; lvl.mc = 1; lvl.sol = 1;
-  state.planets.push({name, coords:id, res:{metal:500, crystal:300, deut:0, token:0}, lvl, fleet:makeFleet(), queue:null, moon:false});
+  state.planets.push({name, coords:id, res:state.res, lvl, fleet:makeFleet(), queue:null, moon:false});
   renderPlanetSelect();
   switchPlanet(state.planets.length - 1);
   setStatus('Colonia fundada en ' + id + '. Ahora gestionas ' + name + '.');
@@ -5273,7 +5275,7 @@ function refresh(){
   document.querySelectorAll('.vip-badge').forEach(el => el.classList.toggle('is-vip', isVip()));
   document.querySelectorAll('[data-pct]').forEach(el => {
     const r = el.dataset.pct;
-    const cap = capOf(state.lvl[CAP_KEY[r]] || 0);
+    const cap = sharedResourceCapacity(r);
     el.style.width = Math.min(100, state.res[r] / cap * 100).toFixed(1) + '%';
   });
   document.querySelectorAll('[data-danger]').forEach(el => el.classList.toggle('danger', e.deficit));
