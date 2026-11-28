@@ -654,7 +654,7 @@ const savePut: Route = async (request, db) => {
       await db.prepare("INSERT INTO saves (user_id, data, version, updated_at) VALUES (?, ?, 1, ?)")
         .bind(user.id, cleanData, now()).run();
       const resources = saveResources(parsed);
-      await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?)")
+      await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
         .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
     } catch { return rejectSave(db, user.id, "No se pudo crear la partida inicial.", 409); }
     return json({ ok: true, version: 1 });
