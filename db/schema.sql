@@ -81,11 +81,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_expeditions_one_open_per_user
 
 -- Validación antitrampas de partidas (Tarea 2)
 CREATE TABLE IF NOT EXISTS save_checks (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  planet_id TEXT NOT NULL,
   metal REAL NOT NULL,
   crystal REAL NOT NULL,
   deuterium REAL NOT NULL,
-  checked_at INTEGER NOT NULL
+  max_ships TEXT NOT NULL DEFAULT '{}',
+  checked_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, planet_id)
 );
 
 CREATE TABLE IF NOT EXISTS save_rejects (
