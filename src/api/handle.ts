@@ -487,7 +487,8 @@ function maxSaveProduction(data: any): { metal: number; crystal: number; deuteri
     return {
       metal: sum.metal + (30 + 30 * pw(l.mm)) * bonus,
       crystal: sum.crystal + (15 + 20 * pw(l.mc)) * bonus,
-      deuterium: sum.deuterium + (12 * pw(l.ds)) * (1 + 0.05 * l.cm) * bonus,
+      // El consumo del reactor de fusión se descuenta del deuterio producido.
+      deuterium: sum.deuterium + (12 * pw(l.ds)) * (1 + 0.05 * l.cm) * bonus - (10 * pw(l.fus)),
     };
   }, { metal: 0, crystal: 0, deuterium: 0 });
 }
