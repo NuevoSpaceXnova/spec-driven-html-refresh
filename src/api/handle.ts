@@ -426,7 +426,7 @@ function clipSaveResources(data: any): boolean {
   const first = data.planets[0];
   for (const k of ["metal","crystal","deut"]) {
     const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
-    const capacity = data.planets.reduce((sum: number, p: any) => sum + capOfSave(p.lvl[storageKey]), 0);
+    const capacity = data.planets.reduce((sum: number, p: any) => sum + (p.moon ? 0 : capOfSave(p.lvl[storageKey])), 0);
     let total = data.planets.reduce((sum: number, p: any) => sum + p.res[k], 0);
     if (total > capacity) { total = capacity; clipped = true; }
     first.res[k] = total;
@@ -682,7 +682,7 @@ function validateGrowth(previous: any, next: any, elapsed: number): string {
   }
   const rates = maxSaveProduction(next);
   const capacity = (resource: "metal"|"crystal"|"deuterium") => next.planets.reduce((sum: number, p: any) =>
-    sum + capOfSave(p.lvl[resource === "metal" ? "sm" : resource === "crystal" ? "sc" : "tk"]), 0);
+    sum + (p.moon ? 0 : capOfSave(p.lvl[resource === "metal" ? "sm" : resource === "crystal" ? "sc" : "tk"])), 0);
   for (const resource of ["metal","crystal","deuterium"] as const) {
     const allowedSpend = oldRes[resource] + capacity(resource)
       + rates[resource] * elapsed / 3600 * 3 + refunds[resource];
