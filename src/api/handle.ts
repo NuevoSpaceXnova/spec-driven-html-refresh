@@ -348,6 +348,19 @@ function clipSaveResources(data: any): boolean {
   }
   return clipped;
 }
+function saveBuildingCost(id: string, level: number): {metal:number; crystal:number; deut:number} {
+  const costs: Record<string,[number,number,number,number]> = {
+    mm:[60,15,0,1.5], mc:[48,24,0,1.6], ds:[225,75,0,1.5], sol:[75,30,0,1.5],
+    sm:[1000,250,0,1.6], sc:[1000,500,0,1.6], tk:[1000,1000,0,1.6],
+    rf:[400,120,0,1.5], sy:[400,200,0,1.5], lab:[200,400,0,1.6],
+    fus:[900,360,180,1.8], nan:[1000,300,200,2], ter:[0,50000,100000,2], silo:[20000,20000,0,2],
+    lb:[20000,40000,20000,2], ph:[10000,20000,0,2], jg:[200000,100000,100000,2],
+  };
+  const c = costs[id];
+  if (!c) return {metal:0, crystal:0, deut:0};
+  const f = Math.pow(c[3], level - 1);
+  return {metal:Math.floor(c[0]*f), crystal:Math.floor(c[1]*f), deut:Math.floor(c[2]*f)};
+}
 function saveLevelBuildSeconds(id: string, targetLevel: number, levels: any): number {
   const costs: Record<string, [number,number,number]> = {
     mm:[60,15,1.5], mc:[48,24,1.6], ds:[225,75,1.5], sol:[75,30,1.5],
@@ -522,10 +535,61 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
       }
     }
   }
+  const required = {metal:researchSpend.metal, crystal:researchSpend.crystal, deuterium:researchSpend.deut};
+  const refunds = {metal:0, crystal:0, deuterium:0};
+  const add = (target: any, cost: {metal:number; crystal:number; deut:number}, qty = 1) => {
+    target.metal += cost.metal * qty; target.crystal += cost.crystal * qty; target.deuterium += cost.deut * qty;
+  };
+  const shipCosts: Record<string,[number,number,number]> = {
+    nc:[10000,10000,0], ng:[30000,30000,0], cz:[15000,5000,0], ch:[30000,20000,0], cr:[100000,35000,10000],
+    bt:[225000,75000,0], ac:[150000,200000,75000], bm:[250000,125000,75000], de:[300000,250000,75000], dr:[25000000,20000000,5000000],
+    rc:[50000,30000,10000], sp:[0,5000,0], co:[50000,100000,50000], sat:[0,10000,2500],
+    lm:[10000,0,0], ll:[7500,2500,0], lg:[30000,10000,0], gc:[100000,75000,10000], ci:[10000,30000,0],
+    cpl:[250000,250000,150000], cs:[0,100000,0], cg:[100000,100000,10000], mi:[62500,0,12500],
+  };
+  for (let i = 0; i < next.planets.length; i++) {
+    const p = next.planets[i], old = oldPlanets[i];
+    if (!old) continue;
+    const oldBuild = [old.queue, ...(old.queueExtra || [])].filter(Boolean);
+    const newBuild = [p.queue, ...(p.queueExtra || [])].filter(Boolean);
+    const buildKey = (q: any) => q.id + "|" + (q.darkSpendId ?? "");
+    const oldBuildKeys = oldBuild.map(buildKey), newBuildKeys = newBuild.map(buildKey);
+    for (const q of newBuild) if (!oldBuildKeys.includes(buildKey(q))) add(required, saveBuildingCost(q.id, (p.lvl[q.id] || 0) + 1));
+    for (const q of oldBuild) {
+      if (newBuildKeys.includes(buildKey(q)) || (p.lvl[q.id] || 0) > (old.lvl[q.id] || 0)) continue;
+      add(refunds, saveBuildingCost(q.id, (old.lvl[q.id] || 0) + 1));
+    }
+    const oldShips = old.shipQueue || [], newShips = p.shipQueue || [];
+    const shipKey = (q: any) => q.id + "|" + q.n + "|" + q.total;
+    const oldShipCounts = new Map<string,number>(), newShipCounts = new Map<string,number>();
+    for (const q of oldShips) oldShipCounts.set(shipKey(q), (oldShipCounts.get(shipKey(q)) || 0) + 1);
+    for (const q of newShips) newShipCounts.set(shipKey(q), (newShipCounts.get(shipKey(q)) || 0) + 1);
+    for (const q of newShips) {
+      const key = shipKey(q), extra = (newShipCounts.get(key) || 0) - (oldShipCounts.get(key) || 0);
+      if (extra > 0) {
+        const c = shipCosts[q.id] || [0,0,0];
+        add(required, {metal:c[0], crystal:c[1], deut:c[2]}, q.n * extra);
+        newShipCounts.set(key, (newShipCounts.get(key) || 0) - 1);
+      }
+    }
+    const fleetIncrease: Record<string,number> = {};
+    for (const id of SAVE_UNIT_KEYS) fleetIncrease[id] = Math.max(0, (p.fleet[id] || 0) - (old.fleet[id] || 0));
+    for (const q of oldShips) {
+      const key = shipKey(q), remaining = (oldShipCounts.get(key) || 0) - (newShipCounts.get(key) || 0);
+      if (remaining <= 0) { oldShipCounts.set(key, (oldShipCounts.get(key) || 0) - 1); continue; }
+      const completed = Math.min(q.n, fleetIncrease[q.id] || 0);
+      fleetIncrease[q.id] = Math.max(0, (fleetIncrease[q.id] || 0) - completed);
+      if (completed < q.n) {
+        const c = shipCosts[q.id] || [0,0,0];
+        add(refunds, {metal:c[0], crystal:c[1], deut:c[2]}, q.n);
+      }
+      oldShipCounts.set(key, (oldShipCounts.get(key) || 0) - 1);
+    }
+  }
   const rates = maxSaveProduction(next);
-  for (const [resource, field] of [["metal","metal"],["crystal","crystal"],["deuterium","deut"]] as const) {
-    const allowedSpend = oldRes[resource] + rates[resource] * elapsed / 3600 * 3 - newRes[resource];
-    if (!Number.isFinite(researchSpend[field]) || researchSpend[field] > allowedSpend + 1) return "Aumento de investigación sin recursos suficientes.";
+  for (const resource of ["metal","crystal","deuterium"] as const) {
+    const allowedSpend = oldRes[resource] + rates[resource] * elapsed / 3600 * 3 - newRes[resource] + refunds[resource];
+    if (!Number.isFinite(required[resource]) || required[resource] > allowedSpend + 1) return "El gasto de construcción o investigación supera los recursos disponibles.";
   }
   return "";
 }
