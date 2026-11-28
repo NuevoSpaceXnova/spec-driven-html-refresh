@@ -522,7 +522,7 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
       }
     }
   }
-  const rates = maxSaveProduction(previous);
+  const rates = maxSaveProduction(next);
   for (const [resource, field] of [["metal","metal"],["crystal","crystal"],["deuterium","deut"]] as const) {
     const allowedSpend = oldRes[resource] + rates[resource] * elapsed / 3600 * 3 - newRes[resource];
     if (!Number.isFinite(researchSpend[field]) || researchSpend[field] > allowedSpend + 1) {
@@ -561,7 +561,7 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
   return "";
 }
 function validateResourceGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
-  const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(previous);
+  const oldRes = baseline || saveResources(previous), newRes = saveResources(next), rates = maxSaveProduction(next);
   for (const k of ["metal","crystal","deuterium"] as const) {
     const increase = newRes[k] - oldRes[k];
     if (increase > rates[k] * elapsed / 3600 * 3 + 1) return "Aumento de recursos superior a la producción permitida.";
