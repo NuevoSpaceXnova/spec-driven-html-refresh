@@ -177,7 +177,6 @@ const register: Route = async (request, db) => {
   const password = String(body.password ?? "");
   if (!email) return json({ error: "Correo no válido" }, 400);
   if (password.length < 8) return json({ error: "La contraseña debe tener al menos 8 caracteres" }, 400);
-
   const current = now();
   const ip = requestIp(request);
   const ipCount = await db.prepare(
@@ -678,24 +677,7 @@ function validateGrowth(previous: any, next: any, elapsed: number): string {
   }
   return "";
 }
-function saveResearchSeconds(id: string, targetLevel: number, levels: any): number {
-  const costs: Record<string, [number,number,number,number]> = {
-    en:[0,800,400,2], cm:[400,0,600,2], bl:[1000,0,0,2], es:[200,1000,200,2],
-    cp:[0,400,600,2], ap:[4000,8000,4000,1.75], lz:[200,100,0,2], io:[300,400,0,2],
-    pl:[2000,4000,1000,2], im:[800,0,400,2], hd:[1500,800,600,2], hy:[4000,4000,2000,2],
-    gv:[0,20000,10000,2],
-  };
-  const cost = costs[id];
-  if (!cost) return 0;
-  const factor = Math.pow(cost[3], targetLevel - 1);
-  const metal = Math.floor(cost[0] * factor);
-  const crystal = Math.floor(cost[1] * factor);
-  const base = (metal + crystal) / (2500 * (1 + (levels.lab || 0))) * 3600;
-  return Math.max(5, Math.ceil(base * Math.pow(0.5, levels.nan || 0) * (1 - 0.02 * (levels.gv || 0)) / 1.5));
-}
-
 async function validateTimedGrowth(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<string> {
-  const researchKeys = ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = previous.planets[i];
     if (!old) continue;
@@ -711,21 +693,6 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
       if (seconds > Math.max(0, currentTime - row.started_at) * 3) return "Construcción completada antes del tiempo permitido por el servidor.";
     }
 
-    for (const id of researchKeys) {
-      const previousLevel = old.lvl[id] || 0;
-      const targetLevel = p.lvl[id] || 0;
-      if (targetLevel <= previousLevel) continue;
-      const row = await db.prepare("SELECT started_at FROM save_queue_checks WHERE user_id = ? AND queue_key = ?")
-        .bind(userId, "r:" + i + ":" + id).first<{started_at:number}>();
-      if (!row) return "No existe reloj de servidor para la investigación.";
-      let requiredSeconds = 0;
-      for (let level = previousLevel + 1; level <= targetLevel; level++) {
-        requiredSeconds += saveResearchSeconds(id, level, old.lvl);
-      }
-      if (requiredSeconds > Math.max(0, currentTime - row.started_at) * 3) {
-        return "Investigación completada antes del tiempo permitido por el servidor.";
-      }
-    }
   }
   return "";
 }
@@ -743,11 +710,6 @@ async function syncQueueChecks(db: DB, userId: string, previous: any, next: any,
       }
     } else {
       await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ? AND queue_key = ?").bind(userId, "b:" + i).run();
-    }
-    for (const id of ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"]) {
-      const key = "r:" + i + ":" + id;
-      await db.prepare("INSERT INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?) ON CONFLICT(user_id, queue_key) DO UPDATE SET started_at=excluded.started_at")
-        .bind(userId, key, currentTime).run();
     }
     const oldShip = old?.shipQueue?.[0], newShip = p.shipQueue?.[0];
     const sameShip = oldShip && newShip && oldShip.id === newShip.id && oldShip.n === newShip.n
