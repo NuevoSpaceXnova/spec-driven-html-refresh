@@ -426,8 +426,8 @@ function validateSaveStructure(data: any): string {
     if (Object.keys(p.fleet).some(k => !SAVE_UNIT_KEYS.includes(k))) return "Unidad desconocida.";
     if (typeof p.moon !== "boolean" || typeof p.name !== "string" || typeof p.coords !== "string") return "Identidad del planeta no válida.";
     for (const k of ["metal","crystal","deut"]) if (typeof p.res[k] !== "number") return "Recurso con tipo incorrecto: " + k;
-    for (const k of SAVE_LEVEL_KEYS) if (p.lvl[k] === undefined) p.lvl[k] = 0;
-    for (const k of SAVE_UNIT_KEYS) if (p.fleet[k] === undefined) p.fleet[k] = 0;
+    for (const k of SAVE_LEVEL_KEYS) if (typeof p.lvl[k] !== "number") return "Falta un nivel o su tipo no es numérico: " + k + ".";
+    for (const k of SAVE_UNIT_KEYS) if (typeof p.fleet[k] !== "number") return "Falta una unidad o su tipo no es numérico: " + k + ".";
   }
   const expectedTypes: Record<string,string[]> = {
     planets:["array"], moves:["array"], inbox:["array"], market:["object"], galaxy:["object"],
