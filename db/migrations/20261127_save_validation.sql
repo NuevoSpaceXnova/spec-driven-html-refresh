@@ -1,10 +1,14 @@
 -- Validación antitrampas de partidas (Tarea 2)
+DROP TABLE IF EXISTS save_checks;
 CREATE TABLE IF NOT EXISTS save_checks (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  planet_id TEXT NOT NULL,
   metal REAL NOT NULL,
   crystal REAL NOT NULL,
   deuterium REAL NOT NULL,
-  checked_at INTEGER NOT NULL
+  max_ships TEXT NOT NULL DEFAULT '{}',
+  checked_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, planet_id)
 );
 
 CREATE TABLE IF NOT EXISTS save_rejects (
@@ -42,3 +46,7 @@ CREATE TABLE IF NOT EXISTS save_queue_checks (
   started_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, queue_key)
 );
+-- Reinicio autorizado de datos de juego (no borra wallet_moves, historial de auditoría).
+DELETE FROM saves;
+DELETE FROM wallets;
+DELETE FROM expeditions;
