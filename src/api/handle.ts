@@ -410,8 +410,6 @@ function validateSaveStructure(data: any): string {
   if (data.speed !== 1) return "Velocidad de partida no válida.";
   const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
   for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
-  const planetIds = data.planets.map((p: any) => saveCheckPlanetId(p));
-  if (planetIds.some((id: string) => id.startsWith("|")) || new Set(planetIds).size !== planetIds.length) return "Identificadores de planeta no válidos o duplicados.";
   for (const p of data.planets) {
     if (!saveRecord(p) || Object.keys(p).some(k => !SAVE_PLANET_KEYS.includes(k))) return "Estructura de planeta no válida.";
     if (typeof p.coords !== "string" || !p.coords.trim()) return "Coordenadas de planeta no válidas.";
@@ -468,6 +466,8 @@ function validateSaveStructure(data: any): string {
     const fields = p.moon ? 1 + 3 * p.lvl.lb : 163 + 5 * p.lvl.ter;
     if (used > fields) return "El planeta supera sus campos de construcción.";
   }
+  const planetIds = data.planets.map((p: any) => saveCheckPlanetId(p));
+  if (planetIds.some((id: string) => id.startsWith("|")) || new Set(planetIds).size !== planetIds.length) return "Identificadores de planeta no válidos o duplicados.";
   return "";
 }
 async function rejectSave(db: DB, userId: string, reason: string, status = 409): Promise<Response> {
