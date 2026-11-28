@@ -33,3 +33,6 @@ CREATE TABLE IF NOT EXISTS panel_unlock_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_panel_unlock_attempts_user_time
   ON panel_unlock_attempts (user_id, created_at);
+
+-- Elimina relojes de investigación de la implementación temporal ya retirada.
+DELETE FROM save_queue_checks WHERE queue_key LIKE 'r:%';
