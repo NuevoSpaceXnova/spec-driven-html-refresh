@@ -696,6 +696,41 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
   }
   return "";
 }
+function saveCheckPlanetId(p: any): string {
+  return String(p.coords || "") + "|" + (p.moon ? "moon" : "planet");
+}
+async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: any, next: any, checks: Map<string, any>, currentTime: number, fallbackElapsed: number): Promise<string> {
+  const shipCosts: Record<string,[number,number]> = {
+    nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
+    bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
+    rc:[50000,30000], sp:[0,5000], co:[50000,100000], sat:[0,10000],
+    lm:[10000,0], ll:[7500,2500], lg:[30000,10000], gc:[100000,75000], ci:[10000,30000],
+    cpl:[250000,250000], cs:[0,100000], cg:[100000,100000], mi:[62500,0],
+  };
+  for (let i = 0; i < next.planets.length; i++) {
+    const p = next.planets[i], old = previous.planets[i];
+    const row = checks.get(saveCheckPlanetId(p));
+    let historical: Record<string,number> = {};
+    if (row) {
+      try { historical = JSON.parse(row.max_ships || "{}"); } catch { return "Historial de flota corrupto."; }
+    }
+    const elapsed = row ? Math.max(0, currentTime - row.checked_at) : Math.max(0, fallbackElapsed);
+    const yard = old?.lvl?.sy || 0;
+    let totalBuildSeconds = 0;
+    for (const id of SAVE_UNIT_KEYS) {
+      const [metal, crystal] = shipCosts[id] || [0,0];
+      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * Math.max(0, yard - 1)))) / 1.5));
+      const previousMaximum = row ? Math.max(historical[id] || 0, old?.fleet?.[id] || 0) : 0;
+      const newUnits = Math.max(0, (p.fleet[id] || 0) - previousMaximum);
+      totalBuildSeconds += newUnits * unitSeconds;
+    }
+    const availableBuildSeconds = yard >= 1 ? elapsed * 3 : 0;
+    if (totalBuildSeconds > availableBuildSeconds) {
+      return "Flota o defensas superiores al máximo histórico y al tiempo total disponible del astillero.";
+    }
+  }
+  return "";
+}
 async function syncQueueChecks(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<void> {
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = previous?.planets?.[i];
@@ -1018,6 +1053,15 @@ const walletDarkUnlock: Route = async (request, db) => {
     .bind(user.id, -cost, "Desbloqueo de nave · " + shipId, row?.dark ?? 0, now()).run();
   return json({ ok: true, dark: row?.dark ?? 0, unlocked: true });
 };
+// Pase VIP en el servidor. Mismo precio y duración que el juego: 98.684 TOKEN por 30 días.
+const VIP_COST = 98684;
+const VIP_MS = 30 * 86400000;
+
+async function vipUntilFor(db: DB, userId: string): Promise<number> {
+  const row = await db.prepare("SELECT until_ms FROM vip WHERE user_id = ?").bind(userId).first<{ until_ms: number }>();
+  return row ? row.until_ms : 0;
+}
+
 const vipBuy: Route = async (request, db) => {
   const user = await currentUser(request, db);
   if (!user) return json({ error: "No autorizado" }, 401);
