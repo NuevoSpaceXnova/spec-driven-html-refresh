@@ -492,7 +492,7 @@ function firstSaveIsFresh(data: any): boolean {
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
 function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
-  const oldRes = baseline || saveResources(previous), newRes = saveResourcesCapped(next);
+  const oldRes = saveResources(previous), newRes = saveResourcesCapped(next);
   const oldPlanets = previous.planets || [];
   if (next.planets.length < oldPlanets.length) return "No se permite eliminar planetas desde el guardado.";
   const newColonies = next.planets.slice(oldPlanets.length).filter((p: any) => !p.moon);
@@ -589,8 +589,11 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
     }
   }
   const rates = maxSaveProduction(next);
+  const capacity = (resource: "metal"|"crystal"|"deuterium") => next.planets.reduce((sum: number, p: any) =>
+    sum + capOfSave(p.lvl[resource === "metal" ? "sm" : resource === "crystal" ? "sc" : "tk"]), 0);
   for (const resource of ["metal","crystal","deuterium"] as const) {
-    const allowedSpend = oldRes[resource] + rates[resource] * elapsed / 3600 * 3 - newRes[resource] + refunds[resource];
+    const allowedSpend = oldRes[resource] + capacity(resource) - newRes[resource]
+      + rates[resource] * elapsed / 3600 * 3 + refunds[resource];
     if (!Number.isFinite(required[resource]) || required[resource] > allowedSpend + 1) return "El gasto de construcción o investigación supera los recursos disponibles.";
   }
   return "";
@@ -617,22 +620,7 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
       const seconds = saveLevelBuildSeconds(changedBuildings[0], p.lvl[changedBuildings[0]], old.lvl);
       if (seconds > Math.max(0, currentTime - row.started_at) * 3) return "Construcción completada antes del tiempo permitido por el servidor.";
     }
-    let shipSeconds = 0;
-    const yard = Math.max(1, old.lvl.sy || 1);
-    for (const id of SAVE_UNIT_KEYS) {
-      const increase = (p.fleet[id] || 0) - (old.fleet[id] || 0);
-      if (increase <= 0) continue;
-      const [metal, crystal] = shipCosts[id] || [0,0];
-      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
-      shipSeconds += unitSeconds * increase;
-    }
-    if (shipSeconds > 0) {
-      if ((old.lvl.sy || 0) < 1) return "No se pueden construir unidades sin astillero.";
-      const row = await db.prepare("SELECT started_at FROM save_queue_checks WHERE user_id = ? AND queue_key = ?")
-        .bind(userId, "s:" + i).first<{started_at:number}>();
-      if (!row) return "No existe reloj de servidor para la cola de astillero.";
-      if (shipSeconds > Math.max(0, currentTime - row.started_at) * 3) return "Flota o defensas completadas antes del tiempo permitido por el servidor.";
-    }
+
   }
   return "";
 }
