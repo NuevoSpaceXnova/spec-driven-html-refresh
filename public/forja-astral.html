@@ -4654,6 +4654,10 @@ function viewResearch(){
         <section class="panel pad">
           <div class="cc-row"><span>Laboratorio de Investigación</span><span class="mono">Nivel ${lab}</span></div>
         </section>
+        <section class="panel pad">
+          <h2 class="section-title" style="margin-top:0">En investigación</h2>
+          <p class="desc" data-bind="resqueue" style="margin:0"></p>
+        </section>
         ${lab < 1 ? `<section class="panel pad" style="border-color:var(--status-warn, var(--res-energy))">
           <h2 class="section-title" style="margin-top:0">Laboratorio requerido</h2>
           <p class="desc" style="margin:0 0 12px">Construye un Laboratorio de Investigación en Instalaciones para desbloquear tecnologías.</p>
@@ -5165,6 +5169,7 @@ function valueOf(key){
     case 'eCons':   return fmt(e.cons);
     case 'fields':  return fmt(usedFields(P)) + ' / ' + fmt(maxFields(P));
     case 'lvl':     return 'Nivel ' + (L[a] || 0);
+    case 'resqueue': { const t = Math.floor(Date.now() / 1000); return state.resQueue.length ? state.resQueue.map(x => ITEMS[x.id].name + ' nivel ' + x.target + ' · ' + mmss(Math.max(0, x.end - t))).join(' · ') : 'Sin investigaciones en curso.'; }
     case 'dmcost':  { const v = dmCost(a, (L[a] || 0) + 1); return v ? fmt(state.dark) + '/' + fmt(v) : '—'; }
     case 'cost':    return fmt(state.res[b] || 0) + '/' + fmt(costOf(a, (L[a] || 0) + 1)[b]);
     case 'hourly': {
