@@ -71,7 +71,7 @@ No te detengas a preguntar por detalles que el código ya responde.
 
 # Reglas del juego ya decididas (no cambiar sin aprobación)
 
-- Costos: edificios, almacenes, instalaciones e investigación ×5 (cambiado de ×10 a petición de la dueña del proyecto); naves y defensas ×5.
+- Costos: edificios, almacenes, instalaciones e investigación ×10; naves y defensas ×5.
   El tiempo de construcción sigue el costo.
 - Cola de construcción: 1 orden gratis, hasta 4 con VIP.
 - VIP: 98.684 TOKEN por 30 días, +50 % producción, construcción, naves y cola.

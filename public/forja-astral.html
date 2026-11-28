@@ -1458,7 +1458,7 @@ function handleFase2Click(e){
 function costOf(id, N){
   const out = {metal:0, crystal:0, deut:0};
   const c = ITEMS[id] ? ITEMS[id].cost : null;
-  if (c) for (const k in c) out[k] = c[k](N) * 5;   // ×5: edificios, almacenes, instalaciones e investigaciones
+  if (c) for (const k in c) out[k] = c[k](N) * 10;   // ×10: edificios, almacenes, instalaciones e investigaciones
   return out;
 }
 
