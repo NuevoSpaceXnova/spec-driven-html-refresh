@@ -579,12 +579,14 @@ async function validateDarkProgression(db: DB, userId: string, previous: any, ne
     if (!old) continue;
     for (const k of SAVE_LEVEL_KEYS) if (p.lvl[k] < (old.lvl[k] || 0)) return "Los niveles no pueden disminuir.";
     for (const id of techKeys) {
+      const previousLevel = old.lvl[id] || 0;
       const target = p.lvl[id];
-      if (target <= (old.lvl[id] || 0) || target < 6) continue;
-      const cost = 10 * (target - 5);
-      const move = await db.prepare("SELECT id FROM dark_moves WHERE user_id = ? AND reason = ? AND delta = ?")
-        .bind(userId, `Mejora · ${id} nivel ${target}`, -cost).first();
-      if (!move) return "Investigación sin gasto autoritativo de materia oscura.";
+      for (let level = Math.max(6, previousLevel + 1); level <= target; level++) {
+        const cost = 10 * (level - 5);
+        const move = await db.prepare("SELECT id FROM dark_moves WHERE user_id = ? AND reason = ? AND delta = ?")
+          .bind(userId, `Mejora · ${id} nivel ${level}`, -cost).first();
+        if (!move) return "Investigación sin gasto autoritativo de materia oscura.";
+      }
     }
     const oldQueue = [old.queue, ...(old.queueExtra || [])].filter(Boolean);
     const newQueue = [p.queue, ...(p.queueExtra || [])].filter(Boolean);
