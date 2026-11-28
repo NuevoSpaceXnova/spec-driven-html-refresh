@@ -624,19 +624,24 @@ async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: a
   };
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = previous.planets[i];
-    if (!old) continue;
     const row = checks.get(saveCheckPlanetId(p));
-    if (!row) return "No existe historial de flota para el planeta.";
-    let historical: Record<string,number>;
-    try { historical = JSON.parse(row.max_ships || "{}"); } catch { return "Historial de flota corrupto."; }
-    const elapsed = Math.max(0, currentTime - row.checked_at);
-    const yard = Math.max(1, old.lvl.sy || 1);
+    let historical: Record<string,number> = {};
+    if (row) {
+      try { historical = JSON.parse(row.max_ships || "{}"); } catch { return "Historial de flota corrupto."; }
+    }
+    const elapsed = row ? Math.max(0, currentTime - row.checked_at) : 0;
+    const yard = old?.lvl?.sy || 0;
+    let totalBuildSeconds = 0;
     for (const id of SAVE_UNIT_KEYS) {
       const [metal, crystal] = shipCosts[id] || [0,0];
-      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
-      const maxBuildable = (old.lvl.sy || 0) >= 1 ? Math.floor(elapsed * 3 / unitSeconds) : 0;
-      const allowed = Math.max(historical[id] || 0, old.fleet[id] || 0) + maxBuildable;
-      if ((p.fleet[id] || 0) > allowed) return "Flota o defensas superiores al máximo histórico y a la producción posible del astillero.";
+      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * Math.max(0, yard - 1)))) / 1.5));
+      const previousMaximum = Math.max(historical[id] || 0, old?.fleet?.[id] || 0);
+      const newUnits = Math.max(0, (p.fleet[id] || 0) - previousMaximum);
+      totalBuildSeconds += newUnits * unitSeconds;
+    }
+    const availableBuildSeconds = yard >= 1 ? elapsed * 3 : 0;
+    if (totalBuildSeconds > availableBuildSeconds) {
+      return "Flota o defensas superiores al máximo histórico y al tiempo total disponible del astillero.";
     }
   }
   return "";

@@ -1,5 +1,4 @@
 -- Validación antitrampas de partidas (Tarea 2)
-DROP TABLE IF EXISTS save_checks;
 CREATE TABLE IF NOT EXISTS save_checks (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   planet_id TEXT NOT NULL,
@@ -50,3 +49,4 @@ CREATE TABLE IF NOT EXISTS save_queue_checks (
 DELETE FROM saves;
 DELETE FROM wallets;
 DELETE FROM expeditions;
+DELETE FROM vip;

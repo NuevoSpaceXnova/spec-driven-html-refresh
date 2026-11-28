@@ -89,8 +89,10 @@ No te detengas a preguntar por detalles que el código ya responde.
 
 # Problemas de seguridad conocidos (no los "descubras" de nuevo)
 
-- `/api/save` acepta el estado que envía el navegador sin validar: un jugador puede
-  darse recursos. Pendiente de arreglo (validación con topes y delta por tiempo).
+- `/api/save` ya valida estructura, progresión, tiempos, gasto y crecimiento de flota.
+  Limitación conocida hasta B2: el máximo histórico de naves nunca baja; por tanto,
+  un jugador puede recuperar gratis una flota destruida en combate. Se cierra en B2,
+  cuando las flotas vivan en el servidor.
 - `/api/expedition/roll` no tiene enfriamiento ni exige una expedición real: se puede
   repetir en bucle y vaciar la reserva. Pendiente de arreglo.
 - `/api/wallet/spend` deja que el cliente fije el importe. Pendiente: precios en el servidor.
