@@ -466,12 +466,14 @@ function saveResources(data: any): { metal: number; crystal: number; deuterium: 
     metal: sum.metal + p.res.metal, crystal: sum.crystal + p.res.crystal, deuterium: sum.deuterium + p.res.deut,
   }), { metal: 0, crystal: 0, deuterium: 0 });
 }
+// Multiplicador de producción de minas (×3, decidido). Debe coincidir con el juego.
+const MINE_PRODUCTION_MULTIPLIER = 3;
 function maxSaveProduction(data: any): { metal: number; crystal: number; deuterium: number } {
   const pw = (n: number) => n * Math.pow(1.1, n);
   return (data.planets || []).reduce((sum: any, p: any) => {
     if (p.moon) return sum;
     const l = p.lvl;
-    const bonus = 2.025; // alianza + clase + geólogo (35 %) y VIP (50 %)
+    const bonus = 2.025 * MINE_PRODUCTION_MULTIPLIER; // alianza + clase + geólogo (35 %) y VIP (50 %), ×3 producción de minas
     return {
       metal: sum.metal + (30 + 30 * pw(l.mm)) * bonus,
       crystal: sum.crystal + (15 + 20 * pw(l.mc)) * bonus,
