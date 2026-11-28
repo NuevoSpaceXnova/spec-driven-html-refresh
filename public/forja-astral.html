@@ -1111,6 +1111,7 @@ const state = {
   daily:{day:0, p:{upgrade:0, ships:0, expe:0, offer:0}, c:{}},
   expLog:[],
   expFlights:[],
+  resQueue:[],
   alliance:null,
   alliances:[],
   ranking:null,
@@ -1144,7 +1145,7 @@ const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales de
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, expFlights:state.expFlights, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, expFlights:state.expFlights, resQueue:state.resQueue, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     queueCloud();
     return true;
   } catch (err) { return false; }
@@ -1318,6 +1319,7 @@ function loadGame(override){
     if (d.daily) state.daily = d.daily;
     if (d.expLog) state.expLog = d.expLog;
     if (Array.isArray(d.expFlights)) state.expFlights = d.expFlights;
+    if (Array.isArray(d.resQueue)) state.resQueue = d.resQueue;
     if (d.alliance !== undefined) state.alliance = d.alliance;
     if (d.alliances) state.alliances = d.alliances;
     if (d.ranking) state.ranking = d.ranking;
@@ -1336,7 +1338,7 @@ function resetUniverse(){
     res:{metal:500, crystal:300, deut:0, token:500}, lvl:makeLvl(true), fleet:makeFleet(), queue:null, moon:false}];
   state.active = 0;
   bindActive();
-  state.moves = []; state.inbox = []; state.expLog = []; state.spent = 0; state.simSec = 0;
+  state.moves = []; state.inbox = []; state.expLog = []; state.spent = 0; state.simSec = 0; state.resQueue = [];
   state.daily = {day:0, p:{upgrade:0, ships:0, expe:0, offer:0}, c:{}};
   state.alliance = null; state.alliances = []; state.ranking = null;
   state.market = {own:[], rivals:[]};
@@ -3001,8 +3003,44 @@ function reflowQueue(P){
   (P.queueExtra || []).forEach(x => { x.end = t + x.total; t = x.end; });
 }
 
+// Tiempos de investigación (minutos en nivel 1; cada nivel nuevo tarda 1,5 veces más). Igual que el servidor.
+const RESEARCH_BASE_MIN = {en:10, cm:10, bl:15, es:10, cp:12, ap:60, lz:15, io:25, pl:60, im:30, hd:45, hy:90, gv:120};
+function researchSecondsOf(id, target){ return Math.round(RESEARCH_BASE_MIN[id] * 60 * Math.pow(1.5, target - 1)); }
+function maxTechLevel(id){ return state.planets.filter(P => !P.moon).reduce((m, P) => Math.max(m, (P.lvl[id] || 0)), 0); }
+function resTargetOf(id){ return maxTechLevel(id) + state.resQueue.filter(x => x.id === id).length + 1; }
+function resQueueEnd(){ const q = state.resQueue; return q.length ? q[q.length - 1].end : 0; }
+// Todas las investigaciones son del imperio: todos los planetas (no lunas) tienen el mismo nivel
+function unifyTechLevels(){
+  TECH_KEYS.forEach(id => {
+    const m = maxTechLevel(id);
+    state.planets.forEach(P => { if (!P.moon && (P.lvl[id] || 0) < m) P.lvl[id] = m; });
+  });
+}
+// Paga la investigación al entrar en la cola; el nivel sube cuando termina su reloj
+async function queueResearch(id){
+  if (!reqMet(id)) return refresh();
+  if (state.resQueue.length >= (isVip() ? 4 : 1)) return setStatus('La cola de investigación está llena.', true);
+  const N = resTargetOf(id);
+  const c = costOf(id, N);
+  const darkCost = dmCost(id, N);
+  if (state.dark < darkCost || !RES.every(r => state.res[r] >= c[r])) return refresh();
+  if (darkCost){
+    const spend = await walletDarkSpend(darkCost, 'Mejora · ' + id + ' nivel ' + N);
+    if (!spend) return;
+  }
+  RES.forEach(r => { state.res[r] -= c[r]; });
+  state.spent += c.metal + c.crystal + c.deut;
+  const start = Math.max(Math.floor(Date.now() / 1000), resQueueEnd());
+  state.resQueue.push({id, target: N, start, end: start + researchSecondsOf(id, N)});
+  saveGame();
+  await pushCloud();
+  setStatus('Investigación en cola: ' + ITEMS[id].name + ' nivel ' + N + '.');
+  refresh();
+}
+
 async function upgrade(id){
   const it = ITEMS[id];
+  if (it && it.view === 'research') return queueResearch(id);
   if (!it || !canAfford(id)) return refresh();
   const N = state.lvl[id] + 1;
   const c = costOf(id, N);
@@ -3014,14 +3052,6 @@ async function upgrade(id){
     const spend = await walletDarkSpend(darkCost, 'Mejora · ' + id + ' nivel ' + N);
     if (!spend) return;
     darkSpendId = spend.spendId;
-  }
-  if (it.view === 'research'){
-    RES.forEach(r => { state.res[r] -= c[r]; });
-    state.lvl[id] = N;
-    state.spent += c.metal + c.crystal + c.deut;
-    saveGame();
-    await pushCloud();
-    return refresh();
   }
   const P = activePlanet();
   RES.forEach(r => { state.res[r] -= c[r]; });
@@ -3060,6 +3090,18 @@ async function cancelBuild(){
 }
 // Completa las construcciones cuyo tiempo simulado ha pasado, en todos los planetas y lunas
 function processQueues(){
+  unifyTechLevels();
+  const nowSec = Math.floor(Date.now() / 1000);
+  const doneRes = state.resQueue.filter(x => nowSec >= x.end);
+  if (doneRes.length){
+    state.resQueue = state.resQueue.filter(x => nowSec < x.end);
+    doneRes.forEach(x => {
+      state.planets.forEach(P => { if (!P.moon) P.lvl[x.id] = Math.max(P.lvl[x.id] || 0, x.target); });
+      toast('Investigación terminada: ' + ITEMS[x.id].name + ' nivel ' + x.target + '.');
+    });
+    saveGame();
+    pushCloud();
+  }
   state.planets.forEach(P => {
     let shipsCompleted = false;
     while (P.shipQueue && P.shipQueue.length && state.simSec >= P.shipQueue[0].end){
@@ -5180,6 +5222,10 @@ function refreshBuildButtons(){
     } else if (it.view !== 'research' && q && (queueIds(P).includes(id) || queueFull(P))){
       btn.disabled = true;
       btn.textContent = queueIds(P).includes(id) ? 'En cola' : 'Cola ocupada';
+    } else if (it.view === 'research'){
+      const N = resTargetOf(id), c = costOf(id, N);
+      btn.disabled = !reqMet(id) || state.resQueue.length >= (isVip() ? 4 : 1) || state.dark < dmCost(id, N) || !RES.every(r => state.res[r] >= c[r]);
+      btn.textContent = 'Subir a nivel ' + N;
     } else {
       btn.disabled = !canAfford(id);
       btn.textContent = 'Subir a nivel ' + ((state.lvl[id] || 0) + 1);

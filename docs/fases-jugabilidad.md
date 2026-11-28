@@ -66,20 +66,13 @@ Fórmula: `(metal + cristal) / (2500 × (1 + nivel Fábrica de Robots)) horas`, 
 | Fábrica de Robots, nivel 1 | 520 | ~12,5 min |
 | Astillero Naval, nivel 1 | 600 | ~14 min |
 
-### 3.2 Investigaciones (propuesta, pendiente de confirmar)
+### 3.2 Investigaciones (aprobado)
 
-Hoy son instantáneas. Propuesta:
+- Los niveles de investigación son del imperio: todos los planetas (no lunas) tienen el mismo nivel.
+- Tiempo en nivel 1 en minutos: en 10, cm 10, bl 15, es 10, cp 12, ap 60, lz 15, io 25, pl 60, im 30, hd 45, hy 90, gv 120. Cada nivel nuevo tarda ×1,5.
+- Cola: 1 investigación sin VIP, 4 con VIP. Se paga al entrar en la cola.
 
-- **Tiempo** = costo total (metal + cristal + deuterio) / (2500 × (1 + nivel del Laboratorio de Investigación)) horas. Igual que los edificios, pero con el laboratorio como divisor.
-- **Cola:** una investigación a la vez por cuenta. **Pendiente:** confirmar si la cola es por planeta o por cuenta.
-
-Ejemplos con laboratorio nivel 1:
-
-| Investigación | Costo total | Tiempo |
-|---|---|---|
-| Tecnología de Energía, nivel 1 | 1.200 | ~14 min |
-| Tecnología de Armas, nivel 1 | 1.000 | ~12 min |
-| Astrofísica, nivel 1 | 16.000 | ~3,2 h |
+Hoy son instantáneas. Los tiempos de la lista de arriba sustituyen la propuesta anterior por fórmula, que queda descartada.
 
 ### 3.3 Naves (vigente en el código, pendiente de revisión)
 
@@ -99,7 +92,6 @@ Ejemplo: Cazador Ligero con astillero nivel 1 tarda unas 1,6 h por unidad. Revis
 
 ## 5. Pendiente
 
-- Confirmar la fórmula de tiempo de investigaciones (sección 3.2) y si la cola es por planeta o por cuenta.
 - Revisar el tiempo de construcción de naves (sección 3.3) por fase.
 - Lista completa de edificios, investigaciones y naves con sus valores de costo, tiempo y requisito.
 - Incluir el consumo de energía en la recuperación de minas. Hoy la cifra de recuperación no lo incluye.

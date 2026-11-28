@@ -385,7 +385,7 @@ const permissionSet: Route = async (request, db, env) => {
 
 // Partida de la cuenta. Control de versión: si otra pestaña guardó antes, responde 409 con la copia actual.
 const MAX_SAVE_CHARS = 1_500_000;
-const SAVE_TOP_KEYS = ["v","expFlights","token","planets","active","moves","inbox","market","galaxy","debris","speed","testMode","vipUntil","dark","dmShips","animOff","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","daily","expLog","alliance","alliances","ranking","profile","wallet","txs","officers","empireClass","vacation","prod","stats","referrals"];
+const SAVE_TOP_KEYS = ["v","expFlights","resQueue","token","planets","active","moves","inbox","market","galaxy","debris","speed","testMode","vipUntil","dark","dmShips","animOff","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","daily","expLog","alliance","alliances","ranking","profile","wallet","txs","officers","empireClass","vacation","prod","stats","referrals"];
 const SAVE_LEVEL_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg","en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
 const SAVE_UNIT_KEYS = ["nc","ng","cz","ch","cr","bt","ac","bm","de","dr","rc","sp","co","sat","lm","ll","lg","gc","ci","cpl","cs","cg","mi"];
 const SAVE_BUILD_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg"];
@@ -496,6 +496,7 @@ function validateSaveStructure(data: any): string {
   if (!Number.isInteger(data.active) || data.active < 0 || data.active >= data.planets.length) return "Planeta activo no válido.";
   if (data.speed !== 1) return "Velocidad de partida no válida.";
   if (data.expFlights !== undefined && (!Array.isArray(data.expFlights) || data.expFlights.length > 5)) return "Expediciones en camino no válidas.";
+  if (data.resQueue !== undefined && (!Array.isArray(data.resQueue) || data.resQueue.length > 4)) return "Cola de investigación no válida.";
   const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
   for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   for (const p of data.planets) {
@@ -573,6 +574,16 @@ function firstSaveIsFresh(data: any): boolean {
   if (SAVE_UNIT_KEYS.some(k => p.fleet[k] !== 0)) return false;
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
+// Investigación del imperio: tiempo fijo en nivel 1 (minutos); cada nivel nuevo tarda 1,5 veces más (decidido).
+const RESEARCH_IDS = ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
+const RESEARCH_BASE_MIN: Record<string, number> = { en:10, cm:10, bl:15, es:10, cp:12, ap:60, lz:15, io:25, pl:60, im:30, hd:45, hy:90, gv:120 };
+const RESEARCH_TOLERANCE_SECONDS = 60;
+function researchSeconds(id: string, target: number): number {
+  return Math.round(RESEARCH_BASE_MIN[id] * 60 * Math.pow(1.5, target - 1));
+}
+function researchQueueKey(id: string, target: number): string {
+  return `r:${id}:${target}`;
+}
 function validateGrowth(previous: any, next: any, elapsed: number): string {
   const oldRes = saveResources(previous);
   const oldPlanets = previous.planets || [];
@@ -606,18 +617,16 @@ function validateGrowth(previous: any, next: any, elapsed: number): string {
     pl:[2000,4000,1000,2], im:[800,0,400,2], hd:[1500,800,600,2], hy:[4000,4000,2000,2], gv:[0,20000,10000,2],
   };
   const researchSpend = {metal:0, crystal:0, deut:0};
-  for (let i = 0; i < next.planets.length; i++) {
-    const old = oldPlanets[i];
-    if (!old) continue;
-    for (const [id, c] of Object.entries(researchCosts)) {
-      const increase = next.planets[i].lvl[id] - (old.lvl[id] || 0);
-      for (let n = 1; n <= increase; n++) {
-        const factor = Math.pow(c[3], (old.lvl[id] || 0) + n - 1);
-        researchSpend.metal += Math.floor(c[0] * factor);
-        researchSpend.crystal += Math.floor(c[1] * factor);
-        researchSpend.deut += Math.floor(c[2] * factor);
-      }
-    }
+  // La investigación se paga al entrar en la cola: se cuenta lo que se encoló en esta partida.
+  const queuedBefore = new Set((previous.resQueue || []).map((x: any) => `${x.id}:${x.target}`));
+  for (const item of (next.resQueue || [])) {
+    if (queuedBefore.has(`${item.id}:${item.target}`)) continue;
+    const c = researchCosts[item.id];
+    if (!c) continue;
+    const factor = Math.pow(c[3], item.target - 1);
+    researchSpend.metal += Math.floor(c[0] * factor);
+    researchSpend.crystal += Math.floor(c[1] * factor);
+    researchSpend.deut += Math.floor(c[2] * factor);
   }
   const required = {metal:researchSpend.metal, crystal:researchSpend.crystal, deuterium:researchSpend.deut};
   const refunds = {metal:0, crystal:0, deuterium:0};
@@ -702,6 +711,67 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
 function saveCheckPlanetId(p: any): string {
   return String(p.coords || "") + "|" + (p.moon ? "moon" : "planet");
 }
+// Cola de investigación del imperio. Valida que cada nivel nuevo tenga su reloj cumplido.
+async function validateResearch(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<string> {
+  const prevQ: any[] = Array.isArray(previous.resQueue) ? previous.resQueue : [];
+  const nextQ: any[] = Array.isArray(next.resQueue) ? next.resQueue : [];
+  const vipOn = (await vipUntilFor(db, userId)) > Date.now();
+  if (nextQ.length > (vipOn ? 4 : 1)) return "La cola de investigación está llena.";
+  for (const item of nextQ) {
+    if (!item || typeof item.id !== "string" || !RESEARCH_IDS.includes(item.id) || !Number.isInteger(item.target) || item.target < 1 || item.target > 100) {
+      return "Investigación en cola no válida.";
+    }
+  }
+  for (const item of nextQ) {
+    if (prevQ.some((x: any) => x && x.id === item.id && x.target === item.target)) continue;
+    const base = maxResearchLevel(previous.planets || [], item.id);
+    const queuedBefore = nextQ.filter((x: any) => x && x.id === item.id && x.target < item.target).length;
+    if (item.target !== base + queuedBefore + 1) return "Orden de la cola de investigación no válido.";
+  }
+  for (const id of RESEARCH_IDS) {
+    const before = maxResearchLevel(previous.planets || [], id);
+    const after = maxResearchLevel(next.planets || [], id);
+    if (after < before) return "Los niveles no pueden disminuir.";
+    for (let level = before + 1; level <= after; level++) {
+      if (!prevQ.some((x: any) => x && x.id === id && x.target === level)) return "Investigación sin cola válida.";
+      const row = await db.prepare("SELECT started_at FROM save_queue_checks WHERE user_id = ? AND queue_key = ?")
+        .bind(userId, researchQueueKey(id, level)).first<{ started_at: number }>();
+      if (!row) return "No existe reloj de servidor para la investigación.";
+      if (researchSeconds(id, level) > Math.max(0, currentTime - row.started_at) + RESEARCH_TOLERANCE_SECONDS) {
+        return "Investigación completada antes del tiempo permitido por el servidor.";
+      }
+    }
+  }
+  for (const item of prevQ) {
+    if (!item || nextQ.some((x: any) => x && x.id === item.id && x.target === item.target)) continue;
+    if (maxResearchLevel(next.planets || [], item.id) < item.target) return "Investigación quitada de la cola sin completarse.";
+  }
+  return "";
+}
+// Guarda el reloj de cada investigación nueva (empieza cuando termina la anterior) y borra los que ya no están.
+async function syncResearchQueue(db: DB, userId: string, previous: any, next: any, currentTime: number): Promise<void> {
+  const prevQ: any[] = Array.isArray(previous.resQueue) ? previous.resQueue : [];
+  const nextQ: any[] = Array.isArray(next.resQueue) ? next.resQueue : [];
+  const keep = new Set(nextQ.map((x: any) => researchQueueKey(x.id, x.target)));
+  for (const item of prevQ) {
+    const key = researchQueueKey(item.id, item.target);
+    if (!keep.has(key)) await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ? AND queue_key = ?").bind(userId, key).run();
+  }
+  let lastEnd = 0;
+  for (const item of nextQ) {
+    const key = researchQueueKey(item.id, item.target);
+    const row = await db.prepare("SELECT started_at FROM save_queue_checks WHERE user_id = ? AND queue_key = ?")
+      .bind(userId, key).first<{ started_at: number }>();
+    let start: number;
+    if (row) start = row.started_at;
+    else {
+      start = Math.max(currentTime, lastEnd);
+      await db.prepare("INSERT INTO save_queue_checks (user_id, queue_key, started_at) VALUES (?, ?, ?)")
+        .bind(userId, key, start).run();
+    }
+    lastEnd = start + researchSeconds(item.id, item.target);
+  }
+}
 async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: any, next: any, checks: Map<string, any>, currentTime: number, fallbackElapsed: number): Promise<string> {
   const shipCosts: Record<string,[number,number]> = {
     nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
@@ -765,6 +835,9 @@ async function syncQueueChecks(db: DB, userId: string, previous: any, next: any,
     }
   }
 }
+function maxResearchLevel(planets: any[], id: string): number {
+  return planets.reduce((m: number, x: any) => Math.max(m, (x && x.lvl && x.lvl[id]) || 0), 0);
+}
 async function validateDarkProgression(db: DB, userId: string, previous: any, next: any): Promise<string> {
   const techKeys = ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
   const findSpend = async (spendId: number, id: string, level: number): Promise<boolean> => {
@@ -776,20 +849,20 @@ async function validateDarkProgression(db: DB, userId: string, previous: any, ne
     const refunded = await db.prepare("SELECT id FROM dark_moves WHERE refund_of = ?").bind(spendId).first();
     return !refunded;
   };
+  for (const id of techKeys) {
+    const previousLevel = maxResearchLevel(previous.planets || [], id);
+    const target = maxResearchLevel(next.planets || [], id);
+    for (let level = Math.max(6, previousLevel + 1); level <= target; level++) {
+      const cost = 10 * (level - 5);
+      const move = await db.prepare("SELECT id FROM dark_moves WHERE user_id = ? AND reason = ? AND delta = ?")
+        .bind(userId, `Mejora · ${id} nivel ${level}`, -cost).first();
+      if (!move) return "Investigación sin gasto autoritativo de materia oscura.";
+    }
+  }
   for (let i = 0; i < next.planets.length; i++) {
     const p = next.planets[i], old = previous.planets[i];
     if (!old) continue;
     for (const k of SAVE_LEVEL_KEYS) if (p.lvl[k] < (old.lvl[k] || 0)) return "Los niveles no pueden disminuir.";
-    for (const id of techKeys) {
-      const previousLevel = old.lvl[id] || 0;
-      const target = p.lvl[id];
-      for (let level = Math.max(6, previousLevel + 1); level <= target; level++) {
-        const cost = 10 * (level - 5);
-        const move = await db.prepare("SELECT id FROM dark_moves WHERE user_id = ? AND reason = ? AND delta = ?")
-          .bind(userId, `Mejora · ${id} nivel ${level}`, -cost).first();
-        if (!move) return "Investigación sin gasto autoritativo de materia oscura.";
-      }
-    }
     const dmShipIds = ["bt","ac","bm","de","dr","gc","cpl","cg"];
     for (const id of dmShipIds) {
       if ((p.fleet[id] || 0) <= (old.fleet[id] || 0)) continue;
@@ -877,6 +950,8 @@ const savePut: Route = async (request, db) => {
   const elapsed = checkRows.results?.length ? Math.max(0, currentTime - Math.min(...checkRows.results.map((r: any) => r.checked_at))) : 0;
   const timedError = await validateTimedGrowth(db, user.id, previous, parsed, currentTime);
   if (timedError) return rejectSave(db, user.id, timedError);
+  const researchError = await validateResearch(db, user.id, previous, parsed, currentTime);
+  if (researchError) return rejectSave(db, user.id, researchError);
   const growthError = validateGrowth(previous, parsed, elapsed);
   if (growthError) return rejectSave(db, user.id, growthError);
   const fleetError = await validateHistoricalFleetGrowth(db, user.id, previous, parsed, checks, currentTime, elapsed);
@@ -899,6 +974,7 @@ const savePut: Route = async (request, db) => {
     await db.prepare("INSERT INTO save_checks (user_id, planet_id, metal, crystal, deuterium, max_ships, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, planet_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, max_ships=excluded.max_ships, checked_at=excluded.checked_at")
       .bind(user.id, planetId, p.res.metal, p.res.crystal, p.res.deut, JSON.stringify(historical), currentTime).run();
   }
+  await syncResearchQueue(db, user.id, previous, parsed, currentTime);
   await syncQueueChecks(db, user.id, previous, parsed, now());
   return json({ ok: true, version: version + 1, clipped, resources: parsed.planets.map((p: any) => ({metal:p.res.metal, crystal:p.res.crystal, deut:p.res.deut})) });
 };
