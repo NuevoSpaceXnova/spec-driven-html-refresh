@@ -96,3 +96,5 @@ No te detengas a preguntar por detalles que el código ya responde.
 - `/api/expedition/roll` no tiene enfriamiento ni exige una expedición real: se puede
   repetir en bucle y vaciar la reserva. Pendiente de arreglo.
 - `/api/wallet/spend` deja que el cliente fije el importe. Pendiente: precios en el servidor.
+- El bloqueo temporal de `/api/login` por correo permite que alguien bloquee durante 15 minutos la cuenta de otra persona provocando 10 fallos consecutivos. Limitación aceptada mientras no haya jugadores; revisar antes de abrir el juego a jugadores reales.
+- La investigación es instantánea por diseño y solo consume recursos hasta que se apruebe una cola de investigación con tiempos; cuando exista, habrá que añadir su reloj en el servidor siguiendo el mismo patrón que la cola de construcción.

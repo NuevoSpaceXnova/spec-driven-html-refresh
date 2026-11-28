@@ -21,6 +21,15 @@ type Route = (request: Request, db: DB, env: ApiEnv) => Promise<Response>;
 
 const now = () => Math.floor(Date.now() / 1000);
 
+const LOGIN_IP_WINDOW = 10 * 60;
+const LOGIN_ACCOUNT_LOCK = 15 * 60;
+const REGISTER_IP_WINDOW = 24 * 60 * 60;
+const PANEL_UNLOCK_WINDOW = 15 * 60;
+
+function requestIp(request: Request): string {
+  return (request.headers.get("CF-Connecting-IP") || "unknown").trim().slice(0, 128);
+}
+
 // Secciones del panel. El administrador las tiene todas; el ayudante solo las que se le den.
 export const SECTIONS = ["retiros", "trazabilidad", "saldos", "precio", "temporadas", "jugadores", "premios", "movimientos", "mercado", "limites", "multicuentas", "materia", "registro", "pruebas"];
 
@@ -168,37 +177,98 @@ const register: Route = async (request, db) => {
   const password = String(body.password ?? "");
   if (!email) return json({ error: "Correo no válido" }, 400);
   if (password.length < 8) return json({ error: "La contraseña debe tener al menos 8 caracteres" }, 400);
-
-  if (await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first()) {
-    return json({ error: "Ese correo ya está registrado" }, 409);
+  const current = now();
+  const ip = requestIp(request);
+  const ipCount = await db.prepare(
+    "SELECT COUNT(*) AS total FROM register_attempts WHERE ip = ? AND created_at > ?",
+  ).bind(ip, current - REGISTER_IP_WINDOW).first<{ total: number }>();
+  if ((ipCount?.total ?? 0) >= 3) {
+    return json({ error: "Has alcanzado el límite de 3 registros por día desde esta IP. Inténtalo mañana." }, 429);
   }
+
+  const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+  if (existing) return json({ error: "Ese correo ya está registrado" }, 409);
+
+  const reservationId = crypto.randomUUID();
+  const reservation = await db.prepare(`
+    INSERT INTO register_attempts (id, ip, created_at)
+    SELECT ?, ?, ?
+    WHERE (SELECT COUNT(*) FROM register_attempts WHERE ip = ? AND created_at > ?) < 3
+  `).bind(reservationId, ip, current, ip, current - REGISTER_IP_WINDOW).run();
+
+  if (!reservation.meta?.changes) {
+    return json({ error: "Has alcanzado el límite de 3 registros por día desde esta IP. Inténtalo mañana." }, 429);
+  }
+
   const id = crypto.randomUUID();
   try {
-    await db
-      .prepare("INSERT INTO users (id, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(id, email, await hashPassword(password), "player", now())
-      .run();
+    await db.prepare(
+      "INSERT INTO users (id, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+    ).bind(id, email, await hashPassword(password), "player", current).run();
   } catch {
-    return json({ error: "Ese correo ya está registrado" }, 409);
+    await db.prepare("DELETE FROM register_attempts WHERE id = ?").bind(reservationId).run();
+    return json({ error: "No se pudo completar el registro." }, 409);
   }
+
   const token = await createSession(db, id);
   return json({ user: { email, role: "player" } }, 201, { "Set-Cookie": sessionCookie(token) });
 };
 
 const login: Route = async (request, db) => {
+  const activeUser = await currentUser(request, db);
+  if (activeUser) {
+    return json({ user: { email: activeUser.email, role: activeUser.role } });
+  }
+
   const body = await readJson(request);
   if (!body) return json({ error: "Datos no válidos" }, 400);
   const email = normEmail(body.email);
+  const attemptEmail = (email || String(body.email ?? "").trim().toLowerCase()).slice(0, 254);
   const password = String(body.password ?? "");
-  const user = email
-    ? await db
-        .prepare("SELECT id, email, password_hash, role FROM users WHERE email = ?")
-        .bind(email)
-        .first<{ id: string; email: string; password_hash: string; role: string }>()
-    : null;
-  if (!user || !(await checkPassword(password, user.password_hash))) {
+  const ip = requestIp(request);
+  const current = now();
+
+  await db.prepare("DELETE FROM login_attempts WHERE created_at < ?")
+    .bind(current - 30 * 24 * 60 * 60).run();
+  await db.prepare("DELETE FROM register_attempts WHERE created_at < ?")
+    .bind(current - 30 * 24 * 60 * 60).run();
+
+  const ipFailures = await db.prepare(
+    "SELECT COUNT(*) AS total FROM login_attempts WHERE ip = ? AND created_at > ? AND ok = 0",
+  ).bind(ip, current - LOGIN_IP_WINDOW).first<{ total: number }>();
+  if ((ipFailures?.total ?? 0) >= 10) {
+    return json({ error: "Demasiados intentos. Espera 10 minutos antes de volver a intentarlo." }, 429);
+  }
+
+  const lastTen = await db.prepare(
+    "SELECT created_at, ok FROM login_attempts WHERE email = ? ORDER BY created_at DESC, id DESC LIMIT 10",
+  ).bind(attemptEmail).all<{ created_at: number; ok: number }>();
+  const recent = lastTen.results || [];
+  if (recent.length === 10 && recent.every((attempt) => attempt.ok === 0)
+    && recent[0].created_at > current - LOGIN_ACCOUNT_LOCK) {
+    return json({ error: "Demasiados intentos. Inténtalo de nuevo dentro de 15 minutos." }, 429);
+  }
+
+  const user = email ? await db.prepare(
+    "SELECT id, email, password_hash, role FROM users WHERE email = ?",
+  ).bind(email).first<{ id: string; email: string; password_hash: string; role: string }>() : null;
+  const valid = !!user && await checkPassword(password, user.password_hash);
+
+  await db.prepare(
+    "INSERT INTO login_attempts (ip, email, created_at, ok) VALUES (?, ?, ?, ?)",
+  ).bind(ip, attemptEmail, current, valid ? 1 : 0).run();
+
+  if (!valid || !user) {
+    const latest = await db.prepare(
+      "SELECT created_at, ok FROM login_attempts WHERE email = ? ORDER BY created_at DESC, id DESC LIMIT 10",
+    ).bind(attemptEmail).all<{ created_at: number; ok: number }>();
+    const attempts = latest.results || [];
+    if (attempts.length === 10 && attempts.every((attempt) => attempt.ok === 0)) {
+      return json({ error: "Demasiados intentos. Inténtalo de nuevo dentro de 15 minutos." }, 429);
+    }
     return json({ error: "Correo o contraseña incorrectos" }, 401);
   }
+
   const token = await createSession(db, user.id);
   return json({ user: { email: user.email, role: user.role } }, 200, { "Set-Cookie": sessionCookie(token) });
 };
@@ -227,10 +297,25 @@ const panelUnlock: Route = async (request, db, env) => {
   const user = await currentUser(request, db);
   if (!user || (user.role !== "admin" && user.role !== "assistant")) return json({ error: "No autorizado" }, 403);
   if (!env.PANEL_PASSWORD) return json({ error: "El panel todavía no tiene contraseña configurada" }, 503);
+  if (await panelUnlocked(request, env)) return json({ ok: true });
+
+  const current = now();
+  const attempts = await db.prepare(
+    "SELECT COUNT(*) AS total FROM panel_unlock_attempts WHERE user_id = ? AND created_at > ?",
+  ).bind(user.id, current - PANEL_UNLOCK_WINDOW).first<{ total: number }>();
+  if ((attempts?.total ?? 0) >= 5) {
+    return json({ error: "Has alcanzado 5 intentos. Espera 15 minutos antes de volver a intentarlo." }, 429);
+  }
+
   const body = await readJson(request);
   const given = await sha256Hex(String(body?.password ?? ""));
   const expected = await sha256Hex(env.PANEL_PASSWORD);
-  if (given !== expected) return json({ error: "Contraseña incorrecta" }, 401);
+  const valid = given === expected;
+  await db.prepare(
+    "INSERT INTO panel_unlock_attempts (user_id, created_at, ok) VALUES (?, ?, ?)",
+  ).bind(user.id, current, valid ? 1 : 0).run();
+
+  if (!valid) return json({ error: "Contraseña incorrecta" }, 401);
   return json({ ok: true }, 200, { "Set-Cookie": panelCookie(await panelToken(request, env.PANEL_PASSWORD)) });
 };
 
@@ -608,41 +693,6 @@ async function validateTimedGrowth(db: DB, userId: string, previous: any, next: 
       if (seconds > Math.max(0, currentTime - row.started_at) * 3) return "Construcción completada antes del tiempo permitido por el servidor.";
     }
 
-  }
-  return "";
-}
-function saveCheckPlanetId(p: any): string {
-  return String(p.coords || "") + "|" + (p.moon ? "moon" : "planet");
-}
-async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: any, next: any, checks: Map<string, any>, currentTime: number, fallbackElapsed: number): Promise<string> {
-  const shipCosts: Record<string,[number,number]> = {
-    nc:[10000,10000], ng:[30000,30000], cz:[15000,5000], ch:[30000,20000], cr:[100000,35000],
-    bt:[225000,75000], ac:[150000,200000], bm:[250000,125000], de:[300000,250000], dr:[25000000,20000000],
-    rc:[50000,30000], sp:[0,5000], co:[50000,100000], sat:[0,10000],
-    lm:[10000,0], ll:[7500,2500], lg:[30000,10000], gc:[100000,75000], ci:[10000,30000],
-    cpl:[250000,250000], cs:[0,100000], cg:[100000,100000], mi:[62500,0],
-  };
-  for (let i = 0; i < next.planets.length; i++) {
-    const p = next.planets[i], old = previous.planets[i];
-    const row = checks.get(saveCheckPlanetId(p));
-    let historical: Record<string,number> = {};
-    if (row) {
-      try { historical = JSON.parse(row.max_ships || "{}"); } catch { return "Historial de flota corrupto."; }
-    }
-    const elapsed = row ? Math.max(0, currentTime - row.checked_at) : Math.max(0, fallbackElapsed);
-    const yard = old?.lvl?.sy || 0;
-    let totalBuildSeconds = 0;
-    for (const id of SAVE_UNIT_KEYS) {
-      const [metal, crystal] = shipCosts[id] || [0,0];
-      const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * Math.max(0, yard - 1)))) / 1.5));
-      const previousMaximum = row ? Math.max(historical[id] || 0, old?.fleet?.[id] || 0) : 0;
-      const newUnits = Math.max(0, (p.fleet[id] || 0) - previousMaximum);
-      totalBuildSeconds += newUnits * unitSeconds;
-    }
-    const availableBuildSeconds = yard >= 1 ? elapsed * 3 : 0;
-    if (totalBuildSeconds > availableBuildSeconds) {
-      return "Flota o defensas superiores al máximo histórico y al tiempo total disponible del astillero.";
-    }
   }
   return "";
 }
