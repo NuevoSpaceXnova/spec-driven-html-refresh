@@ -593,6 +593,13 @@ async function validateDarkProgression(db: DB, userId: string, previous: any, ne
         if (!move) return "Investigación sin gasto autoritativo de materia oscura.";
       }
     }
+    const dmShipIds = ["bt","ac","bm","de","dr","gc","cpl","cg"];
+    for (const id of dmShipIds) {
+      if ((p.fleet[id] || 0) <= (old.fleet[id] || 0)) continue;
+      const unlocked = await db.prepare("SELECT ship_id FROM dm_ship_unlocks WHERE user_id = ? AND ship_id = ?")
+        .bind(userId, id).first();
+      if (!unlocked) return "Nave especial sin desbloqueo autoritativo.";
+    }
     const oldQueue = [old.queue, ...(old.queueExtra || [])].filter(Boolean);
     const newQueue = [p.queue, ...(p.queueExtra || [])].filter(Boolean);
     for (const q of newQueue) {
@@ -821,12 +828,19 @@ const walletDarkUnlock: Route = async (request, db) => {
     return json({ ok: true, dark: row?.dark ?? 0, unlocked: true });
   }
   await ensureWallet(db, user.id);
+  const inserted = await db.prepare("INSERT OR IGNORE INTO dm_ship_unlocks (user_id, ship_id, unlocked_at) VALUES (?, ?, ?)")
+    .bind(user.id, shipId, now()).run();
+  if (!inserted.meta || !inserted.meta.changes) {
+    const balance = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
+    return json({ ok: true, dark: balance?.dark ?? 0, unlocked: true });
+  }
   const upd = await db.prepare("UPDATE wallets SET dark = ROUND(dark - ?, 6), updated_at = ? WHERE user_id = ? AND dark >= ?")
     .bind(cost, now(), user.id, cost).run();
   const row = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(user.id).first<{dark:number}>();
-  if (!upd.meta || !upd.meta.changes) return json({ error: "Materia oscura insuficiente", dark: row?.dark ?? 0 }, 409);
-  await db.prepare("INSERT INTO dm_ship_unlocks (user_id, ship_id, unlocked_at) VALUES (?, ?, ?)")
-    .bind(user.id, shipId, now()).run();
+  if (!upd.meta || !upd.meta.changes) {
+    await db.prepare("DELETE FROM dm_ship_unlocks WHERE user_id = ? AND ship_id = ?").bind(user.id, shipId).run();
+    return json({ error: "Materia oscura insuficiente", dark: row?.dark ?? 0 }, 409);
+  }
   await db.prepare("INSERT INTO dark_moves (user_id, delta, reason, balance_after, created_at) VALUES (?, ?, ?, ?, ?)")
     .bind(user.id, -cost, "Desbloqueo de nave · " + shipId, row?.dark ?? 0, now()).run();
   return json({ ok: true, dark: row?.dark ?? 0, unlocked: true });
