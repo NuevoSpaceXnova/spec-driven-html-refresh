@@ -1086,6 +1086,7 @@ const RES_COL  = {metal:'var(--res-metal)', crystal:'var(--res-crystal)', deut:'
 /* ============ ESTADO ============ */
 const state = {
   tab:'overview',
+  cloudReady:false,
   speed:1,
   testMode:false,
   vipUntil:0,
@@ -3046,6 +3047,7 @@ function linkTokenAll(){
   });
 }
 function tick(){
+  if (!currentUser() || !state.cloudReady) return;
   if (state.planets.some(P => !isTokenLinked(P))) linkTokenAll();
   checkLevelUp();
   const now = performance.now();
@@ -5374,6 +5376,8 @@ async function initStart(){
     localStorage.setItem('forja-astral-session', user.email);
     await pullCloud();
     await walletPull();
+    state.cloudReady = true;
+    state.last = performance.now();
     hideStart();
     if (state.profile) state.profile.name = user.email;
     saveGame();
