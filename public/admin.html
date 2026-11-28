@@ -479,9 +479,10 @@
       return;
     }
     infoRow(card, 'Planeta principal', d.planet.name);
+    infoRow(card, 'Planetas que aportan almacén', fmtNum(d.planet.planetCount || 1));
     Object.keys(PRIZE_RES).forEach(function (k) {
       var st = d.planet.storage[k];
-      infoRow(card, PRIZE_RES[k], fmtNum(d.planet.stock[k]) + ' de ' + fmtNum(st.cap) + ' (almacén nivel ' + st.level + ')');
+      infoRow(card, PRIZE_RES[k] + ' · saldo compartido', fmtNum(d.planet.stock[k]) + ' de ' + fmtNum(st.cap) + ' (capacidad global; almacén principal nivel ' + st.level + ')');
     });
 
     var storeForm = document.createElement('form');
