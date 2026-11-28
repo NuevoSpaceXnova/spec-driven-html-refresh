@@ -1345,6 +1345,25 @@ const DAY_MS = 86400000;
 function storageCap(level: number): number {
   return 100000 + 50000 * Math.floor(Math.pow(1.6, level));
 }
+function prizeEmpireResourceState(data: any, kind: string): { stock: number; cap: number } {
+  const storeKey = PRIZE_STORE_KEY[kind];
+  const planets = Array.isArray(data?.planets) ? data.planets : [];
+  return planets.reduce((total: { stock: number; cap: number }, p: any) => {
+    if (!p?.moon) {
+      total.stock += Number(p?.res?.[kind] || 0);
+      total.cap += storageCap(Number(p?.lvl?.[storeKey] || 0));
+    }
+    return total;
+  }, { stock: 0, cap: 0 });
+}
+function normalizePrizeEmpireResource(data: any, kind: string, total: number): void {
+  const planets = data.planets || [];
+  if (!planets[0]) return;
+  planets[0].res = { ...(planets[0].res || {}), [kind]: total };
+  for (let i = 1; i < planets.length; i++) {
+    if (planets[i].res) planets[i].res[kind] = 0;
+  }
+}
 
 async function prizeGate(request: Request, db: DB, env: ApiEnv): Promise<{ user: User } | { res: Response }> {
   const user = await currentUser(request, db);
@@ -1403,15 +1422,14 @@ const prizeLookup: Route = async (request, db, env) => {
   let planet: Record<string, unknown> | null = null;
   if (save && Array.isArray(save.data.planets) && save.data.planets[0]) {
     const p = save.data.planets[0];
-    const res = p.res || {};
-    const lvl = p.lvl || {};
     planet = {
       name: p.name,
-      stock: { metal: Number(res.metal || 0), crystal: Number(res.crystal || 0), deut: Number(res.deut || 0) },
+      stock: Object.fromEntries(PRIZE_RES_KEYS.map((k) => [k, prizeEmpireResourceState(save.data, k).stock])),
       storage: Object.fromEntries(PRIZE_RES_KEYS.map((k) => {
-        const level = Number(lvl[PRIZE_STORE_KEY[k]] || 0);
-        return [k, { level, cap: storageCap(level) }];
+        const level = Number(p.lvl?.[PRIZE_STORE_KEY[k]] || 0);
+        return [k, { level, cap: prizeEmpireResourceState(save.data, k).cap }];
       })),
+      planetCount: save.data.planets.filter((x: any) => !x.moon).length,
     };
   }
   return json({
@@ -1444,12 +1462,11 @@ const prizeGrant: Route = async (request, db, env) => {
     if (!save) return json({ error: "La cuenta todavía no tiene partida: el jugador debe entrar al juego una vez." }, 409);
     const planet = save.data.planets?.[0];
     if (!planet) return json({ error: "La partida no tiene planeta." }, 409);
-    const current = Number(planet.res?.[kind] || 0);
-    const cap = storageCap(Number(planet.lvl?.[PRIZE_STORE_KEY[kind]] || 0));
-    if (current + amount > cap) {
-      return json({ error: `Supera la capacidad del almacén. Lo máximo que puedes dar ahora es ${Math.max(0, cap - current)}.` }, 409);
+    const empire = prizeEmpireResourceState(save.data, kind);
+    if (empire.stock + amount > empire.cap) {
+      return json({ error: `Supera la capacidad global de almacenamiento. Lo máximo que puedes dar ahora es ${Math.max(0, empire.cap - empire.stock)}.` }, 409);
     }
-    planet.res = { ...(planet.res || {}), [kind]: current + amount };
+    normalizePrizeEmpireResource(save.data, kind, empire.stock + amount);
     if (!(await writePrizeSave(db, target.id, save.data, save.version))) {
       return json({ error: "La partida del jugador cambió al mismo tiempo. Inténtalo de nuevo." }, 409);
     }
@@ -1483,11 +1500,12 @@ const prizeStorage: Route = async (request, db, env) => {
   if (!save) return json({ error: "La cuenta todavía no tiene partida: el jugador debe entrar al juego una vez." }, 409);
   const planet = save.data.planets?.[0];
   if (!planet) return json({ error: "La partida no tiene planeta." }, 409);
-  const cap = storageCap(level);
+  const before = prizeEmpireResourceState(save.data, kind);
   planet.lvl = { ...(planet.lvl || {}), [PRIZE_STORE_KEY[kind]]: level };
-  const current = Number(planet.res?.[kind] || 0);
-  const clipped = current > cap;
-  if (clipped) planet.res = { ...(planet.res || {}), [kind]: cap };
+  const after = prizeEmpireResourceState(save.data, kind);
+  const clipped = before.stock > after.cap;
+  normalizePrizeEmpireResource(save.data, kind, Math.min(before.stock, after.cap));
+  const cap = after.cap;
   if (!(await writePrizeSave(db, target.id, save.data, save.version))) {
     return json({ error: "La partida del jugador cambió al mismo tiempo. Inténtalo de nuevo." }, 409);
   }
