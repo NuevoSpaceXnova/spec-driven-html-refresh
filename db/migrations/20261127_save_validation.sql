@@ -34,3 +34,11 @@ CREATE TABLE IF NOT EXISTS dm_ship_unlocks (
   unlocked_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, ship_id)
 );
+
+-- Relojes de servidor para las colas activas; no se usan simSec ni fechas del navegador.
+CREATE TABLE IF NOT EXISTS save_queue_checks (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  queue_key TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, queue_key)
+);
