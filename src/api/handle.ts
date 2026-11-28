@@ -368,6 +368,13 @@ function saveResources(data: any): { metal: number; crystal: number; deuterium: 
     metal: sum.metal + p.res.metal, crystal: sum.crystal + p.res.crystal, deuterium: sum.deuterium + p.res.deut,
   }), { metal: 0, crystal: 0, deuterium: 0 });
 }
+function saveResourcesCapped(data: any): { metal: number; crystal: number; deuterium: number } {
+  return (data.planets || []).reduce((sum: any, p: any) => ({
+    metal: sum.metal + Math.min(p.res.metal, capOfSave(p.lvl.sm)),
+    crystal: sum.crystal + Math.min(p.res.crystal, capOfSave(p.lvl.sc)),
+    deuterium: sum.deuterium + Math.min(p.res.deut, capOfSave(p.lvl.tk)),
+  }), { metal: 0, crystal: 0, deuterium: 0 });
+}
 function maxSaveProduction(data: any): { metal: number; crystal: number; deuterium: number } {
   const pw = (n: number) => n * Math.pow(1.1, n);
   return (data.planets || []).reduce((sum: any, p: any) => {
@@ -395,8 +402,6 @@ function validateSaveStructure(data: any): string {
   if (data.v !== 2 || !Array.isArray(data.planets) || data.planets.length < 1 || data.planets.length > 20) return "Estructura de planetas no válida.";
   if (!Number.isInteger(data.active) || data.active < 0 || data.active >= data.planets.length) return "Planeta activo no válido.";
   if (data.speed !== 1) return "Velocidad de partida no válida.";
-  const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
-  for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
   for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   for (const p of data.planets) {
@@ -471,7 +476,7 @@ function firstSaveIsFresh(data: any): boolean {
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
 function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
-  const oldRes = baseline || saveResources(previous), newRes = saveResources(next);
+  const oldRes = baseline || saveResources(previous), newRes = saveResourcesCapped(next);
   const oldPlanets = previous.planets || [];
   if (next.planets.length < oldPlanets.length) return "No se permite eliminar planetas desde el guardado.";
   const newColonies = next.planets.slice(oldPlanets.length).filter((p: any) => !p.moon);
