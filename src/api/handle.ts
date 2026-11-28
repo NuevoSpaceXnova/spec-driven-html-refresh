@@ -183,6 +183,13 @@ const register: Route = async (request, db) => {
   await db.prepare("DELETE FROM register_attempts WHERE created_at < ?")
     .bind(current - 30 * 24 * 60 * 60).run();
 
+  const ipCount = await db.prepare(
+    "SELECT COUNT(*) AS total FROM register_attempts WHERE ip = ? AND created_at > ?",
+  ).bind(ip, current - REGISTER_IP_WINDOW).first<{ total: number }>();
+  if ((ipCount?.total ?? 0) >= 3) {
+    return json({ error: "Has alcanzado el límite de 3 registros por día desde esta IP. Inténtalo mañana." }, 429);
+  }
+
   const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
   if (existing) return json({ error: "Ese correo ya está registrado" }, 409);
 
