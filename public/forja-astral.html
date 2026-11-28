@@ -1145,7 +1145,10 @@ const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales de
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, expFlights:state.expFlights, resQueue:state.resQueue, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    const planetsForSave = state.planets.map((p, i) => ({...p, res: i === 0
+      ? {metal:state.res.metal, crystal:state.res.crystal, deut:state.res.deut, token:state.res.token}
+      : {metal:0, crystal:0, deut:0, token:state.res.token}}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, expFlights:state.expFlights, resQueue:state.resQueue, token:state.token, planets:planetsForSave, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     queueCloud();
     return true;
   } catch (err) { return false; }
@@ -1286,8 +1289,17 @@ function loadGame(override){
       state.planets = d.planets;
       state.active = d.active || 0;
       state.planets.forEach(ensureLevels);
+      // Migración transparente: sumar los saldos históricos de todos los planetas.
+      const shared = {metal:0, crystal:0, deut:0};
+      state.planets.forEach(p => {
+        shared.metal += Number(p.res && p.res.metal) || 0;
+        shared.crystal += Number(p.res && p.res.crystal) || 0;
+        shared.deut += Number(p.res && p.res.deut) || 0;
+      });
+      state.planets[0].res = {...state.planets[0].res, ...shared};
       linkTokenAll();
       bindActive();
+      saveGame();
     }
     if (d.moves) state.moves = d.moves;
     if (d.inbox) state.inbox = d.inbox;
@@ -1659,7 +1671,7 @@ async function buyOffer(id){
     const P = activePlanet();
     P.fleet[o.res] = (P.fleet[o.res] || 0) + q;
   } else {
-    state.res[o.res] = Math.min(capOf(state.lvl[CAP_KEY[o.res]]), state.res[o.res] + q);
+    state.res[o.res] = Math.min(sharedResourceCapacity(o.res), state.res[o.res] + q);
   }
   o.qty -= q;
   o.price -= cost;
@@ -1703,7 +1715,7 @@ function cancelOffer(id){
     const P = state.planets[o.pl] || activePlanet();
     P.fleet[o.res] = (P.fleet[o.res] || 0) + o.qty;
   } else {
-    state.res[o.res] = Math.min(capOf(state.lvl[CAP_KEY[o.res]]), state.res[o.res] + o.qty);
+    state.res[o.res] = Math.min(sharedResourceCapacity(o.res), state.res[o.res] + o.qty);
   }
   state.market.own = state.market.own.filter(x => x.id !== id);
   state.dirtyMarket = true;
@@ -1775,7 +1787,7 @@ function esc(s){
 }
 function addRes(k, n){
   if (k === 'token') return;   // TOKEN solo entra por el swap y por premios del administrador
-  state.res[k] = Math.min(capOf(state.lvl[CAP_KEY[k]]), state.res[k] + n);
+  state.res[k] = Math.min(sharedResourceCapacity(k), state.res[k] + n);
 }
 function formatRewards(r){
   return Object.keys(r).map(k => '+' + fmt(r[k]) + ' ' + (k === 'token' ? 'Tokens' : RES_NAME[k])).join(' · ');
@@ -2046,7 +2058,7 @@ function postMessage(){
 function claimTribute(){
   if (!state.alliance) return setStatus('Necesitas pertenecer a una alianza.', true);
   if (state.simSec < state.alliance.fortressNext) return setStatus('El tributo aún no está disponible.', true);
-  state.res.deut = Math.min(capOf(state.lvl.tk), state.res.deut + 500);
+  state.res.deut = Math.min(sharedResourceCapacity('deut'), state.res.deut + 500);
   state.alliance.fortressNext = state.simSec + 86400;
   state.alliance.msgs.push({author:'Sistema', text:'Tributo de fortaleza reclamado: +500 Deuterio.', t:state.simSec});
   state.wallDirty = true;
@@ -2199,10 +2211,18 @@ let moveSeq = 0;
 const mmss = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
 
 // Las referencias de estado apuntan al planeta activo; los Tokens y la investigación se mantienen comunes
+function sharedResourceCapacity(resource){
+  const key = CAP_KEY[resource];
+  return state.planets.reduce((total, p) => total + capOf((p.lvl || {})[key] || 0), 0);
+}
 function bindActive(){
   const P = state.planets[state.active] || state.planets[0];
   state.active = state.planets.indexOf(P);
-  state.res = P.res; state.lvl = P.lvl; state.fleet = P.fleet;
+  const shared = state.planets[0].res;
+  state.planets.forEach((planet, i) => {
+    if (i > 0) planet.res = shared;
+  });
+  state.res = shared; state.lvl = P.lvl; state.fleet = P.fleet;
 }
 function renderPlanetSelect(){
   const sel = document.getElementById('planet');
@@ -2439,7 +2459,7 @@ async function swap(){
   if (dir === 'buy'){
     const cost = SWAP_BUY * pk;
     if (state.res.token < cost) return setStatus('Tokens insuficientes para ese swap.', true);
-    if (state.res[res] + units > capOf(state.lvl[CAP_KEY[res]])) return setStatus('El almacén no tiene espacio para ' + fmt(units) + ' unidades.', true);
+    if (state.res[res] + units > sharedResourceCapacity(res)) return setStatus('El almacén no tiene espacio para ' + fmt(units) + ' unidades.', true);
     if (!(await walletSpend(cost, 'Swap compra · ' + RES_NAME[res]))) return;
     addRes(res, units);
     addTx('Swap compra · ' + RES_NAME[res] + ' ' + fmt(units), -cost, 'Completado');
@@ -3142,7 +3162,7 @@ function tick(){
   const r = rates();
   const k = state.vacation ? 0 : state.speed / 3600 * dt;
   state.stats.mined += (r.metal + r.crystal + r.deut) * k;
-  const capM = capOf(state.lvl.sm), capC = capOf(state.lvl.sc), capD = capOf(state.lvl.tk);
+  const capM = sharedResourceCapacity('metal'), capC = sharedResourceCapacity('crystal'), capD = sharedResourceCapacity('deut');
   if (state.res.metal < capM) state.res.metal = Math.min(capM, state.res.metal + r.metal * k);
   if (state.res.crystal < capC) state.res.crystal = Math.min(capC, state.res.crystal + r.crystal * k);
   // El deuterio neto descuenta el consumo del Reactor de Fusión y nunca baja de cero
@@ -3363,7 +3383,7 @@ function attackPlanet(id){
   MOVE_SHIPS.forEach(k => { state.fleet[k] = 0; });
   const out = resolveAttack(T, att);
   Object.keys(out.survivors).forEach(k => { state.fleet[k] = (state.fleet[k] || 0) + out.survivors[k]; });
-  RES.forEach(k => { P.res[k] = Math.min(capOf(P.lvl[CAP_KEY[k]]), (P.res[k] || 0) + out.loot[k]); });
+  RES.forEach(k => { P.res[k] = Math.min(sharedResourceCapacity(k), (P.res[k] || 0) + out.loot[k]); });
   pushInbox({kind:'battle', title:'Ataque · ' + T.name + ' (' + T.id + ')', t:state.simSec, data:null,
              html: resultHTML(out.result) + lootRows(out.loot)});
   openModal(out.result.winner === 'attacker' ? 'Victoria en batalla' : 'Derrota en batalla', `
@@ -3573,7 +3593,7 @@ function returnFleet(m){
   const P = state.planets[m.planet];
   if (!P) return;
   Object.keys(m.fleet || {}).forEach(k => { P.fleet[k] = (P.fleet[k] || 0) + (m.fleet[k] || 0); });
-  if (m.cargo) RES.forEach(r => { P.res[r] = Math.min(capOf(P.lvl[CAP_KEY[r]]), (P.res[r] || 0) + (m.cargo[r] || 0)); });
+  if (m.cargo) RES.forEach(r => { P.res[r] = Math.min(sharedResourceCapacity(r), (P.res[r] || 0) + (m.cargo[r] || 0)); });
 }
 function recallMove(id){
   const m = state.moves.find(x => x.id === id);
@@ -3616,7 +3636,7 @@ function processMission(m){
   }
   if (m.mission === 'transport'){
     const T = state.planets[m.targetIdx];
-    if (T) RES.forEach(r => { T.res[r] = Math.min(capOf(T.lvl[CAP_KEY[r]]), (T.res[r] || 0) + (m.cargo[r] || 0)); });
+    if (T) RES.forEach(r => { T.res[r] = Math.min(sharedResourceCapacity(r), (T.res[r] || 0) + (m.cargo[r] || 0)); });
     m.cargo = {};
     return home();
   }
