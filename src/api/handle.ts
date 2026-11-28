@@ -469,6 +469,7 @@ async function rejectSave(db: DB, userId: string, reason: string, status = 409):
 function firstSaveIsFresh(data: any): boolean {
   if (data.planets.length !== 1) return false;
   const p = data.planets[0];
+  if (p.moon || p.queue || (p.queueExtra && p.queueExtra.length) || (p.shipQueue && p.shipQueue.length)) return false;
   const expected = { mm: 1, mc: 1, sol: 1 };
   if (Object.entries(expected).some(([k,v]) => p.lvl[k] !== v)) return false;
   if (SAVE_LEVEL_KEYS.some(k => !(k in expected) && p.lvl[k] !== 0)) return false;
@@ -703,6 +704,7 @@ const savePut: Route = async (request, db) => {
       const resources = saveResources(parsed);
       await db.prepare("INSERT INTO save_checks (user_id, metal, crystal, deuterium, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET metal=excluded.metal, crystal=excluded.crystal, deuterium=excluded.deuterium, checked_at=excluded.checked_at")
         .bind(user.id, resources.metal, resources.crystal, resources.deuterium, now()).run();
+      await db.prepare("DELETE FROM save_queue_checks WHERE user_id = ?").bind(user.id).run();
       await syncQueueChecks(db, user.id, null, parsed, now());
     } catch { return rejectSave(db, user.id, "No se pudo crear la partida inicial.", 409); }
     return json({ ok: true, version: 1 });
