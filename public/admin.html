@@ -109,7 +109,7 @@
     </section>
     <section id="premios">
       <h2>Asignar premios</h2>
-      <p>Busca una cuenta por correo, revisa su almacén y da TOKEN, materia oscura, metal, cristal, deuterio o VIP. Los metales no pueden pasar la capacidad del almacén de esa cuenta. El jugador debe hacer F5 para ver el premio.</p>
+      <p>Busca una cuenta por correo, revisa sus saldos y almacenes y da TOKEN, materia oscura, metal, cristal, deuterio o VIP. Los recursos y los cambios de almacén se aplican al planeta que figura como seleccionado en la última partida guardada del jugador. El jugador debe hacer F5 para ver el premio.</p>
       <label class="row"><input type="checkbox" id="prize-enabled"> Premios activos (apágalo antes del lanzamiento)</label>
       <div class="err" id="prize-err"></div>
       <form class="row" id="prize-search" novalidate>
@@ -401,7 +401,7 @@
     return card;
   }
 
-  // ---------- Premios (saldos de la cuenta, almacén y VIP) ----------
+  // ---------- Premios (saldos de la cuenta, almacén y VIP; planeta seleccionado) ----------
   var PRIZE_RES = { metal: 'Metal', crystal: 'Cristal', deut: 'Deuterio' };
   var PRIZE_KINDS = { metal: 'Metal', crystal: 'Cristal', deut: 'Deuterio', token: 'TOKEN', dark: 'Materia oscura', vip: 'VIP (días)' };
   var prizeErr = document.getElementById('prize-err');
@@ -478,7 +478,7 @@
       prizeCard.appendChild(card);
       return;
     }
-    infoRow(card, 'Planeta principal', d.planet.name);
+    infoRow(card, 'Planeta seleccionado', (d.planet.name || 'Sin nombre') + ' (#' + (d.planet.index + 1) + ' de ' + d.planet.total + ')');
     Object.keys(PRIZE_RES).forEach(function (k) {
       var st = d.planet.storage[k];
       infoRow(card, PRIZE_RES[k], fmtNum(d.planet.stock[k]) + ' de ' + fmtNum(st.cap) + ' (almacén nivel ' + st.level + ')');
