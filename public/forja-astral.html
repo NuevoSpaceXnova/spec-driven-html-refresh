@@ -1110,6 +1110,7 @@ const state = {
   spent:0,
   daily:{day:0, p:{upgrade:0, ships:0, expe:0, offer:0}, c:{}},
   expLog:[],
+  expFlights:[],
   alliance:null,
   alliances:[],
   ranking:null,
@@ -1143,7 +1144,7 @@ const VIP_DAYS_MS = 30 * 86400000;                         // 30 días reales de
 let SAVE_KEY = saveKeyFor(currentUser());
 function saveGame(){
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:2, expFlights:state.expFlights, token:state.token, planets:state.planets, active:state.active, moves:state.moves, inbox:state.inbox, market:state.market, galaxy:state.galaxy, debris:state.debris, speed:state.speed, testMode:state.testMode, vipUntil:state.vipUntil,dark:state.dark,dmShips:state.dmShips,animOff:state.animOff, accountLevel:state.accountLevel, seasonMax:state.seasonMax, seasonStart:state.seasonStart, levelPts:state.levelPts, levelSince:state.levelSince, simSec:state.simSec, spent:state.spent, daily:state.daily, expLog:state.expLog, alliance:state.alliance, alliances:state.alliances, ranking:state.ranking, profile:state.profile, wallet:state.wallet, txs:state.txs, officers:state.officers, empireClass:state.empireClass, vacation:state.vacation, prod:state.prod, stats:state.stats, referrals:state.referrals}));
     queueCloud();
     return true;
   } catch (err) { return false; }
@@ -1226,14 +1227,20 @@ async function walletPull(){
   }
   return false;
 }
-// Tirada de hallazgos de TOKEN y materia oscura en el servidor. Si falla, no hay hallazgos.
-async function expeditionRoll(){
-  const r = await fetch('/api/expedition/roll', {method:'POST', credentials:'same-origin'}).catch(() => null);
+// Expediciones en el servidor: iniciar (la flota sale) y reclamar (al regresar).
+async function expeditionStart(target, speed){
+  const origin = state.planets[state.active].coords;
+  const r = await fetch('/api/expedition/roll', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'start', origin, target, speed})}).catch(() => null);
+  const d = r ? await r.json().catch(() => ({})) : {};
+  if (!r || !r.ok){ setStatus(d.error || 'No se pudo lanzar la expedición.', true); return null; }
+  return d;   // {expeditionId, endsAt}
+}
+async function expeditionRoll(expeditionId){
+  const r = await fetch('/api/expedition/roll', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'claim', expeditionId})}).catch(() => null);
   const d = r && r.ok ? await r.json().catch(() => null) : null;
-  if (!d) return {token:0, dark:0, failed:true};
+  if (!d) return {failed:true, status: r ? r.status : 0};
   if (typeof d.balance === 'number') state.res.token = d.balance;
   if (typeof d.darkBalance === 'number') state.dark = d.darkBalance;
-  else if (typeof d.dark === 'number' && d.dark > 0) state.dark += d.dark;
   return {token: d.token || 0, dark: d.dark || 0, failed:false};
 }
 async function walletSpend(amount, reason){
@@ -1310,6 +1317,7 @@ function loadGame(override){
     if (typeof d.spent === 'number') state.spent = d.spent;
     if (d.daily) state.daily = d.daily;
     if (d.expLog) state.expLog = d.expLog;
+    if (Array.isArray(d.expFlights)) state.expFlights = d.expFlights;
     if (d.alliance !== undefined) state.alliance = d.alliance;
     if (d.alliances) state.alliances = d.alliances;
     if (d.ranking) state.ranking = d.ranking;
@@ -1840,23 +1848,47 @@ function renderLog(){
     : '<div class="empty">La bitácora está vacía. Lanza tu primera expedición.</div>';
 }
 
-/* Resultado ponderado por Astrofísica: más nivel, más hallazgos y menos eventos hostiles */
+/* Resultado ponderado por Astrofísica: la flota sale ahora y regresa cuando termina el viaje */
 async function launchExpedition(){
   if (state.lvl.ap < 1) return setStatus('Requiere Astrofísica nivel 1.', true);
+  if (state.expFlights.length >= 1) return setStatus('Ya tienes una expedición en camino. Espera a que regrese.', true);
   const sel = {};
-  let total = 0;
+  let total = 0, speed = Infinity;
   EXP_SHIPS.forEach(k => {
     const inp = document.querySelector('[data-exp="' + k + '"]');
     const q = clampInt(inp ? inp.value : 0, 0, state.fleet[k] || 0);
     if (inp) inp.value = q;
     sel[k] = q;
     total += q;
+    if (q > 0) speed = Math.min(speed, shipSpeed(k));
   });
   if (total < 1) return setStatus('Selecciona al menos una nave del hangar.', true);
-  const pending = await expeditionStart();
-  if (!pending) return;
+  const tInput = document.getElementById('exp-target');
+  const target = (tInput ? tInput.value : '').trim();
+  if (!/^\d+:\d+:16$/.test(target)) return setStatus('Escribe el destino como galaxia:sistema:16, por ejemplo 1:5:16.', true);
+  const started = await expeditionStart(target, speed);
+  if (!started) return;
   EXP_SHIPS.forEach(k => { state.fleet[k] -= sel[k]; });        // las naves salen del hangar
-  const L = state.lvl.ap;
+  state.expFlights.push({id: started.expeditionId, endsAt: started.endsAt, target, sel, total, L: state.lvl.ap});
+  const hora = new Date(started.endsAt).toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  pushLog('ok', 'Flota en camino hacia ' + target + '. Regresa a las ' + hora + '.');
+  renderLog();
+  refresh();
+  setStatus('Expedición en camino.');
+}
+
+// Cuando la flota regresa: reclama el resultado en el servidor y aplica el hallazgo.
+async function resolveFlight(f){
+  const hall = await expeditionRoll(f.id);
+  if (hall.failed && [0, 425, 429].includes(hall.status) || (hall.failed && hall.status >= 500)) return false;   // reintentar luego
+  state.expFlights = state.expFlights.filter(x => x.id !== f.id);
+  if (hall.failed){
+    EXP_SHIPS.forEach(k => { state.fleet[k] = (state.fleet[k] || 0) + f.sel[k]; });
+    pushLog('warn', 'La expedición no se pudo reclamar. Las naves regresaron.');
+    renderLog(); refresh();
+    return true;
+  }
+  const L = f.L, total = f.total, sel = f.sel;
   const w = {res:35 + 2 * L, ship:10 + L, event:Math.max(10, 35 - 3 * L)};
   let roll = Math.random() * (w.res + w.ship + w.event);
   let outcome = 'event';
@@ -1884,21 +1916,27 @@ async function launchExpedition(){
     pushLog('warn', 'Anomalía espacial: sin hallazgos. Las naves regresan intactas.');
   }
   EXP_SHIPS.forEach(k => { state.fleet[k] = (state.fleet[k] || 0) + sel[k]; });   // regresan al hangar
-  // TOKEN y materia oscura: tirada en el servidor, con sus reservas
-  const hall = await expeditionRoll();
-  if (hall.failed) pushLog('warn', 'No se pudo consultar la reserva de TOKEN y materia oscura.');
-  else {
-    if (hall.token > 0) pushLog('ok', 'Hallazgo: +' + fmt(hall.token) + ' TOKEN de la reserva.');
-    if (hall.dark > 0) pushLog('ok', 'Hallazgo: +' + fmt(hall.dark) + ' de materia oscura de la reserva.');
-  }
+  if (hall.token > 0) pushLog('ok', 'Hallazgo: +' + fmt(hall.token) + ' TOKEN de la reserva.');
+  if (hall.dark > 0) pushLog('ok', 'Hallazgo: +' + fmt(hall.dark) + ' de materia oscura de la reserva.');
   pushLog(found.metal + found.crystal + found.deut + found.ships + hall.token + hall.dark > 0 ? 'ok' : 'warn',
     'Resultado: Metal ' + fmt(found.metal) + ' · Cristal ' + fmt(found.crystal) + ' · Deuterio ' + fmt(found.deut) +
     ' · Naves ' + fmt(found.ships) + ' · TOKEN ' + fmt(hall.token) + ' · Materia oscura ' + fmt(hall.dark));
   bumpMission('expe', 1);
   renderLog();
   refresh();
-  setStatus('Expedición completada.');
+  return true;
 }
+let checkingExpeditions = false;
+async function checkExpeditions(){
+  if (checkingExpeditions) return;
+  checkingExpeditions = true;
+  try {
+    for (const f of [...state.expFlights]){
+      if (f.endsAt <= Date.now()) await resolveFlight(f);
+    }
+  } finally { checkingExpeditions = false; }
+}
+setInterval(() => { if (state.expFlights && state.expFlights.length) checkExpeditions(); }, 5000);
 
 function viewExpeditions(){
   checkDay();
@@ -1916,6 +1954,7 @@ function viewExpeditions(){
         <h2 class="section-title" style="margin-top:0">Lanzar Expedición</h2>
         <div class="form-stack">
           ${inputs}
+          <label class="field">Destino (galaxia:sistema:16)<input type="text" id="exp-target" value="1:1:16" maxlength="12" aria-label="Destino de la expedición"></label>
           <button class="btn" data-action="launch-exp">Lanzar Expedición</button>
         </div>
       </section>

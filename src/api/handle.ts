@@ -385,7 +385,7 @@ const permissionSet: Route = async (request, db, env) => {
 
 // Partida de la cuenta. Control de versión: si otra pestaña guardó antes, responde 409 con la copia actual.
 const MAX_SAVE_CHARS = 1_500_000;
-const SAVE_TOP_KEYS = ["v","token","planets","active","moves","inbox","market","galaxy","debris","speed","testMode","vipUntil","dark","dmShips","animOff","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","daily","expLog","alliance","alliances","ranking","profile","wallet","txs","officers","empireClass","vacation","prod","stats","referrals"];
+const SAVE_TOP_KEYS = ["v","expFlights","token","planets","active","moves","inbox","market","galaxy","debris","speed","testMode","vipUntil","dark","dmShips","animOff","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","daily","expLog","alliance","alliances","ranking","profile","wallet","txs","officers","empireClass","vacation","prod","stats","referrals"];
 const SAVE_LEVEL_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg","en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"];
 const SAVE_UNIT_KEYS = ["nc","ng","cz","ch","cr","bt","ac","bm","de","dr","rc","sp","co","sat","lm","ll","lg","gc","ci","cpl","cs","cg","mi"];
 const SAVE_BUILD_KEYS = ["mm","mc","ds","sol","sm","sc","tk","rf","sy","lab","fus","nan","ter","silo","lb","ph","jg"];
@@ -493,6 +493,7 @@ function validateSaveStructure(data: any): string {
   if (data.v !== 2 || !Array.isArray(data.planets) || data.planets.length < 1 || data.planets.length > 20) return "Estructura de planetas no válida.";
   if (!Number.isInteger(data.active) || data.active < 0 || data.active >= data.planets.length) return "Planeta activo no válido.";
   if (data.speed !== 1) return "Velocidad de partida no válida.";
+  if (data.expFlights !== undefined && (!Array.isArray(data.expFlights) || data.expFlights.length > 5)) return "Expediciones en camino no válidas.";
   const numericTopLevel = ["token","vipUntil","accountLevel","seasonMax","seasonStart","levelPts","levelSince","simSec","spent","active","speed"];
   for (const k of numericTopLevel) if (data[k] !== undefined && typeof data[k] !== "number") return "Tipo numérico incorrecto en " + k + ".";
   for (const p of data.planets) {
@@ -1079,7 +1080,29 @@ const vipBuy: Route = async (request, db) => {
 // Hallazgos de TOKEN y materia oscura en expediciones. Salen de reservas que carga el administrador.
 const EXP_CHANCE = { token: 0.03, dark: 0.01 }; // probabilidad base por expedición
 const VIP_CHANCE_MUL = 1.5;                      // VIP: +50 %
-const EXPEDITION_DURATION_SECONDS = 30;
+// Duración de la expedición: ida y vuelta según la distancia al destino (posición 16).
+const EXPEDITION_MIN_LEG_SECONDS = 3600;   // mínimo 1 hora de ida y 1 de vuelta (decidido)
+const EXPEDITION_GALAXY_DISTANCE = 20000;  // distancia entre galaxias (decidido)
+const EXPEDITION_GALAXIES = 9;
+const EXPEDITION_SYSTEMS = 499;
+const EXPEDITION_SPEED_SCALE = 35000;      // fórmula clásica de OGame, velocidad al 100 %, universo a velocidad 1
+
+function parseCoords(text: unknown): { g: number; s: number; p: number } | null {
+  const m = /^(\d+):(\d+):(\d+)/.exec(String(text ?? "").trim());
+  return m ? { g: Number(m[1]), s: Number(m[2]), p: Number(m[3]) } : null;
+}
+
+function expeditionDistance(from: { g: number; s: number; p: number }, to: { g: number; s: number; p: number }): number {
+  if (from.g !== to.g) return Math.abs(from.g - to.g) * EXPEDITION_GALAXY_DISTANCE;
+  if (from.s !== to.s) return Math.abs(from.s - to.s) * 5 * 19 + 2700;
+  if (from.p !== to.p) return Math.abs(from.p - to.p) * 5 + 1000;
+  return 5;
+}
+
+function expeditionLegSeconds(distance: number, speed: number): number {
+  const classic = EXPEDITION_SPEED_SCALE / 100 * Math.sqrt((10 * distance) / speed) + 10;
+  return Math.max(EXPEDITION_MIN_LEG_SECONDS, Math.round(classic));
+}
 const EXPEDITION_EXPIRY_SECONDS = 10 * 60;
 const EXPEDITION_CLAIM_COOLDOWN_SECONDS = 30;
 
@@ -1118,13 +1141,21 @@ const expeditionRoll: Route = async (request, db) => {
   if (action === "start") {
     await db.prepare("DELETE FROM expeditions WHERE rolled_at IS NOT NULL AND rolled_at < ?")
       .bind(current - 7 * 24 * 60 * 60).run();
-    await db.prepare("DELETE FROM expeditions WHERE user_id = ? AND rolled_at IS NULL AND started_at <= ?")
+    await db.prepare("DELETE FROM expeditions WHERE user_id = ? AND rolled_at IS NULL AND ends_at <= ?")
       .bind(user.id, current - EXPEDITION_EXPIRY_SECONDS).run();
     const open = await db.prepare("SELECT id FROM expeditions WHERE user_id = ? AND rolled_at IS NULL")
       .bind(user.id).first<{ id: string }>();
     if (open) return json({ error: "Ya tienes una expedición sin reclamar." }, 429);
+    const origin = parseCoords(body?.origin);
+    const target = parseCoords(body?.target);
+    const speed = Number(body?.speed);
+    if (!origin || !target || target.p !== 16) return json({ error: "Destino no válido. Usa galaxia:sistema:16." }, 400);
+    if (target.g < 1 || target.g > EXPEDITION_GALAXIES || target.s < 1 || target.s > EXPEDITION_SYSTEMS) {
+      return json({ error: "Esa coordenada no existe en el universo." }, 400);
+    }
+    if (!(speed > 0) || speed > 1e9) return json({ error: "Velocidad de la flota no válida." }, 400);
+    const endsAt = current + 2 * expeditionLegSeconds(expeditionDistance(origin, target), speed);
     const id = crypto.randomUUID();
-    const endsAt = current + EXPEDITION_DURATION_SECONDS;
     try {
       await db.prepare("INSERT INTO expeditions (id, user_id, started_at, ends_at, rolled_at) VALUES (?, ?, ?, ?, NULL)")
         .bind(id, user.id, current, endsAt).run();
@@ -1143,7 +1174,7 @@ const expeditionRoll: Route = async (request, db) => {
   if (!expedition) return json({ error: "Expedición no encontrada" }, 404);
   if (expedition.rolled_at !== null) return json({ error: "La expedición ya fue reclamada." }, 409);
   if (expedition.ends_at > current) return json({ error: "La expedición todavía está en curso." }, 425);
-  if (expedition.started_at <= current - EXPEDITION_EXPIRY_SECONDS) return json({ error: "La expedición caducó." }, 410);
+  if (expedition.ends_at <= current - EXPEDITION_EXPIRY_SECONDS) return json({ error: "La expedición caducó." }, 410);
 
   const lastClaim = await db.prepare("SELECT MAX(rolled_at) AS rolled_at FROM expeditions WHERE user_id = ?")
     .bind(user.id).first<{ rolled_at: number | null }>();
@@ -1151,7 +1182,7 @@ const expeditionRoll: Route = async (request, db) => {
     return json({ error: "Debes esperar 30 segundos entre reclamaciones." }, 429);
   }
 
-  const consumed = await db.prepare("UPDATE expeditions SET rolled_at = ? WHERE id = ? AND user_id = ? AND rolled_at IS NULL AND ends_at <= ? AND started_at > ?")
+  const consumed = await db.prepare("UPDATE expeditions SET rolled_at = ? WHERE id = ? AND user_id = ? AND rolled_at IS NULL AND ends_at <= ? AND ends_at > ?")
     .bind(current, expeditionId, user.id, current, current - EXPEDITION_EXPIRY_SECONDS).run();
   if (!consumed.meta || !consumed.meta.changes) return json({ error: "La expedición ya fue reclamada o caducó." }, 409);
 
