@@ -1311,6 +1311,15 @@ const reservesSet: Route = async (request, db, env) => {
   return json({ ok: true });
 };
 
+// Resuelve el planeta que la partida dejó seleccionado. El juego carga este mismo índice al entrar o pulsar F5.
+function selectedPrizePlanet(data: any): { planet: any; index: number; total: number } | null {
+  const planets = data?.planets;
+  if (!Array.isArray(planets) || planets.length === 0) return null;
+  const active = data.active;
+  const index = Number.isInteger(active) && active >= 0 && active < planets.length ? active : 0;
+  return { planet: planets[index], index, total: planets.length };
+}
+
 // ----- Premios del panel: saldos de la cuenta, almacén y VIP. Solo administración o ayudantes con permiso. -----
 const PRIZE_KINDS = ["metal", "crystal", "deut", "token", "dark", "vip"];
 const PRIZE_RES_KEYS = ["metal", "crystal", "deut"];
@@ -1381,12 +1390,15 @@ const prizeLookup: Route = async (request, db, env) => {
   const darkRow = await db.prepare("SELECT dark FROM wallets WHERE user_id = ?").bind(target.id).first<{ dark: number }>();
   const save = await readPrizeSave(db, target.id);
   let planet: Record<string, unknown> | null = null;
-  if (save && Array.isArray(save.data.planets) && save.data.planets[0]) {
-    const p = save.data.planets[0];
+  const selected = save ? selectedPrizePlanet(save.data) : null;
+  if (selected) {
+    const p = selected.planet;
     const res = p.res || {};
     const lvl = p.lvl || {};
     planet = {
       name: p.name,
+      index: selected.index,
+      total: selected.total,
       stock: { metal: Number(res.metal || 0), crystal: Number(res.crystal || 0), deut: Number(res.deut || 0) },
       storage: Object.fromEntries(PRIZE_RES_KEYS.map((k) => {
         const level = Number(lvl[PRIZE_STORE_KEY[k]] || 0);
@@ -1422,8 +1434,9 @@ const prizeGrant: Route = async (request, db, env) => {
   if (PRIZE_RES_KEYS.includes(kind)) {
     const save = await readPrizeSave(db, target.id);
     if (!save) return json({ error: "La cuenta todavía no tiene partida: el jugador debe entrar al juego una vez." }, 409);
-    const planet = save.data.planets?.[0];
-    if (!planet) return json({ error: "La partida no tiene planeta." }, 409);
+    const selected = selectedPrizePlanet(save.data);
+    if (!selected) return json({ error: "La partida no tiene planeta." }, 409);
+    const planet = selected.planet;
     const current = Number(planet.res?.[kind] || 0);
     const cap = storageCap(Number(planet.lvl?.[PRIZE_STORE_KEY[kind]] || 0));
     if (current + amount > cap) {
@@ -1461,8 +1474,9 @@ const prizeStorage: Route = async (request, db, env) => {
   if (!Number.isInteger(level) || level < 0 || level > PRIZE_MAX_LEVEL) return json({ error: "Nivel no válido" }, 400);
   const save = await readPrizeSave(db, target.id);
   if (!save) return json({ error: "La cuenta todavía no tiene partida: el jugador debe entrar al juego una vez." }, 409);
-  const planet = save.data.planets?.[0];
-  if (!planet) return json({ error: "La partida no tiene planeta." }, 409);
+  const selected = selectedPrizePlanet(save.data);
+  if (!selected) return json({ error: "La partida no tiene planeta." }, 409);
+  const planet = selected.planet;
   const cap = storageCap(level);
   planet.lvl = { ...(planet.lvl || {}), [PRIZE_STORE_KEY[kind]]: level };
   const current = Number(planet.res?.[kind] || 0);
