@@ -423,13 +423,14 @@ function capOfSave(level: number): number {
 }
 function clipSaveResources(data: any): boolean {
   let clipped = false;
-  for (const p of data.planets) {
-    for (const k of ["metal","crystal","deut"]) {
-      const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
-      const capacity = capOfSave(p.lvl[storageKey]);
-      if (p.res[k] > capacity) clipped = true;
-      p.res[k] = Math.min(p.res[k], capacity);
-    }
+  const first = data.planets[0];
+  for (const k of ["metal","crystal","deut"]) {
+    const storageKey = k === "metal" ? "sm" : k === "crystal" ? "sc" : "tk";
+    const capacity = data.planets.reduce((sum: number, p: any) => sum + capOfSave(p.lvl[storageKey]), 0);
+    let total = data.planets.reduce((sum: number, p: any) => sum + p.res[k], 0);
+    if (total > capacity) { total = capacity; clipped = true; }
+    first.res[k] = total;
+    for (let i = 1; i < data.planets.length; i++) data.planets[i].res[k] = 0;
   }
   return clipped;
 }
