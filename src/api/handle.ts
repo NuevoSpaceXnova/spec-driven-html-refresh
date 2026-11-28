@@ -421,6 +421,7 @@ function validateSaveStructure(data: any): string {
   if (planetIds.some((id: string) => id.startsWith("|")) || new Set(planetIds).size !== planetIds.length) return "Identificadores de planeta no válidos o duplicados.";
   for (const p of data.planets) {
     if (!saveRecord(p) || Object.keys(p).some(k => !SAVE_PLANET_KEYS.includes(k))) return "Estructura de planeta no válida.";
+    if (typeof p.coords !== "string" || !p.coords.trim()) return "Coordenadas de planeta no válidas.";
     if (!saveRecord(p.res) || !saveRecord(p.lvl) || !saveRecord(p.fleet)) return "Recursos, niveles o flota no válidos.";
     if (p.queue !== undefined && p.queue !== null && !saveRecord(p.queue)) return "Cola de construcción no válida.";
     if (p.queueExtra !== undefined && !Array.isArray(p.queueExtra)) return "Cola adicional no válida.";
@@ -492,7 +493,7 @@ function firstSaveIsFresh(data: any): boolean {
   return p.res.metal === 500 && p.res.crystal === 300 && p.res.deut === 0;
 }
 function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {metal:number; crystal:number; deuterium:number} | null): string {
-  const oldRes = saveResources(previous), newRes = saveResourcesCapped(next);
+  const oldRes = saveResources(previous);
   const oldPlanets = previous.planets || [];
   if (next.planets.length < oldPlanets.length) return "No se permite eliminar planetas desde el guardado.";
   const newColonies = next.planets.slice(oldPlanets.length).filter((p: any) => !p.moon);
@@ -592,7 +593,7 @@ function validateGrowth(previous: any, next: any, elapsed: number, baseline?: {m
   const capacity = (resource: "metal"|"crystal"|"deuterium") => next.planets.reduce((sum: number, p: any) =>
     sum + capOfSave(p.lvl[resource === "metal" ? "sm" : resource === "crystal" ? "sc" : "tk"]), 0);
   for (const resource of ["metal","crystal","deuterium"] as const) {
-    const allowedSpend = oldRes[resource] + capacity(resource) - newRes[resource]
+    const allowedSpend = oldRes[resource] + capacity(resource)
       + rates[resource] * elapsed / 3600 * 3 + refunds[resource];
     if (!Number.isFinite(required[resource]) || required[resource] > allowedSpend + 1) return "El gasto de construcción o investigación supera los recursos disponibles.";
   }
@@ -647,7 +648,7 @@ async function validateHistoricalFleetGrowth(db: DB, userId: string, previous: a
     for (const id of SAVE_UNIT_KEYS) {
       const [metal, crystal] = shipCosts[id] || [0,0];
       const unitSeconds = Math.max(10, Math.round(((metal + crystal) / (0.7 * (1 + 0.5 * (yard - 1)))) / 1.5));
-      const maxBuildable = Math.floor(elapsed * 3 / unitSeconds);
+      const maxBuildable = (old.lvl.sy || 0) >= 1 ? Math.floor(elapsed * 3 / unitSeconds) : 0;
       const allowed = Math.max(historical[id] || 0, old.fleet[id] || 0) + maxBuildable;
       if ((p.fleet[id] || 0) > allowed) return "Flota o defensas superiores al máximo histórico y a la producción posible del astillero.";
     }
@@ -803,10 +804,10 @@ const savePut: Route = async (request, db) => {
   if (darkError) return rejectSave(db, user.id, darkError);
   const currentTime = now();
   const elapsed = checkRows.results?.length ? Math.max(0, currentTime - Math.min(...checkRows.results.map((r: any) => r.checked_at))) : 0;
-  const growthError = validateGrowth(previous, parsed, elapsed);
-  if (growthError) return rejectSave(db, user.id, growthError);
   const timedError = await validateTimedGrowth(db, user.id, previous, parsed, currentTime);
   if (timedError) return rejectSave(db, user.id, timedError);
+  const growthError = validateGrowth(previous, parsed, elapsed);
+  if (growthError) return rejectSave(db, user.id, growthError);
   const fleetError = await validateHistoricalFleetGrowth(db, user.id, previous, parsed, checks, currentTime);
   if (fleetError) return rejectSave(db, user.id, fleetError);
   const clipped = clipSaveResources(parsed);
