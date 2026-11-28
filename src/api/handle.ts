@@ -603,7 +603,7 @@ function validateGrowth(previous: any, next: any, elapsed: number): string {
       const parent = oldPlanets.find((x: any) => x.coords === p.parent && !x.moon);
       if (!parent || ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].some(k => p.lvl[k] > (parent.lvl[k] || 0))) return "Investigación de luna no válida.";
     } else {
-      if (p.res.metal !== 500 || p.res.crystal !== 300 || p.res.deut !== 0) return "Una colonia nueva debe comenzar con recursos iniciales.";
+      if (p.res.metal !== 0 || p.res.crystal !== 0 || p.res.deut !== 0) return "Una colonia nueva no debe crear recursos independientes del saldo compartido.";
       if (SAVE_LEVEL_KEYS.some(k => !["mm","mc","sol"].includes(k) && !["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"].includes(k) && p.lvl[k] !== 0)) return "Edificios iniciales de colonia no válidos.";
       if (p.lvl.mm !== 1 || p.lvl.mc !== 1 || p.lvl.sol !== 1) return "Edificios iniciales de colonia no válidos.";
       for (const k of ["en","cm","bl","es","cp","ap","lz","io","pl","im","hd","hy","gv"]) {
